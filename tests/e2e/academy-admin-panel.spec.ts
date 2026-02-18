@@ -6,14 +6,14 @@ import { TEST_CONFIG } from './playwright.config';
 /**
  * Academy Admin Panel E2E Tests
  * 
- * Tests all admin panel functionality from the frontend UI
- * Uses account: sept@gmail.com / Misal123
- * 
+ * Tests all admin panel functionality from the frontend UI.
+ * Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD in env (e.g. .env.e2e) - never commit real credentials.
+ *
  * @tag @admin-panel
  */
 test.describe('@admin-panel Academy Admin Panel E2E', () => {
-  const TEST_EMAIL = 'sept@gmail.com';
-  const TEST_PASSWORD = 'Misal123';
+  const TEST_EMAIL = TEST_CONFIG.ADMIN_PANEL.email;
+  const TEST_PASSWORD = TEST_CONFIG.ADMIN_PANEL.password;
   
   let uiHelper: ReturnType<typeof createUIHelper>;
   let testData: {
@@ -26,6 +26,7 @@ test.describe('@admin-panel Academy Admin Panel E2E', () => {
   test.beforeAll(async () => {
     const frontendAvailable = await isFrontendAvailable();
     test.skip(!frontendAvailable, 'Frontend not available');
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD in env (e.g. .env.e2e)');
   });
 
   test.beforeEach(async ({ page }) => {

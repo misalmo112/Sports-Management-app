@@ -2,7 +2,7 @@
 
 **Generated:** 2026-01-21T17:30:00.000Z
 
-**Test Account:** sept@gmail.com / Misal123
+**Test Account:** Set via E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD (e.g. in .env.e2e).
 
 ## Test Summary
 

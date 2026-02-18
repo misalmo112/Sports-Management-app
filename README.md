@@ -82,7 +82,7 @@ Once all services are running, you can access:
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/api/docs/ (when implemented)
 - **MinIO Console**: http://localhost:9001
-  - Default credentials: `minioadmin` / `minioadmin` (change in `.env`)
+  - Credentials: set `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` in `.env` (MinIO image default for local dev only: minioadmin/minioadmin)
 
 ## Common Commands
 

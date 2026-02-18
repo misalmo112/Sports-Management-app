@@ -129,6 +129,12 @@ export const TEST_CONFIG = {
     password: 'Parent123!',
   },
   
+  /* Admin panel E2E - set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD in env (e.g. .env.e2e) */
+  ADMIN_PANEL: {
+    email: process.env.E2E_ADMIN_EMAIL || '',
+    password: process.env.E2E_ADMIN_PASSWORD || '',
+  },
+
   /* Default test academy */
   TEST_ACADEMY: {
     name: 'Test Academy',

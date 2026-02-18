@@ -2,6 +2,17 @@
 .env
 .env.local
 .env.*.local
+.env.e2e
+.env.test
+.env.production.local
+
+# Secrets and credentials (never commit)
+*.pem
+*.key
+secrets.json
+credentials.json
+service-account*.json
+**/service-account*.json
 
 # Python
 __pycache__/
@@ -69,6 +80,14 @@ dist-ssr/
 htmlcov/
 .tox/
 .hypothesis/
+
+# Playwright / E2E (reports may contain test account info)
+test-results/
+playwright-report/
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/e2e/test-results-json.json
+tests/e2e/test-results.json/
 
 # Celery
 celerybeat-schedule

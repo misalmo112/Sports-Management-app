@@ -1,7 +1,7 @@
 # Admin E2E Test Report - API Coverage Analysis
 
 **Date:** $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")  
-**Test User:** sept@gmail.com  
+**Test User:** Set via E2E_ADMIN_EMAIL (e.g. in .env.e2e).  
 **Test Results:** 34 passed, 4 failed (quota limits)
 
 ## Executive Summary

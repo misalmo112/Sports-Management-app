@@ -84,9 +84,12 @@ test.describe('@admin Admin Tenant Operations', () => {
     await authHelper.init();
     
     try {
-      // Use custom admin credentials: sept@gmail.com / Misal123
-      adminToken = await authHelper.loginAsAdmin('sept@gmail.com', 'Misal123');
-      academyId = adminToken.user.academy_id || '';
+      const email = process.env.E2E_ADMIN_EMAIL || TEST_CONFIG.ADMIN?.email;
+      const password = process.env.E2E_ADMIN_PASSWORD || TEST_CONFIG.ADMIN?.password;
+      if (email && password) {
+        adminToken = await authHelper.loginAsAdmin(email, password);
+        academyId = adminToken?.user?.academy_id || '';
+      }
     } catch {
       console.log('Admin login failed - tests will be skipped');
     } finally {

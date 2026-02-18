@@ -182,7 +182,7 @@ function generateReport(results: TestResult[]): string {
 
   let report = `# Academy Admin Panel E2E Test Report\n\n`;
   report += `**Generated:** ${new Date().toISOString()}\n\n`;
-  report += `**Test Account:** sept@gmail.com / Misal123\n\n`;
+  report += `**Test Account:** Set via E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD (e.g. in .env.e2e).\n\n`;
 
   // Summary
   report += `## Test Summary\n\n`;

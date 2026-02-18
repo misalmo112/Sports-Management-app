@@ -2,7 +2,7 @@
 
 ## Overview
 
-This test suite provides comprehensive end-to-end testing for the Academy Admin Panel from the frontend UI perspective. It tests all admin panel actions using the account `sept@gmail.com` / `Misal123`.
+This test suite provides comprehensive end-to-end testing for the Academy Admin Panel from the frontend UI perspective. It tests all admin panel actions using credentials set via `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD` (e.g. in `.env.e2e` — never commit real credentials).
 
 ## Test Coverage
 
@@ -33,7 +33,7 @@ The test suite covers the following areas:
 
 3. Ensure backend is accessible at `http://localhost:8000`
 
-4. The test account (`sept@gmail.com` / `Misal123`) must exist and have ADMIN role
+4. The test account (set via `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD`) must exist and have ADMIN role
 
 ### Run All Admin Panel Tests
 
@@ -137,7 +137,7 @@ The tests use unique test data with timestamps to avoid conflicts:
    - Check frontend logs: `docker-compose logs frontend`
 
 2. **Login Fails**
-   - Verify account exists: `sept@gmail.com` / `Misal123`
+   - Verify account exists (credentials from E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD)
    - Check backend is running: `docker-compose ps backend`
    - Verify account has ADMIN role
 

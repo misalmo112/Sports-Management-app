@@ -85,8 +85,8 @@ This document defines the complete environment variable contract for the Sports 
 
 | Variable | Required | Default | Description | Example |
 |----------|----------|---------|-------------|---------|
-| `AWS_ACCESS_KEY_ID` | Yes | - | S3 access key ID | `minioadmin` (dev) |
-| `AWS_SECRET_ACCESS_KEY` | Yes | - | S3 secret access key | `minioadmin` (dev) |
+| `AWS_ACCESS_KEY_ID` | Yes | - | S3 access key ID | Set in .env (MinIO dev default: minioadmin) |
+| `AWS_SECRET_ACCESS_KEY` | Yes | - | S3 secret access key | Set in .env (MinIO dev default: minioadmin) |
 | `AWS_STORAGE_BUCKET_NAME` | Yes | - | S3 bucket name | `sports-academy-media` |
 | `AWS_S3_ENDPOINT_URL` | Yes | - | S3 endpoint URL | `http://localhost:9000` (MinIO) |
 | `AWS_S3_REGION_NAME` | No | `us-east-1` | S3 region name | `us-east-1` |
@@ -250,9 +250,9 @@ JWT_SECRET_KEY=jwt-dev-secret-key
 JWT_ACCESS_TOKEN_EXPIRATION=3600
 JWT_REFRESH_TOKEN_EXPIRATION=604800
 
-# Storage (MinIO)
-AWS_ACCESS_KEY_ID=minioadmin
-AWS_SECRET_ACCESS_KEY=minioadmin
+# Storage (MinIO) - set real values in .env; never commit
+AWS_ACCESS_KEY_ID=your_s3_access_key
+AWS_SECRET_ACCESS_KEY=your_s3_secret_key
 AWS_STORAGE_BUCKET_NAME=sports-academy-media-dev
 AWS_S3_ENDPOINT_URL=http://localhost:9000
 AWS_S3_USE_SSL=False

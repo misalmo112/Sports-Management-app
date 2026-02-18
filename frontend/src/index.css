@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 40% 98%;
+    --foreground: 222 32% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 32% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 32% 12%;
+    --primary: 200 90% 28%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 32 80% 92%;
+    --secondary-foreground: 222 32% 12%;
+    --muted: 220 16% 92%;
+    --muted-foreground: 222 12% 45%;
+    --accent: 148 62% 90%;
+    --accent-foreground: 222 32% 12%;
+    --destructive: 0 78% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 16% 86%;
+    --input: 220 16% 86%;
+    --ring: 200 90% 28%;
+    --radius: 0.75rem;
+
+    --shadow-soft: 0 18px 45px -30px hsl(222 32% 12% / 0.35);
+    --shadow-float: 0 24px 60px -40px hsl(200 90% 28% / 0.45);
+  }
+
+  .dark {
+    --background: 222 32% 8%;
+    --foreground: 0 0% 96%;
+    --card: 222 32% 10%;
+    --card-foreground: 0 0% 96%;
+    --popover: 222 32% 10%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 190 80% 54%;
+    --primary-foreground: 222 32% 8%;
+    --secondary: 210 24% 16%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 210 24% 16%;
+    --muted-foreground: 210 14% 70%;
+    --accent: 160 40% 18%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 0 70% 48%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 24% 20%;
+    --input: 210 24% 20%;
+    --ring: 190 80% 54%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
+    background-image:
+      radial-gradient(circle at 15% 20%, hsl(32 80% 92%), transparent 35%),
+      radial-gradient(circle at 85% 10%, hsl(148 62% 90%), transparent 35%),
+      linear-gradient(180deg, hsl(40 40% 98%), hsl(210 24% 97%));
+    background-attachment: fixed;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Bricolage Grotesque', 'Source Sans 3', sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: color-mix(in srgb, hsl(var(--card)) 85%, transparent);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(14px);
+  }
+  .page-grid {
+    background-image: linear-gradient(
+      90deg,
+      hsl(220 16% 90% / 0.5) 1px,
+      transparent 1px
+    );
+    background-size: 80px 80px;
+    background-position: -20px -20px;
+  }
+  .fade-up {
+    animation: fade-up 480ms ease-out both;
+  }
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "superadmin": {
+    "email": "superadmin@test.com",
+    "password": "SuperAdmin123!",
+    "role": "ADMIN",
+    "is_superuser": true
+  },
+  "testAcademy": {
+    "name": "Test Academy",
+    "email": "contact@testacademy.com",
+    "phone": "+1-555-0100",
+    "timezone": "America/New_York"
+  },
+  "testAcademy2": {
+    "name": "Second Academy",
+    "email": "contact@secondacademy.com",
+    "phone": "+1-555-0200",
+    "timezone": "America/Los_Angeles"
+  },
+  "admin": {
+    "email": "admin@testacademy.com",
+    "password": "Admin123!",
+    "role": "ADMIN"
+  },
+  "coach": {
+    "email": "coach@testacademy.com",
+    "password": "Coach123!",
+    "role": "COACH",
+    "profile": {
+      "specialization": "Soccer"
+    }
+  },
+  "parent": {
+    "email": "parent@testacademy.com",
+    "password": "Parent123!",
+    "role": "PARENT",
+    "profile": {
+      "phone": "+1-555-0123"
+    }
+  },
+  "onboarding": {
+    "profile": {
+      "name": "Test Academy",
+      "email": "contact@testacademy.com",
+      "phone": "+1-555-0100",
+      "timezone": "America/New_York",
+      "address_line1": "123 Sports Street",
+      "city": "New York",
+      "state": "NY",
+      "postal_code": "10001",
+      "country": "United States"
+    },
+    "locations": [
+      {
+        "name": "Main Facility",
+        "address_line1": "123 Sports Street",
+        "city": "New York",
+        "state": "NY",
+        "postal_code": "10001",
+        "country": "United States",
+        "capacity": 200
+      }
+    ],
+    "sports": [
+      {
+        "name": "Soccer",
+        "description": "Youth soccer programs",
+        "age_min": 5,
+        "age_max": 18
+      }
+    ],
+    "ageCategories": [
+      {
+        "name": "U10 (Under 10)",
+        "age_min": 5,
+        "age_max": 9,
+        "description": "Ages 5-9"
+      },
+      {
+        "name": "U14 (Under 14)",
+        "age_min": 10,
+        "age_max": 13,
+        "description": "Ages 10-13"
+      }
+    ],
+    "terms": [
+      {
+        "name": "Spring 2026",
+        "start_date": "2026-01-15",
+        "end_date": "2026-05-30",
+        "description": "Spring semester 2026"
+      }
+    ],
+    "pricing": [
+      {
+        "name": "Monthly Membership",
+        "description": "Monthly unlimited classes",
+        "duration_type": "MONTHLY",
+        "duration_value": 1,
+        "price": 99.99,
+        "currency": "USD"
+      },
+      {
+        "name": "Drop-in Class",
+        "description": "Single class session",
+        "duration_type": "SESSION",
+        "duration_value": 1,
+        "price": 15.00,
+        "currency": "USD"
+      }
+    ]
+  },
+  "student": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "date_of_birth": "2015-06-15",
+    "gender": "MALE"
+  },
+  "class": {
+    "name": "Soccer Basics U10",
+    "description": "Introduction to soccer for ages 5-9",
+    "max_capacity": 15,
+    "day_of_week": "MONDAY",
+    "start_time": "16:00",
+    "end_time": "17:00"
+  },
+  "billingItem": {
+    "name": "Monthly Fee",
+    "description": "Monthly membership fee",
+    "price": 99.99,
+    "currency": "USD"
+  }
+}

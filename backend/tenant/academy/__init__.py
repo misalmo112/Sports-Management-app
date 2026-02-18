@@ -1,0 +1,3 @@
+"""
+Tenant academy settings module.
+"""

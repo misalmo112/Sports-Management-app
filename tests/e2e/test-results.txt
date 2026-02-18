@@ -1,0 +1,739 @@
+﻿
+> sports-academy-e2e-tests@1.0.0 test:e2e
+> playwright test
+
+
+Running 198 tests using 12 workers
+
+node.exe : (node:38132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\misal\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:38132) Wa... env being set.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:38132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Γ£ô Backend is healthy
+  ok   1 [setup] ΓÇ║ global.setup.ts:47:8 ΓÇ║ Global Setup ΓÇ║ verify services are healthy (59ms)
+  Attempting login for: superadmin@test.com
+  API URL: http://localhost:8000/api/v1
+Γ£ô Superadmin authenticated
+  User: superadmin@test.com, Academy: null
+  ok   2 [setup] ΓÇ║ global.setup.ts:60:8 ΓÇ║ Global Setup ΓÇ║ setup superadmin authentication (193ms)
+Γ£ô Using existing test academy: f48d1cd0-aa77-4f95-a8f7-c2a26275e1dd
+  ok   3 [setup] ΓÇ║ global.setup.ts:84:8 ΓÇ║ Global Setup ΓÇ║ setup test academy (62ms)
+Γ£ô Admin authenticated
+  ok   4 [setup] ΓÇ║ global.setup.ts:139:8 ΓÇ║ Global Setup ΓÇ║ setup admin user (169ms)
+Γ£ô Coach authenticated
+  ok   5 [setup] ΓÇ║ global.setup.ts:157:8 ΓÇ║ Global Setup ΓÇ║ setup coach user (226ms)
+Γ£ô Parent authenticated
+  ok   6 [setup] ΓÇ║ global.setup.ts:194:8 ΓÇ║ Global Setup ΓÇ║ setup parent user (205ms)
+Γ£ô Created test student: 315
+ΓÜá Failed to create class: 403 - {"detail":"Quota exceeded","quota_type":"classes","current_usage":500,"limit":500,"requested":1}
+Γ£ô Created test billing item
+  ok   7 [setup] ΓÇ║ global.setup.ts:231:8 ΓÇ║ Global Setup ΓÇ║ setup reference data (131ms)
+
+=== Global Setup Complete ===
+Academy ID: f48d1cd0-aa77-4f95-a8f7-c2a26275e1dd
+Superadmin: Γ£ô
+Admin: Γ£ô
+Coach: Γ£ô
+Parent: Γ£ô
+Student ID: 315
+Class ID: Not created
+==============================
+
+  ok   8 [setup] ΓÇ║ global.setup.ts:307:8 ΓÇ║ Global Setup ΓÇ║ save test state (2ms)
+(node:8128) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:37212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:38284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21072) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:36260) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:39788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11344) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40876) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8128) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:37212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21072) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:36260) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:38284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11344) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:39788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40876) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  14 [chromium] ΓÇ║ auth.spec.ts:29:9 ΓÇ║ @auth Authentication ΓÇ║ Login ΓÇ║ login with valid credentials returns tokens (749ms)
+  ok  10 [chromium] ΓÇ║ admin.spec.ts:169:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Class Management ΓÇ║ admin can list classes (436ms)
+  -   22 [chromium] ΓÇ║ admin.spec.ts:179:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Class Management ΓÇ║ admin can view class detail
+  -   23 [chromium] ΓÇ║ admin.spec.ts:189:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Class Management ΓÇ║ admin can update a class
+  ok   9 [chromium] ΓÇ║ admin.spec.ts:72:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Student Management ΓÇ║ admin can create a student (762ms)
+  -   17 [chromium] ΓÇ║ admin.spec.ts:110:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Student Management ΓÇ║ admin can update a student
+  ok  20 [chromium] ΓÇ║ auth.spec.ts:48:9 ΓÇ║ @auth Authentication ΓÇ║ Login ΓÇ║ login with invalid email fails (935ms)
+  ok  24 [chromium] ΓÇ║ auth.spec.ts:82:9 ΓÇ║ @auth Authentication ΓÇ║ Login ΓÇ║ login with missing email fails (507ms)
+  ok  12 [chromium] ΓÇ║ admin.spec.ts:419:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Items ΓÇ║ admin can list billing items (861ms)
+  ok  18 [chromium] ΓÇ║ admin.spec.ts:639:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ User Management ΓÇ║ admin can list users (471ms)
+  ok  25 [chromium] ΓÇ║ admin.spec.ts:90:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Student Management ΓÇ║ admin can list students (445ms)
+  ok  27 [chromium] ΓÇ║ auth.spec.ts:98:9 ΓÇ║ @auth Authentication ΓÇ║ Login ΓÇ║ login with missing password fails (259ms)
+  ok  21 [chromium] ΓÇ║ auth.spec.ts:65:9 ΓÇ║ @auth Authentication ΓÇ║ Login ΓÇ║ login with invalid password fails (928ms)
+  x   26 [chromium] ΓÇ║ admin.spec.ts:122:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Student Management ΓÇ║ admin can delete a student (472ms)
+  ok  28 [chromium] ΓÇ║ auth.spec.ts:114:9 ΓÇ║ @auth Authentication ΓÇ║ Login ΓÇ║ login with empty credentials fails (262ms)
+  -   13 [chromium] ΓÇ║ admin.spec.ts:561:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Receipts ΓÇ║ partial payment updates invoice status
+  -   11 [chromium] ΓÇ║ admin.spec.ts:287:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Enrollment Management ΓÇ║ admin can remove enrollment
+  -   19 [chromium] ΓÇ║ admin.spec.ts:488:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Invoices ΓÇ║ admin can view invoice detail
+  -   15 [chromium] ΓÇ║ admin.spec.ts:245:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Enrollment Management ΓÇ║ admin can enroll student in class
+  ok  31 [chromium] ΓÇ║ admin.spec.ts:100:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Student Management ΓÇ║ admin can view student detail (237ms)
+  -   38 [chromium] ΓÇ║ admin.spec.ts:263:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Enrollment Management ΓÇ║ admin can view class enrollments
+  -   16 [chromium] ΓÇ║ admin.spec.ts:374:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Attendance Management ΓÇ║ admin can filter attendance by class
+  -   40 [chromium] ΓÇ║ admin.spec.ts:273:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Enrollment Management ΓÇ║ admin cannot enroll same student twice
+  ok  33 [chromium] ΓÇ║ auth.spec.ts:162:9 ΓÇ║ @auth Authentication ΓÇ║ Token Validation ΓÇ║ invalid token is rejected (375ms)
+  ok  34 [chromium] ΓÇ║ auth.spec.ts:176:9 ΓÇ║ @auth Authentication ΓÇ║ Token Validation ΓÇ║ malformed JWT is rejected (341ms)
+(node:28592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   29 [chromium] ΓÇ║ admin.spec.ts:457:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Invoices ΓÇ║ admin can create invoice (345ms)
+  ok  39 [chromium] ΓÇ║ auth.spec.ts:190:9 ΓÇ║ @auth Authentication ΓÇ║ Token Validation ΓÇ║ missing authorization header is rejected (284ms)
+  -   37 [chromium] ΓÇ║ admin.spec.ts:532:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Receipts ΓÇ║ admin can create receipt (payment)
+  ok  42 [chromium] ΓÇ║ auth.spec.ts:208:9 ΓÇ║ @auth Authentication ΓÇ║ Invite Acceptance ΓÇ║ accept invite with valid token and password succeeds (290ms)
+  ok  41 [chromium] ΓÇ║ admin.spec.ts:384:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Attendance Management ΓÇ║ admin can filter attendance by date (343ms)
+  ok  32 [chromium] ΓÇ║ auth.spec.ts:135:9 ΓÇ║ @auth Authentication ΓÇ║ Token Validation ΓÇ║ valid token allows API access (660ms)
+  ok  43 [chromium] ΓÇ║ auth.spec.ts:228:9 ΓÇ║ @auth Authentication ΓÇ║ Invite Acceptance ΓÇ║ accept invite with missing token fails (306ms)
+  ok  44 [chromium] ΓÇ║ auth.spec.ts:244:9 ΓÇ║ @auth Authentication ΓÇ║ Invite Acceptance ΓÇ║ accept invite with missing password fails (317ms)
+  ok  45 [chromium] ΓÇ║ auth.spec.ts:260:9 ΓÇ║ @auth Authentication ΓÇ║ Invite Acceptance ΓÇ║ accept invite with weak password fails (193ms)
+  ok  30 [chromium] ΓÇ║ admin.spec.ts:648:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ User Management ΓÇ║ admin cannot invite with duplicate email (784ms)
+  ok  35 [chromium] ΓÇ║ admin.spec.ts:603:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ User Management ΓÇ║ admin can invite a coach (648ms)
+  ok  46 [chromium] ΓÇ║ admin.spec.ts:552:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Receipts ΓÇ║ admin can list receipts (229ms)
+  -   36 [chromium] ΓÇ║ admin.spec.ts:345:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Attendance Management ΓÇ║ admin can mark attendance
+  ok  48 [chromium] ΓÇ║ admin.spec.ts:400:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Items ΓÇ║ admin can create billing item (244ms)
+  ok  47 [chromium] ΓÇ║ auth.spec.ts:281:9 ΓÇ║ @auth Authentication ΓÇ║ Role-Based Authentication ΓÇ║ superadmin can authenticate (464ms)
+(node:28100) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  49 [chromium] ΓÇ║ auth.spec.ts:299:9 ΓÇ║ @auth Authentication ΓÇ║ Role-Based Authentication ΓÇ║ admin can authenticate (421ms)
+  ok  50 [chromium] ΓÇ║ auth.spec.ts:315:9 ΓÇ║ @auth Authentication ΓÇ║ Role-Based Authentication ΓÇ║ coach can authenticate (582ms)
+  ok  51 [chromium] ΓÇ║ auth.spec.ts:351:9 ΓÇ║ @auth Authentication ΓÇ║ Inactive User ΓÇ║ inactive user cannot login (602ms)
+  ok  53 [chromium] ΓÇ║ auth.spec.ts:331:9 ΓÇ║ @auth Authentication ΓÇ║ Role-Based Authentication ΓÇ║ parent can authenticate (813ms)
+  ok  55 [chromium] ΓÇ║ admin.spec.ts:364:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Attendance Management ΓÇ║ admin can list attendance records (1.0s)
+  ok  54 [chromium] ΓÇ║ admin.spec.ts:621:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ User Management ΓÇ║ admin can invite a parent (1.2s)
+(node:28592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28100) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  52 [chromium] ΓÇ║ admin.spec.ts:663:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ User Management ΓÇ║ admin can resend invite (1.8s)
+  x   65 [chromium] ΓÇ║ admin.spec.ts:150:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Class Management ΓÇ║ admin can create a class (307ms)
+(node:8360) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   60 [chromium] ΓÇ║ coach.spec.ts:170:9 ΓÇ║ @coach Coach Operations ΓÇ║ Attendance Management ΓÇ║ coach can mark attendance for enrolled students
+  -   61 [chromium] ΓÇ║ coach.spec.ts:207:9 ΓÇ║ @coach Coach Operations ΓÇ║ Attendance Management ΓÇ║ coach can filter attendance by class
+  ok  59 [chromium] ΓÇ║ coach.spec.ts:129:9 ΓÇ║ @coach Coach Operations ΓÇ║ Class Access ΓÇ║ coach can list classes (307ms)
+  -   70 [chromium] ΓÇ║ coach.spec.ts:141:9 ΓÇ║ @coach Coach Operations ΓÇ║ Class Access ΓÇ║ coach can view assigned class detail
+  ok  68 [chromium] ΓÇ║ coach.spec.ts:188:9 ΓÇ║ @coach Coach Operations ΓÇ║ Attendance Management ΓÇ║ coach can list attendance records (350ms)
+  ok  67 [chromium] ΓÇ║ admin.spec.ts:479:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Invoices ΓÇ║ admin can list invoices (381ms)
+  ok  69 [chromium] ΓÇ║ coach.spec.ts:222:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Billing ΓÇ║ coach cannot access billing items (293ms)
+  ok  62 [chromium] ΓÇ║ coach.spec.ts:238:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Billing ΓÇ║ coach cannot create invoices (244ms)
+  ok  71 [chromium] ΓÇ║ coach.spec.ts:152:9 ΓÇ║ @coach Coach Operations ΓÇ║ Class Access ΓÇ║ coach classes are filtered by assignment (212ms)
+  ok  63 [chromium] ΓÇ║ coach.spec.ts:276:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - User Management ΓÇ║ coach cannot invite other coaches (198ms)
+  ok  72 [chromium] ΓÇ║ coach.spec.ts:197:9 ΓÇ║ @coach Coach Operations ΓÇ║ Attendance Management ΓÇ║ coach can view coach-specific attendance endpoint (201ms)
+  ok  64 [chromium] ΓÇ║ coach.spec.ts:310:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Student Management ΓÇ║ coach cannot create students (184ms)
+  ok  74 [chromium] ΓÇ║ coach.spec.ts:230:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Billing ΓÇ║ coach cannot access invoices (185ms)
+  ok  75 [chromium] ΓÇ║ coach.spec.ts:256:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Billing ΓÇ║ coach cannot access receipts (184ms)
+  ok  76 [chromium] ΓÇ║ coach.spec.ts:286:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - User Management ΓÇ║ coach cannot invite parents (252ms)
+  ok  66 [chromium] ΓÇ║ coach.spec.ts:346:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Class Management ΓÇ║ coach cannot create classes (225ms)
+  -   83 [chromium] ΓÇ║ coach.spec.ts:360:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Class Management ΓÇ║ coach cannot delete classes
+  ok  79 [chromium] ΓÇ║ coach.spec.ts:323:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Student Management ΓÇ║ coach cannot delete students (265ms)
+  -   84 [chromium] ΓÇ║ coach.spec.ts:369:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Class Management ΓÇ║ coach may update assigned class details
+(node:8360) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  81 [chromium] ΓÇ║ coach.spec.ts:268:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - User Management ΓÇ║ coach cannot list users (355ms)
+  ok  82 [chromium] ΓÇ║ coach.spec.ts:296:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - User Management ΓÇ║ coach cannot invite admins (287ms)
+  ok  85 [chromium] ΓÇ║ coach.spec.ts:332:9 ΓÇ║ @coach Coach Operations ΓÇ║ Blocked Operations - Student Management ΓÇ║ coach can view students in assigned classes (204ms)
+  x   77 [chromium] ΓÇ║ media-quota.spec.ts:80:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Media Upload Within Quota ΓÇ║ admin can upload media when within quota (562ms)
+  ok  78 [chromium] ΓÇ║ media-quota.spec.ts:103:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Media Upload Within Quota ΓÇ║ admin can list media files (418ms)
+  -   80 [chromium] ΓÇ║ media-quota.spec.ts:140:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Quota Management ΓÇ║ superadmin can view academy quota
+(node:26812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   86 [chromium] ΓÇ║ media-quota.spec.ts:151:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Quota Management ΓÇ║ superadmin can update academy storage quota
+  -   87 [chromium] ΓÇ║ media-quota.spec.ts:169:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Quota Management ΓÇ║ superadmin can increase academy quota
+  ok  73 [chromium] ΓÇ║ coach.spec.ts:428:9 ΓÇ║ @coach Coach Operations ΓÇ║ Overview Access ΓÇ║ coach overview shows coach-specific data (218ms)
+  -   88 [chromium] ΓÇ║ media-quota.spec.ts:224:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Quota Enforcement ΓÇ║ upload exceeding quota is blocked
+  -   89 [chromium] ΓÇ║ media-quota.spec.ts:251:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Quota Enforcement ΓÇ║ quota exceeded response contains proper error details
+(node:26812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   91 [chromium] ΓÇ║ media-quota.spec.ts:342:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Orphan Prevention ΓÇ║ failed upload does not create orphan DB records
+  -   94 [chromium] ΓÇ║ onboarding.spec.ts:54:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Invite Acceptance ΓÇ║ admin can accept invite and set password
+  ok  95 [chromium] ΓÇ║ onboarding.spec.ts:117:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Invite Acceptance ΓÇ║ accept invite with weak password fails (322ms)
+  -   92 [chromium] ΓÇ║ media-quota.spec.ts:410:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Quota Restoration ΓÇ║ increasing quota allows previously blocked uploads
+  -   97 [chromium] ΓÇ║ onboarding.spec.ts:229:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Onboarding Steps ΓÇ║ step 3: can submit sports
+  -  103 [chromium] ΓÇ║ onboarding.spec.ts:250:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Onboarding Steps ΓÇ║ step 4: can submit age categories
+  -   96 [chromium] ΓÇ║ onboarding.spec.ts:187:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Onboarding Steps ΓÇ║ step 1: can submit academy profile
+  -  104 [chromium] ΓÇ║ onboarding.spec.ts:208:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Onboarding Steps ΓÇ║ step 2: can submit locations
+  -   93 [chromium] ΓÇ║ media-quota.spec.ts:481:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Quota Tracking Accuracy ΓÇ║ deleting file updates quota usage
+  ok  99 [chromium] ΓÇ║ onboarding.spec.ts:100:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Invite Acceptance ΓÇ║ accept invite with invalid token fails (139ms)
+  -  101 [chromium] ΓÇ║ onboarding.spec.ts:166:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Onboarding Steps ΓÇ║ can get onboarding state
+  ok  90 [chromium] ΓÇ║ coach.spec.ts:386:9 ΓÇ║ @coach Coach Operations ΓÇ║ Media Access ΓÇ║ coach can access media endpoint (452ms)
+  x  110 [chromium] ΓÇ║ coach.spec.ts:396:9 ΓÇ║ @coach Coach Operations ΓÇ║ Media Access ΓÇ║ coach can upload media if permitted (24ms)
+  -  100 [chromium] ΓÇ║ onboarding.spec.ts:271:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Onboarding Steps ΓÇ║ step 5: can submit terms
+  -  111 [chromium] ΓÇ║ onboarding.spec.ts:292:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Onboarding Steps ΓÇ║ step 6: can submit pricing and complete onboarding
+  x  105 [chromium] ΓÇ║ onboarding.spec.ts:361:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 2 requires at least one location (360ms)
+  -  102 [chromium] ΓÇ║ onboarding.spec.ts:313:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Onboarding Steps ΓÇ║ onboarding state shows completed after all steps
+  -  107 [chromium] ΓÇ║ onboarding.spec.ts:520:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Tenant API Blocking ΓÇ║ onboarding endpoints are accessible before completion
+  x  106 [chromium] ΓÇ║ onboarding.spec.ts:397:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 4 requires valid age range (285ms)
+  x  108 [chromium] ΓÇ║ onboarding.spec.ts:441:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 6 requires valid pricing (160ms)
+  -   98 [chromium] ΓÇ║ media-quota.spec.ts:278:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Quota Enforcement ΓÇ║ multiple uploads until quota exhausted
+  x  113 [chromium] ΓÇ║ onboarding.spec.ts:341:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 1 requires valid email (148ms)
+(node:36860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14672) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:37512) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40712) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 112 [chromium] ΓÇ║ parent.spec.ts:146:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Children ΓÇ║ parent can list students (filtered to own children) (92ms)
+  -  116 [chromium] ΓÇ║ parent.spec.ts:160:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Children ΓÇ║ parent can view own child detail
+  ok 115 [chromium] ΓÇ║ parent.spec.ts:186:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Attendance ΓÇ║ parent can view attendance (filtered to own children) (109ms)
+  ok 117 [chromium] ΓÇ║ parent.spec.ts:172:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Children ΓÇ║ parent cannot view other children (67ms)
+  -  118 [chromium] ΓÇ║ parent.spec.ts:195:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Attendance ΓÇ║ parent cannot mark attendance
+  ok 120 [chromium] ΓÇ║ parent.spec.ts:215:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Invoices ΓÇ║ parent can list invoices (filtered to own) (86ms)
+(node:36860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14672) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40712) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:37512) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 119 [chromium] ΓÇ║ parent.spec.ts:267:9 ΓÇ║ @parent Parent Operations ΓÇ║ Media Access ΓÇ║ parent can view media (read-only) (89ms)
+  ok 123 [chromium] ΓÇ║ parent.spec.ts:276:9 ΓÇ║ @parent Parent Operations ΓÇ║ Media Access ΓÇ║ parent cannot upload media (122ms)
+  x  121 [chromium] ΓÇ║ parent.spec.ts:307:9 ΓÇ║ @parent Parent Operations ΓÇ║ Complaints ΓÇ║ parent can submit a complaint (92ms)
+  ok 125 [chromium] ΓÇ║ parent.spec.ts:293:9 ΓÇ║ @parent Parent Operations ΓÇ║ Media Access ΓÇ║ parent cannot delete media (75ms)
+(node:37380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  124 [chromium] ΓÇ║ onboarding.spec.ts:379:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 3 requires at least one sport (243ms)
+  -  126 [chromium] ΓÇ║ onboarding.spec.ts:495:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Tenant API Blocking ΓÇ║ tenant APIs are blocked before onboarding completion
+  x  128 [chromium] ΓÇ║ onboarding.spec.ts:419:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 5 requires valid date range (157ms)
+(node:38716) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32516) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 122 [chromium] ΓÇ║ coach.spec.ts:419:9 ΓÇ║ @coach Coach Operations ΓÇ║ Overview Access ΓÇ║ coach can access overview endpoint (131ms)
+  ok 127 [chromium] ΓÇ║ parent.spec.ts:341:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Admin Routes ΓÇ║ parent cannot invite users (112ms)
+  -  129 [chromium] ΓÇ║ parent.spec.ts:224:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Invoices ΓÇ║ parent can view own invoice detail
+(node:37380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 132 [chromium] ΓÇ║ parent.spec.ts:351:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Admin Routes ΓÇ║ parent cannot access billing items (105ms)
+  ok 133 [chromium] ΓÇ║ parent.spec.ts:234:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Invoices ΓÇ║ parent cannot create invoices (118ms)
+  -  135 [chromium] ΓÇ║ parent.spec.ts:252:9 ΓÇ║ @parent Parent Operations ΓÇ║ View Invoices ΓÇ║ parent cannot modify invoices
+  ok 134 [chromium] ΓÇ║ parent.spec.ts:359:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Admin Routes ΓÇ║ parent cannot create billing items (76ms)
+  ok 130 [chromium] ΓÇ║ parent.spec.ts:406:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Coach Routes ΓÇ║ parent cannot create classes (86ms)
+  -  138 [chromium] ΓÇ║ parent.spec.ts:420:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Coach Routes ΓÇ║ parent cannot modify classes
+  -  137 [chromium] ΓÇ║ platform.spec.ts:94:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Academy Management ΓÇ║ superadmin can view academy detail
+  ok 140 [chromium] ΓÇ║ parent.spec.ts:435:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Platform Routes ΓÇ║ parent cannot access platform academies (163ms)
+  -  141 [chromium] ΓÇ║ platform.spec.ts:108:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Academy Management ΓÇ║ superadmin can update academy quota
+(node:38716) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32516) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 136 [chromium] ΓÇ║ platform.spec.ts:59:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Academy Management ΓÇ║ superadmin can list academies (206ms)
+  -  143 [chromium] ΓÇ║ platform.spec.ts:126:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Academy Management ΓÇ║ superadmin can update academy plan
+  x  144 [chromium] ΓÇ║ platform.spec.ts:72:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Academy Management ΓÇ║ superadmin can create academy with admin invite (183ms)
+  ok 131 [chromium] ΓÇ║ parent.spec.ts:471:9 ΓÇ║ @parent Parent Operations ΓÇ║ Overview Access ΓÇ║ parent can access overview endpoint (227ms)
+  x  142 [chromium] ΓÇ║ platform.spec.ts:167:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Plan Management ΓÇ║ superadmin can create a plan (83ms)
+  ok 147 [chromium] ΓÇ║ platform.spec.ts:155:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Plan Management ΓÇ║ superadmin can list plans (88ms)
+  ok 148 [chromium] ΓÇ║ parent.spec.ts:480:9 ΓÇ║ @parent Parent Operations ΓÇ║ Overview Access ΓÇ║ parent overview shows parent-specific data (187ms)
+(node:41020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21456) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 149 [chromium] ΓÇ║ platform.spec.ts:247:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Audit Logs ΓÇ║ superadmin can view audit logs (97ms)
+  ok 150 [chromium] ΓÇ║ platform.spec.ts:275:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Platform Errors ΓÇ║ superadmin can view platform errors (111ms)
+  ok 151 [chromium] ΓÇ║ platform.spec.ts:259:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Audit Logs ΓÇ║ superadmin can filter audit logs by action (144ms)
+  ok 139 [chromium] ΓÇ║ parent.spec.ts:320:9 ΓÇ║ @parent Parent Operations ΓÇ║ Complaints ΓÇ║ parent can view own complaints (101ms)
+  ok 154 [chromium] ΓÇ║ parent.spec.ts:333:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Admin Routes ΓÇ║ parent cannot access user management (276ms)
+  ok 152 [chromium] ΓÇ║ platform.spec.ts:291:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Access Control ΓÇ║ non-superadmin cannot access platform endpoints (464ms)
+  ok 145 [chromium] ΓÇ║ parent.spec.ts:371:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Admin Routes ΓÇ║ parent cannot access receipts (174ms)
+(node:41020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21456) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 157 [chromium] ΓÇ║ parent.spec.ts:379:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Admin Routes ΓÇ║ parent cannot create students (201ms)
+  ok 146 [chromium] ΓÇ║ parent.spec.ts:443:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Platform Routes ΓÇ║ parent cannot access platform plans (202ms)
+  ok 153 [chromium] ΓÇ║ platform.spec.ts:319:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Access Control ΓÇ║ coach cannot access platform endpoints (299ms)
+  ok 155 [chromium] ΓÇ║ platform.spec.ts:371:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Access Control ΓÇ║ unauthenticated user cannot access platform endpoints (50ms)
+  ok 158 [chromium] ΓÇ║ parent.spec.ts:398:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Coach Routes ΓÇ║ parent cannot access coach attendance endpoint (75ms)
+  ok 159 [chromium] ΓÇ║ parent.spec.ts:451:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Platform Routes ΓÇ║ parent cannot access platform stats (219ms)
+  ok 165 [chromium] ΓÇ║ parent.spec.ts:459:9 ΓÇ║ @parent Parent Operations ΓÇ║ Blocked Operations - Platform Routes ΓÇ║ parent cannot access audit logs (308ms)
+  -  163 [chromium] ΓÇ║ platform.spec.ts:210:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Plan Management ΓÇ║ superadmin can update a plan
+  ok 160 [chromium] ΓÇ║ platform.spec.ts:345:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Access Control ΓÇ║ parent cannot access platform endpoints (555ms)
+  -  164 [chromium] ΓÇ║ platform.spec.ts:198:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Plan Management ΓÇ║ superadmin can view plan detail
+  ok 166 [chromium] ΓÇ║ platform.spec.ts:230:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Platform Stats ΓÇ║ superadmin can view platform stats (190ms)
+  -  156 [chromium] ΓÇ║ security-isolation.spec.ts:165:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Cross-Tenant ID Access ΓÇ║ admin from Academy A cannot access Academy B student by ID
+  -  171 [chromium] ΓÇ║ security-isolation.spec.ts:186:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Cross-Tenant ID Access ΓÇ║ admin from Academy A cannot list Academy B students
+  -  161 [chromium] ΓÇ║ security-isolation.spec.ts:210:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Cross-Tenant ID Access ΓÇ║ admin from Academy A cannot modify Academy B student
+  -  173 [chromium] ΓÇ║ security-isolation.spec.ts:231:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Cross-Tenant ID Access ΓÇ║ admin from Academy A cannot delete Academy B student
+  -  162 [chromium] ΓÇ║ security-isolation.spec.ts:254:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ X-Academy-ID Header Override Attack ΓÇ║ JWT for Academy A with X-Academy-ID header for Academy B is rejected
+  -  175 [chromium] ΓÇ║ security-isolation.spec.ts:283:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ X-Academy-ID Header Override Attack ΓÇ║ regular admin cannot use X-Academy-ID to switch academies
+  -  167 [chromium] ΓÇ║ security-isolation.spec.ts:312:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ X-Academy-ID Header Override Attack ΓÇ║ superadmin CAN use X-Academy-ID to switch context (valid use case)
+  -  174 [chromium] ΓÇ║ security-isolation.spec.ts:578:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Object-Level Permissions ΓÇ║ parent cannot see other parents children
+  -  178 [chromium] ΓÇ║ security-isolation.spec.ts:584:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Object-Level Permissions ΓÇ║ coach cannot access classes they are not assigned to
+  ok 172 [chromium] ΓÇ║ security-isolation.spec.ts:541:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Unauthenticated Access ΓÇ║ invalid JWT token is rejected (212ms)
+  ok 170 [chromium] ΓÇ║ security-isolation.spec.ts:498:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Unauthenticated Access ΓÇ║ unauthenticated requests to platform endpoints are blocked (772ms)
+  x  168 [chromium] ΓÇ║ security-isolation.spec.ts:392:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Role Escalation Attempts ΓÇ║ parent cannot perform admin or coach operations (380ms)
+  ok 180 [chromium] ΓÇ║ security-isolation.spec.ts:555:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Unauthenticated Access ΓÇ║ expired JWT token is rejected (49ms)
+  ok 177 [chromium] ΓÇ║ security-isolation.spec.ts:363:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Role Escalation Attempts ΓÇ║ coach cannot perform admin operations (426ms)
+  ok 181 [chromium] ΓÇ║ security-isolation.spec.ts:521:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Unauthenticated Access ΓÇ║ unauthenticated POST requests are blocked (56ms)
+  ok 169 [chromium] ΓÇ║ security-isolation.spec.ts:452:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Role Escalation Attempts ΓÇ║ parent cannot access platform endpoints (157ms)
+  ok 182 [chromium] ΓÇ║ smoke.spec.ts:42:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Application Boot ΓÇ║ backend health check responds (32ms)
+  ok 183 [chromium] ΓÇ║ smoke.spec.ts:50:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Application Boot ΓÇ║ API base URL is accessible (32ms)
+  ok 176 [chromium] ΓÇ║ security-isolation.spec.ts:593:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ SQL Injection Prevention ΓÇ║ SQL injection in query parameters is blocked (70ms)
+  ok 188 [chromium] ΓÇ║ security-isolation.spec.ts:615:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ SQL Injection Prevention ΓÇ║ SQL injection in path parameters is blocked (77ms)
+  ok 186 [chromium] ΓÇ║ smoke.spec.ts:76:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Authentication ΓÇ║ login API endpoint works (253ms)
+  ok 185 [chromium] ΓÇ║ security-isolation.spec.ts:474:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Unauthenticated Access ΓÇ║ unauthenticated requests to tenant endpoints are blocked (290ms)
+  ok 187 [chromium] ΓÇ║ smoke.spec.ts:98:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Authentication ΓÇ║ invalid credentials return error (259ms)
+(node:8352) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8352) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 193 [chromium] ΓÇ║ security-isolation.spec.ts:431:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Role Escalation Attempts ΓÇ║ coach cannot access platform endpoints (82ms)
+  ok 194 [chromium] ΓÇ║ smoke.spec.ts:372:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ API Smoke Tests ΓÇ║ health endpoint returns healthy status (14ms)
+  ok 195 [chromium] ΓÇ║ smoke.spec.ts:380:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ API Smoke Tests ΓÇ║ auth token endpoint is accessible (126ms)
+  ok 196 [chromium] ΓÇ║ smoke.spec.ts:392:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ API Smoke Tests ΓÇ║ protected endpoints require authentication (48ms)
+  x   58 [chromium] ΓÇ║ auth.spec.ts:411:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ failed login shows error message (30.4s)
+  x   56 [chromium] ΓÇ║ auth.spec.ts:377:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ login page shows form (30.8s)
+  x   57 [chromium] ΓÇ║ auth.spec.ts:386:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ successful login redirects to dashboard (30.8s)
+(node:44820) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 179 [chromium] ΓÇ║ smoke.spec.ts:28:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Application Boot ΓÇ║ frontend loads successfully (16.0s)
+  ok 114 [chromium] ΓÇ║ onboarding.spec.ts:550:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ UI Onboarding Flow ΓÇ║ onboarding page redirects unauthenticated users (24.7s)
+  ok 184 [chromium] ΓÇ║ smoke.spec.ts:62:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Authentication ΓÇ║ login page is accessible (15.9s)
+(node:44820) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 191 [chromium] ΓÇ║ smoke.spec.ts:267:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Role-Based Navigation ΓÇ║ parent sidebar shows parent-specific navigation (18.2s)
+  ok 190 [chromium] ΓÇ║ smoke.spec.ts:217:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Role-Based Navigation ΓÇ║ coach sidebar shows limited navigation (18.5s)
+  ok 197 [chromium] ΓÇ║ smoke.spec.ts:132:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Dashboard Access ΓÇ║ authenticated user can access dashboard (16.6s)
+  ok 189 [chromium] ΓÇ║ smoke.spec.ts:174:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Role-Based Navigation ΓÇ║ admin sidebar shows admin navigation items (19.1s)
+  x  109 [chromium] ΓÇ║ onboarding.spec.ts:559:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ UI Onboarding Flow ΓÇ║ completed academy redirects from onboarding to dashboard (27.9s)
+  ok 192 [chromium] ΓÇ║ smoke.spec.ts:313:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Logout ΓÇ║ logout clears session and redirects to login (21.1s)
+  ok 198 [chromium] ΓÇ║ smoke.spec.ts:154:9 ΓÇ║ @smoke Basic Application Functionality ΓÇ║ Dashboard Access ΓÇ║ unauthenticated user is redirected to login (4.6s)
+
+
+  1) [chromium] ΓÇ║ admin.spec.ts:122:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Student Management ΓÇ║ admin can delete a student 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m201[39m
+    Received: [31m400[39m
+
+       at helpers\assertions.helper.ts:175
+
+      173 |   response: ApiResponseWrapper<T>
+      174 | ): void {
+    > 175 |   expect(response.status).toBe(HTTP_STATUS.CREATED);
+          |                           ^
+      176 |   expect(response.ok).toBe(true);
+      177 | }
+      178 |
+        at assertCreated (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:175:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\admin.spec.ts:133:20
+
+  2) [chromium] ΓÇ║ admin.spec.ts:150:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Class Management ΓÇ║ admin can create a class 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m201[39m
+    Received: [31m403[39m
+
+       at helpers\assertions.helper.ts:175
+
+      173 |   response: ApiResponseWrapper<T>
+      174 | ): void {
+    > 175 |   expect(response.status).toBe(HTTP_STATUS.CREATED);
+          |                           ^
+      176 |   expect(response.ok).toBe(true);
+      177 | }
+      178 |
+        at assertCreated (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:175:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\admin.spec.ts:162:20
+
+  3) [chromium] ΓÇ║ admin.spec.ts:457:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Invoices ΓÇ║ admin can create invoice 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m201[39m
+    Received: [31m400[39m
+
+       at helpers\assertions.helper.ts:175
+
+      173 |   response: ApiResponseWrapper<T>
+      174 | ): void {
+    > 175 |   expect(response.status).toBe(HTTP_STATUS.CREATED);
+          |                           ^
+      176 |   expect(response.ok).toBe(true);
+      177 | }
+      178 |
+        at assertCreated (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:175:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\admin.spec.ts:472:20
+
+  4) [chromium] ΓÇ║ auth.spec.ts:377:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ login page shows form 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.waitForLoadState: Test timeout of 30000ms exceeded.
+
+      377 |     test('login page shows form', async ({ page }) => {
+      378 |       await page.goto('/login');
+    > 379 |       await page.waitForLoadState('networkidle');
+          |                  ^
+      380 |       
+      381 |       // Check for login form elements
+      382 |       await expect(page.locator('input[type="email"], input[name="email"]')).toBeVisible();
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\auth.spec.ts:379:18
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\auth--auth-Authentication--8dcde--Flow-login-page-shows-form-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\auth--auth-Authentication--8dcde--Flow-login-page-shows-form-chromium\error-context.md
+
+  5) [chromium] ΓÇ║ auth.spec.ts:386:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ successful login redirects to dashboard 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.waitForLoadState: Test timeout of 30000ms exceeded.
+
+      387 |       // This test requires valid credentials and the UI login flow
+      388 |       await page.goto('/login');
+    > 389 |       await page.waitForLoadState('networkidle');
+          |                  ^
+      390 |       
+      391 |       // Fill in credentials
+      392 |       await page.fill('input[type="email"], input[name="email"]', TEST_CONFIG.ADMIN.email);
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\auth.spec.ts:389:18
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\auth--auth-Authentication--51c33-ogin-redirects-to-dashboard-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\auth--auth-Authentication--51c33-ogin-redirects-to-dashboard-chromium\error-context.md
+
+  6) [chromium] ΓÇ║ auth.spec.ts:411:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ failed login shows error message 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.waitForLoadState: Test timeout of 30000ms exceeded.
+
+      411 |     test('failed login shows error message', async ({ page }) => {
+      412 |       await page.goto('/login');
+    > 413 |       await page.waitForLoadState('networkidle');
+          |                  ^
+      414 |       
+      415 |       // Fill in invalid credentials
+      416 |       await page.fill('input[type="email"], input[name="email"]', 'invalid@user.com');
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\auth.spec.ts:413:18
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\auth--auth-Authentication--f165a-d-login-shows-error-message-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\auth--auth-Authentication--f165a-d-login-shows-error-message-chromium\error-context.md
+
+  7) [chromium] ΓÇ║ coach.spec.ts:396:9 ΓÇ║ @coach Coach Operations ΓÇ║ Media Access ΓÇ║ coach can upload media if permitted 
+
+    TypeError: apiRequestContext.post: Cannot read properties of undefined (reading 'on')
+
+       at helpers\api.helper.ts:345
+
+      343 |     }
+      344 |
+    > 345 |     const response = await this.apiContext!.post(this.getFullUrl(url), {
+          |                                             ^
+      346 |       headers,
+      347 |       multipart: {
+      348 |         file: {
+        at ApiHelper.uploadFile (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\api.helper.ts:345:45)
+        at DataFactory.uploadMediaFile (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\data.factory.ts:600:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\coach.spec.ts:406:42
+
+  8) [chromium] ΓÇ║ media-quota.spec.ts:80:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Media Upload Within Quota ΓÇ║ admin can upload media when within quota 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoContain[2m([22m[32mexpected[39m[2m) // indexOf[22m
+
+    Expected value: [32m400[39m
+    Received array: [31m[201, 200, 403][39m
+
+      93 |       
+      94 |       // Should succeed if within quota
+    > 95 |       expect([201, 200, 403]).toContain(response.status);
+         |                               ^
+      96 |       
+      97 |       if (response.ok) {
+      98 |         expect(response.data).toHaveProperty('id');
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\media-quota.spec.ts:95:31
+
+  9) [chromium] ΓÇ║ onboarding.spec.ts:341:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 1 requires valid email 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m400[39m
+    Received: [31m404[39m
+
+       at helpers\assertions.helper.ts:93
+
+      91 |   expectedMessage?: string
+      92 | ): void {
+    > 93 |   expect(response.status).toBe(HTTP_STATUS.BAD_REQUEST);
+         |                           ^
+      94 |   expect(response.ok).toBe(false);
+      95 |   
+      96 |   if (expectedMessage) {
+        at assertBadRequest (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:93:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\onboarding.spec.ts:355:25
+
+  10) [chromium] ΓÇ║ onboarding.spec.ts:361:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 2 requires at least one location 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m400[39m
+    Received: [31m404[39m
+
+       at helpers\assertions.helper.ts:93
+
+      91 |   expectedMessage?: string
+      92 | ): void {
+    > 93 |   expect(response.status).toBe(HTTP_STATUS.BAD_REQUEST);
+         |                           ^
+      94 |   expect(response.ok).toBe(false);
+      95 |   
+      96 |   if (expectedMessage) {
+        at assertBadRequest (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:93:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\onboarding.spec.ts:373:25
+
+  11) [chromium] ΓÇ║ onboarding.spec.ts:379:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 3 requires at least one sport 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m400[39m
+    Received: [31m404[39m
+
+       at helpers\assertions.helper.ts:93
+
+      91 |   expectedMessage?: string
+      92 | ): void {
+    > 93 |   expect(response.status).toBe(HTTP_STATUS.BAD_REQUEST);
+         |                           ^
+      94 |   expect(response.ok).toBe(false);
+      95 |   
+      96 |   if (expectedMessage) {
+        at assertBadRequest (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:93:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\onboarding.spec.ts:391:25
+
+  12) [chromium] ΓÇ║ onboarding.spec.ts:397:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 4 requires valid age range 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m400[39m
+    Received: [31m404[39m
+
+       at helpers\assertions.helper.ts:93
+
+      91 |   expectedMessage?: string
+      92 | ): void {
+    > 93 |   expect(response.status).toBe(HTTP_STATUS.BAD_REQUEST);
+         |                           ^
+      94 |   expect(response.ok).toBe(false);
+      95 |   
+      96 |   if (expectedMessage) {
+        at assertBadRequest (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:93:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\onboarding.spec.ts:413:25
+
+  13) [chromium] ΓÇ║ onboarding.spec.ts:419:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 5 requires valid date range 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m400[39m
+    Received: [31m404[39m
+
+       at helpers\assertions.helper.ts:93
+
+      91 |   expectedMessage?: string
+      92 | ): void {
+    > 93 |   expect(response.status).toBe(HTTP_STATUS.BAD_REQUEST);
+         |                           ^
+      94 |   expect(response.ok).toBe(false);
+      95 |   
+      96 |   if (expectedMessage) {
+        at assertBadRequest (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:93:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\onboarding.spec.ts:435:25
+
+  14) [chromium] ΓÇ║ onboarding.spec.ts:441:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 6 requires valid pricing 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m400[39m
+    Received: [31m404[39m
+
+       at helpers\assertions.helper.ts:93
+
+      91 |   expectedMessage?: string
+      92 | ): void {
+    > 93 |   expect(response.status).toBe(HTTP_STATUS.BAD_REQUEST);
+         |                           ^
+      94 |   expect(response.ok).toBe(false);
+      95 |   
+      96 |   if (expectedMessage) {
+        at assertBadRequest (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:93:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\onboarding.spec.ts:459:25
+
+  15) [chromium] ΓÇ║ onboarding.spec.ts:559:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ UI Onboarding Flow ΓÇ║ completed academy redirects from onboarding to dashboard 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoMatch[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected pattern: [32m/onboarding|dashboard/[39m
+    Received string:  [31m"http://localhost:5173/login"[39m
+
+      578 |       // URL should either stay on onboarding (if academy incomplete) or go to dashboard
+      579 |       const url = page.url();
+    > 580 |       expect(url).toMatch(/onboarding|dashboard/);
+          |                   ^
+      581 |     });
+      582 |     
+      583 |   });
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\onboarding.spec.ts:580:19
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\onboarding--onboarding-Aca-f3c8f-rom-onboarding-to-dashboard-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\onboarding--onboarding-Aca-f3c8f-rom-onboarding-to-dashboard-chromium\error-context.md
+
+  16) [chromium] ΓÇ║ parent.spec.ts:307:9 ΓÇ║ @parent Parent Operations ΓÇ║ Complaints ΓÇ║ parent can submit a complaint 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m201[39m
+    Received: [31m400[39m
+
+       at helpers\assertions.helper.ts:175
+
+      173 |   response: ApiResponseWrapper<T>
+      174 | ): void {
+    > 175 |   expect(response.status).toBe(HTTP_STATUS.CREATED);
+          |                           ^
+      176 |   expect(response.ok).toBe(true);
+      177 | }
+      178 |
+        at assertCreated (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:175:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\parent.spec.ts:316:20
+
+  17) [chromium] ΓÇ║ platform.spec.ts:72:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Academy Management ΓÇ║ superadmin can create academy with admin invite 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m201[39m
+    Received: [31m400[39m
+
+       at helpers\assertions.helper.ts:175
+
+      173 |   response: ApiResponseWrapper<T>
+      174 | ): void {
+    > 175 |   expect(response.status).toBe(HTTP_STATUS.CREATED);
+          |                           ^
+      176 |   expect(response.ok).toBe(true);
+      177 | }
+      178 |
+        at assertCreated (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:175:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\platform.spec.ts:86:20
+
+  18) [chromium] ΓÇ║ platform.spec.ts:167:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Plan Management ΓÇ║ superadmin can create a plan 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m201[39m
+    Received: [31m400[39m
+
+       at helpers\assertions.helper.ts:175
+
+      173 |   response: ApiResponseWrapper<T>
+      174 | ): void {
+    > 175 |   expect(response.status).toBe(HTTP_STATUS.CREATED);
+          |                           ^
+      176 |   expect(response.ok).toBe(true);
+      177 | }
+      178 |
+        at assertCreated (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:175:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\platform.spec.ts:191:20
+
+  19) [chromium] ΓÇ║ security-isolation.spec.ts:392:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Role Escalation Attempts ΓÇ║ parent cannot perform admin or coach operations 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m403[39m
+    Received: [31m400[39m
+
+       at helpers\assertions.helper.ts:28
+
+      26 |   expectedMessage?: string
+      27 | ): void {
+    > 28 |   expect(response.status).toBe(HTTP_STATUS.FORBIDDEN);
+         |                           ^
+      29 |   expect(response.ok).toBe(false);
+      30 |   
+      31 |   if (expectedMessage) {
+        at assertForbidden (C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\helpers\assertions.helper.ts:28:27)
+        at C:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\tests\e2e\security-isolation.spec.ts:417:24
+
+  19 failed
+    [chromium] ΓÇ║ admin.spec.ts:122:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Student Management ΓÇ║ admin can delete a student 
+    [chromium] ΓÇ║ admin.spec.ts:150:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Class Management ΓÇ║ admin can create a class 
+    [chromium] ΓÇ║ admin.spec.ts:457:9 ΓÇ║ @admin Admin Tenant Operations ΓÇ║ Billing - Invoices ΓÇ║ admin can create invoice 
+    [chromium] ΓÇ║ auth.spec.ts:377:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ login page shows form ΓöÇ
+    [chromium] ΓÇ║ auth.spec.ts:386:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ successful login redirects to dashboard 
+    [chromium] ΓÇ║ auth.spec.ts:411:9 ΓÇ║ @auth Authentication ΓÇ║ UI Login Flow ΓÇ║ failed login shows error message 
+    [chromium] ΓÇ║ coach.spec.ts:396:9 ΓÇ║ @coach Coach Operations ΓÇ║ Media Access ΓÇ║ coach can upload media if permitted 
+    [chromium] ΓÇ║ media-quota.spec.ts:80:9 ΓÇ║ @quota Media Quota Enforcement ΓÇ║ Media Upload Within Quota ΓÇ║ admin can upload media when within quota 
+    [chromium] ΓÇ║ onboarding.spec.ts:341:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 1 requires valid email 
+    [chromium] ΓÇ║ onboarding.spec.ts:361:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 2 requires at least one location 
+    [chromium] ΓÇ║ onboarding.spec.ts:379:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 3 requires at least one sport 
+    [chromium] ΓÇ║ onboarding.spec.ts:397:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 4 requires valid age range 
+    [chromium] ΓÇ║ onboarding.spec.ts:419:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 5 requires valid date range 
+    [chromium] ΓÇ║ onboarding.spec.ts:441:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ Step Validation ΓÇ║ step 6 requires valid pricing 
+    [chromium] ΓÇ║ onboarding.spec.ts:559:9 ΓÇ║ @onboarding Academy Onboarding Wizard ΓÇ║ UI Onboarding Flow ΓÇ║ completed academy redirects from onboarding to dashboard 
+    [chromium] ΓÇ║ parent.spec.ts:307:9 ΓÇ║ @parent Parent Operations ΓÇ║ Complaints ΓÇ║ parent can submit a complaint 
+    [chromium] ΓÇ║ platform.spec.ts:72:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Academy Management ΓÇ║ superadmin can create academy with admin invite 
+    [chromium] ΓÇ║ platform.spec.ts:167:9 ΓÇ║ @platform Superadmin Platform Operations ΓÇ║ Plan Management ΓÇ║ superadmin can create a plan 
+    [chromium] ΓÇ║ security-isolation.spec.ts:392:9 ΓÇ║ @security Multi-Tenant Security Isolation ΓÇ║ Role Escalation Attempts ΓÇ║ parent cannot perform admin or coach operations 
+  56 skipped
+  123 passed (48.3s)

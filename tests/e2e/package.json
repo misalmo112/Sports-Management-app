@@ -1,0 +1,28 @@
+{
+  "name": "sports-academy-e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E tests for Sports Academy Management System",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:e2e": "playwright test",
+    "test:e2e:security": "playwright test --grep @security",
+    "test:e2e:admin": "playwright test --grep @admin",
+    "test:e2e:platform": "playwright test --grep @platform",
+    "test:e2e:coach": "playwright test --grep @coach",
+    "test:e2e:parent": "playwright test --grep @parent",
+    "test:e2e:quota": "playwright test --grep @quota",
+    "test:e2e:admin-panel": "playwright test --grep @admin-panel",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "report:admin-panel": "node --loader ts-node/esm scripts/generate-report.ts || npx ts-node scripts/generate-report.ts",
+    "test:admin-panel:with-report": "playwright test --grep @admin-panel --reporter=json,list && npm run report:admin-panel"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,194 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: SA
+            - generic:
+              - paragraph: Sports Academy
+              - heading [level=2]: Control Desk
+        - navigation:
+          - generic:
+            - button:
+              - generic: Overview
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/admin/overview
+                - img
+                - generic: Overview
+          - generic:
+            - button:
+              - generic: Operations
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/students
+                - img
+                - generic: Students
+              - link:
+                - /url: /dashboard/classes
+                - img
+                - generic: Classes
+              - link:
+                - /url: /dashboard/attendance
+                - img
+                - generic: Attendance
+          - generic:
+            - button:
+              - generic: Finance
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/finance/items
+                - img
+                - generic: Items
+              - link:
+                - /url: /dashboard/finance/invoices
+                - img
+                - generic: Invoices
+              - link:
+                - /url: /dashboard/finance/receipts
+                - img
+                - generic: Receipts
+          - generic:
+            - button:
+              - generic: Management
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/users
+                - img
+                - generic: Users
+              - link:
+                - /url: /dashboard/media
+                - img
+                - generic: Media
+              - link:
+                - /url: /dashboard/reports
+                - img
+                - generic: Reports
+              - link:
+                - /url: /dashboard/complaints
+                - img
+                - generic: Complaints
+          - generic:
+            - button:
+              - generic: Settings
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/settings/locations
+                - img
+                - generic: Locations
+              - link:
+                - /url: /dashboard/settings/sports
+                - img
+                - generic: Sports
+              - link:
+                - /url: /dashboard/settings/age-categories
+                - img
+                - generic: Age Categories
+              - link:
+                - /url: /dashboard/settings/terms
+                - img
+                - generic: Terms
+              - link:
+                - /url: /dashboard/settings/pricing
+                - img
+                - generic: Pricing
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - paragraph: ADMIN Workspace
+                - heading [level=1]: Users
+              - generic:
+                - button: Switch Academy
+                - generic: Quick Action
+                - button:
+                  - img
+                  - generic: Logout
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]: Users
+                    - paragraph: Manage admins, coaches, and parents for your academy
+                  - button:
+                    - img
+                    - text: Invite User
+                - generic:
+                  - generic:
+                    - heading [level=3]: User Management
+                    - paragraph: View and manage users by role
+                  - generic:
+                    - generic:
+                      - tablist:
+                        - tab [selected]: Admins
+                        - tab: Coaches
+                        - tab: Parents
+                      - tabpanel:
+                        - generic:
+                          - generic:
+                            - table:
+                              - rowgroup:
+                                - row:
+                                  - columnheader: Name
+                                  - columnheader: Email
+                                  - columnheader: Role
+                                  - columnheader: Status
+                                  - columnheader: Invited
+                                  - columnheader: Last Login
+                                  - columnheader: Actions
+                              - rowgroup:
+                                - row:
+                                  - cell: —
+                                  - cell: sept@gmail.com
+                                  - cell: Admin
+                                  - cell
+                                  - cell: —
+                                  - cell: —
+                                  - cell:
+                                    - generic:
+                                      - button:
+                                        - img
+                                        - text: View
+                                      - button: Disable
+  - dialog "Invite User" [ref=e2]:
+    - generic [ref=e3]:
+      - heading "Invite User" [level=2] [ref=e4]
+      - paragraph [ref=e5]: Send an invitation to a new user. They will receive an email with instructions to set up their account.
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - generic [ref=e9]: Email *
+          - textbox "Email *" [active] [ref=e10]:
+            - /placeholder: user@example.com
+            - text: coach-e2e-1769015873911@test.com
+        - generic [ref=e11]:
+          - generic [ref=e12]: Role *
+          - combobox "Role *" [ref=e13] [cursor=pointer]:
+            - generic: Admin
+            - img [ref=e14]
+          - combobox [ref=e16]
+        - generic [ref=e17]:
+          - generic [ref=e18]: First Name (Optional)
+          - textbox "First Name (Optional)" [ref=e19]:
+            - /placeholder: John
+        - generic [ref=e20]:
+          - generic [ref=e21]: Last Name (Optional)
+          - textbox "Last Name (Optional)" [ref=e22]:
+            - /placeholder: Doe
+      - generic [ref=e23]:
+        - button "Cancel" [ref=e24] [cursor=pointer]
+        - button "Send Invitation" [ref=e25] [cursor=pointer]
+    - button "Close" [ref=e26] [cursor=pointer]:
+      - img [ref=e27]
+      - generic [ref=e30]: Close
+```

@@ -1,0 +1,201 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: SA
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: Sports Academy
+        - heading "Control Desk" [level=2] [ref=e10]
+    - navigation [ref=e11]:
+      - generic [ref=e12]:
+        - button "Overview" [ref=e13] [cursor=pointer]:
+          - generic [ref=e14]: Overview
+          - img [ref=e15]
+        - link "Overview" [ref=e18] [cursor=pointer]:
+          - /url: /dashboard/admin/overview
+          - img [ref=e19]
+          - generic [ref=e24]: Overview
+      - generic [ref=e25]:
+        - button "Operations" [ref=e26] [cursor=pointer]:
+          - generic [ref=e27]: Operations
+          - img [ref=e28]
+        - generic [ref=e30]:
+          - link "Students" [ref=e31] [cursor=pointer]:
+            - /url: /dashboard/students
+            - img [ref=e32]
+            - generic [ref=e35]: Students
+          - link "Classes" [ref=e36] [cursor=pointer]:
+            - /url: /dashboard/classes
+            - img [ref=e37]
+            - generic [ref=e39]: Classes
+          - link "Attendance" [ref=e40] [cursor=pointer]:
+            - /url: /dashboard/attendance
+            - img [ref=e41]
+            - generic [ref=e45]: Attendance
+      - generic [ref=e46]:
+        - button "Finance" [ref=e47] [cursor=pointer]:
+          - generic [ref=e48]: Finance
+          - img [ref=e49]
+        - generic [ref=e51]:
+          - link "Items" [ref=e52] [cursor=pointer]:
+            - /url: /dashboard/finance/items
+            - img [ref=e53]
+            - generic [ref=e55]: Items
+          - link "Invoices" [ref=e56] [cursor=pointer]:
+            - /url: /dashboard/finance/invoices
+            - img [ref=e57]
+            - generic [ref=e60]: Invoices
+          - link "Receipts" [ref=e61] [cursor=pointer]:
+            - /url: /dashboard/finance/receipts
+            - img [ref=e62]
+            - generic [ref=e65]: Receipts
+      - generic [ref=e66]:
+        - button "Management" [ref=e67] [cursor=pointer]:
+          - generic [ref=e68]: Management
+          - img [ref=e69]
+        - generic [ref=e71]:
+          - link "Users" [ref=e72] [cursor=pointer]:
+            - /url: /dashboard/users
+            - img [ref=e73]
+            - generic [ref=e85]: Users
+          - link "Media" [ref=e86] [cursor=pointer]:
+            - /url: /dashboard/media
+            - img [ref=e87]
+            - generic [ref=e91]: Media
+          - link "Reports" [ref=e92] [cursor=pointer]:
+            - /url: /dashboard/reports
+            - img [ref=e93]
+            - generic [ref=e96]: Reports
+          - link "Complaints" [ref=e97] [cursor=pointer]:
+            - /url: /dashboard/complaints
+            - img [ref=e98]
+            - generic [ref=e100]: Complaints
+      - generic [ref=e101]:
+        - button "Settings" [ref=e102] [cursor=pointer]:
+          - generic [ref=e103]: Settings
+          - img [ref=e104]
+        - generic [ref=e106]:
+          - link "Locations" [ref=e107] [cursor=pointer]:
+            - /url: /dashboard/settings/locations
+            - img [ref=e108]
+            - generic [ref=e111]: Locations
+          - link "Sports" [ref=e112] [cursor=pointer]:
+            - /url: /dashboard/settings/sports
+            - img [ref=e113]
+            - generic [ref=e119]: Sports
+          - link "Age Categories" [ref=e120] [cursor=pointer]:
+            - /url: /dashboard/settings/age-categories
+            - img [ref=e121]
+            - generic [ref=e124]: Age Categories
+          - link "Terms" [ref=e125] [cursor=pointer]:
+            - /url: /dashboard/settings/terms
+            - img [ref=e126]
+            - generic [ref=e128]: Terms
+          - link "Pricing" [ref=e129] [cursor=pointer]:
+            - /url: /dashboard/settings/pricing
+            - img [ref=e130]
+            - generic [ref=e132]: Pricing
+  - main [ref=e133]:
+    - generic [ref=e135]:
+      - generic [ref=e136]:
+        - generic [ref=e137]:
+          - paragraph [ref=e138]: ADMIN Workspace
+          - heading "1407" [level=1] [ref=e139]
+        - generic [ref=e140]:
+          - button "Switch Academy" [ref=e141] [cursor=pointer]
+          - generic [ref=e142]: Quick Action
+          - button "Logout" [ref=e143] [cursor=pointer]:
+            - img [ref=e144]
+            - generic [ref=e147]: Logout
+      - generic [ref=e149]:
+        - generic [ref=e150]:
+          - button "← Back to Students" [ref=e151] [cursor=pointer]
+          - button "Edit Student" [ref=e152] [cursor=pointer]:
+            - img [ref=e153]
+            - text: Edit Student
+        - generic [ref=e156]:
+          - generic [ref=e157]:
+            - heading "Personal Information" [level=3] [ref=e159]
+            - generic [ref=e160]:
+              - generic [ref=e161]:
+                - text: Full Name
+                - paragraph [ref=e162]: Attendance Filter
+              - generic [ref=e163]:
+                - text: Age
+                - paragraph [ref=e164]: "12"
+              - generic [ref=e165]:
+                - text: Date of Birth
+                - paragraph [ref=e166]: 7/10/2013
+              - generic [ref=e167]:
+                - text: Gender
+                - paragraph [ref=e168]: Male
+              - generic [ref=e169]:
+                - text: Status
+                - generic [ref=e171]: Active
+          - generic [ref=e172]:
+            - heading "Contact Information" [level=3] [ref=e174]
+            - generic [ref=e175]:
+              - generic [ref=e176]:
+                - text: Email
+                - paragraph [ref=e177]: —
+              - generic [ref=e178]:
+                - text: Phone
+                - paragraph [ref=e179]: —
+              - generic [ref=e180]:
+                - text: Parent/Guardian
+                - paragraph [ref=e181]: —
+          - generic [ref=e182]:
+            - generic [ref=e183]:
+              - heading "Enrollments" [level=3] [ref=e184]
+              - paragraph [ref=e185]: 1 enrollment
+            - table [ref=e189]:
+              - rowgroup [ref=e190]:
+                - row "Class Status Enrolled Date Notes" [ref=e191]:
+                  - columnheader "Class" [ref=e192]
+                  - columnheader "Status" [ref=e193]
+                  - columnheader "Enrolled Date" [ref=e194]
+                  - columnheader "Notes" [ref=e195]
+              - rowgroup [ref=e196]:
+                - row "Attendance Filter Class Enrolled 1/21/2026 —" [ref=e197]:
+                  - cell "Attendance Filter Class" [ref=e198]
+                  - cell "Enrolled" [ref=e199]:
+                    - generic [ref=e200]: Enrolled
+                  - cell "1/21/2026" [ref=e201]
+                  - cell "—" [ref=e202]
+          - generic [ref=e203]:
+            - generic [ref=e204]:
+              - heading "Attendance Summary" [level=3] [ref=e205]
+              - paragraph [ref=e206]: 1 record - 100% attendance rate
+            - generic [ref=e208]:
+              - generic [ref=e209]:
+                - generic [ref=e210]:
+                  - text: Total Records
+                  - paragraph [ref=e211]: "1"
+                - generic [ref=e212]:
+                  - text: Present
+                  - paragraph [ref=e213]: "1"
+                - generic [ref=e214]:
+                  - text: Absent
+                  - paragraph [ref=e215]: "0"
+              - generic [ref=e216]:
+                - generic [ref=e217]: Recent Attendance Records
+                - table [ref=e220]:
+                  - rowgroup [ref=e221]:
+                    - row "Date Class Status" [ref=e222]:
+                      - columnheader "Date" [ref=e223]
+                      - columnheader "Class" [ref=e224]
+                      - columnheader "Status" [ref=e225]
+                  - rowgroup [ref=e226]:
+                    - 'row "1/21/2026 Class #1605 PRESENT" [ref=e227]':
+                      - cell "1/21/2026" [ref=e228]
+                      - 'cell "Class #1605" [ref=e229]'
+                      - cell "PRESENT" [ref=e230]:
+                        - generic [ref=e231]: PRESENT
+          - generic [ref=e232]:
+            - heading "System Information" [level=3] [ref=e234]
+            - generic [ref=e235]:
+              - paragraph [ref=e236]: "Created: 1/21/2026, 8:51:36 PM"
+              - paragraph [ref=e237]: "Last Updated: 1/21/2026, 8:51:36 PM"
+```

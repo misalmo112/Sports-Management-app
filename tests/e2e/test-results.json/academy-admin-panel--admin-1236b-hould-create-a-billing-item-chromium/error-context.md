@@ -1,0 +1,197 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: SA
+            - generic:
+              - paragraph: Sports Academy
+              - heading [level=2]: Control Desk
+        - navigation:
+          - generic:
+            - button:
+              - generic: Overview
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/admin/overview
+                - img
+                - generic: Overview
+          - generic:
+            - button:
+              - generic: Operations
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/students
+                - img
+                - generic: Students
+              - link:
+                - /url: /dashboard/classes
+                - img
+                - generic: Classes
+              - link:
+                - /url: /dashboard/attendance
+                - img
+                - generic: Attendance
+          - generic:
+            - button:
+              - generic: Finance
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/finance/items
+                - img
+                - generic: Items
+              - link:
+                - /url: /dashboard/finance/invoices
+                - img
+                - generic: Invoices
+              - link:
+                - /url: /dashboard/finance/receipts
+                - img
+                - generic: Receipts
+          - generic:
+            - button:
+              - generic: Management
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/users
+                - img
+                - generic: Users
+              - link:
+                - /url: /dashboard/media
+                - img
+                - generic: Media
+              - link:
+                - /url: /dashboard/reports
+                - img
+                - generic: Reports
+              - link:
+                - /url: /dashboard/complaints
+                - img
+                - generic: Complaints
+          - generic:
+            - button:
+              - generic: Settings
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/settings/locations
+                - img
+                - generic: Locations
+              - link:
+                - /url: /dashboard/settings/sports
+                - img
+                - generic: Sports
+              - link:
+                - /url: /dashboard/settings/age-categories
+                - img
+                - generic: Age Categories
+              - link:
+                - /url: /dashboard/settings/terms
+                - img
+                - generic: Terms
+              - link:
+                - /url: /dashboard/settings/pricing
+                - img
+                - generic: Pricing
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - paragraph: ADMIN Workspace
+                - heading [level=1]: Items
+              - generic:
+                - button: Switch Academy
+                - generic: Quick Action
+                - button:
+                  - img
+                  - generic: Logout
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]: Billing Items
+                    - paragraph: Manage pricing and billing items
+                  - button:
+                    - img
+                    - text: Create Item
+                - generic:
+                  - generic:
+                    - heading [level=3]: Items
+                    - paragraph: All billing items in the academy
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                        - textbox:
+                          - /placeholder: Search items by name or description...
+                      - combobox:
+                        - generic: All Status
+                        - img
+                    - generic:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - columnheader: Name
+                              - columnheader: Description
+                              - columnheader: Price
+                              - columnheader: Currency
+                              - columnheader: Status
+                              - columnheader: Created
+                              - columnheader: Actions
+                          - rowgroup:
+                            - row:
+                              - cell: Monthly Membership
+                              - cell: —
+                              - cell: $99.99
+                              - cell: USD
+                              - cell:
+                                - generic: Active
+                              - cell: Invalid Date
+                              - cell:
+                                - generic:
+                                  - button:
+                                    - img
+                                  - button:
+                                    - img
+  - dialog "Create Billing Item" [ref=e2]:
+    - generic [ref=e3]:
+      - heading "Create Billing Item" [level=2] [ref=e4]
+      - paragraph [ref=e5]: Add a new billing item that can be used in invoices.
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - generic [ref=e9]: Name *
+          - textbox "Name *" [active] [ref=e10]: Test Item 1769015862090
+        - generic [ref=e11]:
+          - generic [ref=e12]: Description
+          - textbox "Description" [ref=e13]:
+            - /placeholder: Optional description...
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - generic [ref=e16]: Price *
+            - spinbutton "Price *" [ref=e17]
+          - generic [ref=e18]:
+            - generic [ref=e19]: Currency
+            - textbox "Currency" [ref=e20]:
+              - /placeholder: USD
+              - text: USD
+        - generic [ref=e21]:
+          - checkbox "Active" [checked] [ref=e22]
+          - generic [ref=e23]: Active
+      - generic [ref=e24]:
+        - button "Cancel" [ref=e25] [cursor=pointer]
+        - button "Create Item" [ref=e26] [cursor=pointer]
+    - button "Close" [ref=e27] [cursor=pointer]:
+      - img [ref=e28]
+      - generic [ref=e31]: Close
+```

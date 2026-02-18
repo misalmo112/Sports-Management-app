@@ -1,0 +1,215 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: SA
+            - generic:
+              - paragraph: Sports Academy
+              - heading [level=2]: Control Desk
+        - navigation:
+          - generic:
+            - button:
+              - generic: Overview
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/admin/overview
+                - img
+                - generic: Overview
+          - generic:
+            - button:
+              - generic: Operations
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/students
+                - img
+                - generic: Students
+              - link:
+                - /url: /dashboard/classes
+                - img
+                - generic: Classes
+              - link:
+                - /url: /dashboard/attendance
+                - img
+                - generic: Attendance
+          - generic:
+            - button:
+              - generic: Finance
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/finance/items
+                - img
+                - generic: Items
+              - link:
+                - /url: /dashboard/finance/invoices
+                - img
+                - generic: Invoices
+              - link:
+                - /url: /dashboard/finance/receipts
+                - img
+                - generic: Receipts
+          - generic:
+            - button:
+              - generic: Management
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/users
+                - img
+                - generic: Users
+              - link:
+                - /url: /dashboard/media
+                - img
+                - generic: Media
+              - link:
+                - /url: /dashboard/reports
+                - img
+                - generic: Reports
+              - link:
+                - /url: /dashboard/complaints
+                - img
+                - generic: Complaints
+          - generic:
+            - button:
+              - generic: Settings
+              - img
+            - generic:
+              - link:
+                - /url: /dashboard/settings/locations
+                - img
+                - generic: Locations
+              - link:
+                - /url: /dashboard/settings/sports
+                - img
+                - generic: Sports
+              - link:
+                - /url: /dashboard/settings/age-categories
+                - img
+                - generic: Age Categories
+              - link:
+                - /url: /dashboard/settings/terms
+                - img
+                - generic: Terms
+              - link:
+                - /url: /dashboard/settings/pricing
+                - img
+                - generic: Pricing
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - paragraph: ADMIN Workspace
+                - heading [level=1]: Students
+              - generic:
+                - button: Switch Academy
+                - generic: Quick Action
+                - button:
+                  - img
+                  - generic: Logout
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]: Students
+                    - paragraph: Manage academy students
+                  - button:
+                    - img
+                    - text: Add Student
+                - generic:
+                  - generic:
+                    - heading [level=3]: Students List
+                    - paragraph: All students in the academy
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                        - textbox:
+                          - /placeholder: Search students by name, email, or phone...
+                      - combobox [expanded]:
+                        - generic: All Status
+                        - img
+                      - combobox:
+                        - generic: All Genders
+                        - img
+                    - generic:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - columnheader: Name
+                              - columnheader: Age
+                              - columnheader: Gender
+                              - columnheader: Parent
+                              - columnheader: Email
+                              - columnheader: Phone
+                              - columnheader: Status
+                              - columnheader: Actions
+                          - rowgroup:
+                            - row:
+                              - cell: Attendance Filter
+                              - cell: "12"
+                              - cell: Male
+                              - cell: —
+                              - cell: —
+                              - cell: —
+                              - cell:
+                                - generic: Active
+                              - cell:
+                                - generic:
+                                  - button:
+                                    - img
+                                    - text: View
+                                  - button:
+                                    - img
+                                    - text: Edit
+                            - row:
+                              - cell: Attendance Student
+                              - cell: "12"
+                              - cell: Female
+                              - cell: —
+                              - cell: —
+                              - cell: —
+                              - cell:
+                                - generic: Active
+                              - cell:
+                                - generic:
+                                  - button:
+                                    - img
+                                    - text: View
+                                  - button:
+                                    - img
+                                    - text: Edit
+                            - row:
+                              - cell: Updated Student
+                              - cell: "10"
+                              - cell: Male
+                              - cell: —
+                              - cell: —
+                              - cell: —
+                              - cell:
+                                - generic: Active
+                              - cell:
+                                - generic:
+                                  - button:
+                                    - img
+                                    - text: View
+                                  - button:
+                                    - img
+                                    - text: Edit
+  - listbox [active] [ref=e1]:
+    - option "All Status" [ref=e2]:
+      - img [ref=e5]
+      - generic [ref=e7]: All Status
+    - option "Active" [ref=e8]:
+      - generic [ref=e10]: Active
+    - option "Inactive" [ref=e11]:
+      - generic [ref=e13]: Inactive
+```

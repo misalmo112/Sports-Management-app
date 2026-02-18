@@ -1,0 +1,164 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: SA
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: Sports Academy
+        - heading "Control Desk" [level=2] [ref=e10]
+    - navigation [ref=e11]:
+      - generic [ref=e12]:
+        - button "Overview" [ref=e13] [cursor=pointer]:
+          - generic [ref=e14]: Overview
+          - img [ref=e15]
+        - link "Overview" [ref=e18] [cursor=pointer]:
+          - /url: /dashboard/admin/overview
+          - img [ref=e19]
+          - generic [ref=e24]: Overview
+      - generic [ref=e25]:
+        - button "Operations" [ref=e26] [cursor=pointer]:
+          - generic [ref=e27]: Operations
+          - img [ref=e28]
+        - generic [ref=e30]:
+          - link "Students" [ref=e31] [cursor=pointer]:
+            - /url: /dashboard/students
+            - img [ref=e32]
+            - generic [ref=e35]: Students
+          - link "Classes" [ref=e36] [cursor=pointer]:
+            - /url: /dashboard/classes
+            - img [ref=e37]
+            - generic [ref=e39]: Classes
+          - link "Attendance" [ref=e40] [cursor=pointer]:
+            - /url: /dashboard/attendance
+            - img [ref=e41]
+            - generic [ref=e45]: Attendance
+      - generic [ref=e46]:
+        - button "Finance" [ref=e47] [cursor=pointer]:
+          - generic [ref=e48]: Finance
+          - img [ref=e49]
+        - generic [ref=e51]:
+          - link "Items" [ref=e52] [cursor=pointer]:
+            - /url: /dashboard/finance/items
+            - img [ref=e53]
+            - generic [ref=e55]: Items
+          - link "Invoices" [ref=e56] [cursor=pointer]:
+            - /url: /dashboard/finance/invoices
+            - img [ref=e57]
+            - generic [ref=e60]: Invoices
+          - link "Receipts" [ref=e61] [cursor=pointer]:
+            - /url: /dashboard/finance/receipts
+            - img [ref=e62]
+            - generic [ref=e65]: Receipts
+      - generic [ref=e66]:
+        - button "Management" [ref=e67] [cursor=pointer]:
+          - generic [ref=e68]: Management
+          - img [ref=e69]
+        - generic [ref=e71]:
+          - link "Users" [ref=e72] [cursor=pointer]:
+            - /url: /dashboard/users
+            - img [ref=e73]
+            - generic [ref=e85]: Users
+          - link "Media" [ref=e86] [cursor=pointer]:
+            - /url: /dashboard/media
+            - img [ref=e87]
+            - generic [ref=e91]: Media
+          - link "Reports" [ref=e92] [cursor=pointer]:
+            - /url: /dashboard/reports
+            - img [ref=e93]
+            - generic [ref=e96]: Reports
+          - link "Complaints" [ref=e97] [cursor=pointer]:
+            - /url: /dashboard/complaints
+            - img [ref=e98]
+            - generic [ref=e100]: Complaints
+      - generic [ref=e101]:
+        - button "Settings" [ref=e102] [cursor=pointer]:
+          - generic [ref=e103]: Settings
+          - img [ref=e104]
+        - generic [ref=e106]:
+          - link "Locations" [ref=e107] [cursor=pointer]:
+            - /url: /dashboard/settings/locations
+            - img [ref=e108]
+            - generic [ref=e111]: Locations
+          - link "Sports" [ref=e112] [cursor=pointer]:
+            - /url: /dashboard/settings/sports
+            - img [ref=e113]
+            - generic [ref=e119]: Sports
+          - link "Age Categories" [ref=e120] [cursor=pointer]:
+            - /url: /dashboard/settings/age-categories
+            - img [ref=e121]
+            - generic [ref=e124]: Age Categories
+          - link "Terms" [ref=e125] [cursor=pointer]:
+            - /url: /dashboard/settings/terms
+            - img [ref=e126]
+            - generic [ref=e128]: Terms
+          - link "Pricing" [ref=e129] [cursor=pointer]:
+            - /url: /dashboard/settings/pricing
+            - img [ref=e130]
+            - generic [ref=e132]: Pricing
+  - main [ref=e133]:
+    - generic [ref=e135]:
+      - generic [ref=e136]:
+        - generic [ref=e137]:
+          - paragraph [ref=e138]: ADMIN Workspace
+          - heading "Locations" [level=1] [ref=e139]
+        - generic [ref=e140]:
+          - button "Switch Academy" [ref=e141] [cursor=pointer]
+          - generic [ref=e142]: Quick Action
+          - button "Logout" [ref=e143] [cursor=pointer]:
+            - img [ref=e144]
+            - generic [ref=e147]: Logout
+      - generic [ref=e149]:
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - heading "Locations" [level=1] [ref=e152]
+            - paragraph [ref=e153]: Manage academy locations
+          - button "Back to Dashboard" [ref=e154] [cursor=pointer]
+        - generic [ref=e155]:
+          - generic [ref=e156]:
+            - heading "Locations" [level=3] [ref=e157]
+            - paragraph [ref=e158]: Manage your academy locations. Add, edit, or remove locations as needed.
+          - generic [ref=e159]:
+            - generic [ref=e161]:
+              - generic [ref=e162]:
+                - heading "Locations" [level=3] [ref=e163]
+                - button "Add Location" [ref=e164] [cursor=pointer]:
+                  - img [ref=e165]
+                  - text: Add Location
+              - generic [ref=e167]:
+                - heading "Location 1" [level=4] [ref=e169]
+                - generic [ref=e170]:
+                  - text: Location Name *
+                  - textbox "Location Name *" [ref=e171]
+                - generic [ref=e172]:
+                  - text: Address Line 1
+                  - textbox "Address Line 1" [ref=e173]
+                - generic [ref=e174]:
+                  - text: Address Line 2
+                  - textbox "Address Line 2" [ref=e175]
+                - generic [ref=e176]:
+                  - generic [ref=e177]:
+                    - text: City
+                    - textbox "City" [ref=e178]
+                  - generic [ref=e179]:
+                    - text: State/Province
+                    - textbox "State/Province" [ref=e180]
+                - generic [ref=e181]:
+                  - generic [ref=e182]:
+                    - text: Postal Code
+                    - textbox "Postal Code" [ref=e183]
+                  - generic [ref=e184]:
+                    - text: Country
+                    - textbox "Country" [ref=e185]
+                - generic [ref=e186]:
+                  - generic [ref=e187]:
+                    - text: Phone
+                    - textbox "Phone" [ref=e188]
+                  - generic [ref=e189]:
+                    - text: Capacity
+                    - spinbutton "Capacity" [ref=e190]
+            - generic [ref=e191]:
+              - button "Cancel" [ref=e192] [cursor=pointer]
+              - button "Save Locations" [ref=e193] [cursor=pointer]
+```

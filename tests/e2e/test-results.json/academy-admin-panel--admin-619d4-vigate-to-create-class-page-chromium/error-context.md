@@ -1,0 +1,247 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: SA
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: Sports Academy
+        - heading "Control Desk" [level=2] [ref=e10]
+    - navigation [ref=e11]:
+      - generic [ref=e12]:
+        - button "Overview" [ref=e13] [cursor=pointer]:
+          - generic [ref=e14]: Overview
+          - img [ref=e15]
+        - link "Overview" [ref=e18] [cursor=pointer]:
+          - /url: /dashboard/admin/overview
+          - img [ref=e19]
+          - generic [ref=e24]: Overview
+      - generic [ref=e25]:
+        - button "Operations" [ref=e26] [cursor=pointer]:
+          - generic [ref=e27]: Operations
+          - img [ref=e28]
+        - generic [ref=e30]:
+          - link "Students" [ref=e31] [cursor=pointer]:
+            - /url: /dashboard/students
+            - img [ref=e32]
+            - generic [ref=e35]: Students
+          - link "Classes" [ref=e36] [cursor=pointer]:
+            - /url: /dashboard/classes
+            - img [ref=e37]
+            - generic [ref=e39]: Classes
+          - link "Attendance" [ref=e40] [cursor=pointer]:
+            - /url: /dashboard/attendance
+            - img [ref=e41]
+            - generic [ref=e45]: Attendance
+      - generic [ref=e46]:
+        - button "Finance" [ref=e47] [cursor=pointer]:
+          - generic [ref=e48]: Finance
+          - img [ref=e49]
+        - generic [ref=e51]:
+          - link "Items" [ref=e52] [cursor=pointer]:
+            - /url: /dashboard/finance/items
+            - img [ref=e53]
+            - generic [ref=e55]: Items
+          - link "Invoices" [ref=e56] [cursor=pointer]:
+            - /url: /dashboard/finance/invoices
+            - img [ref=e57]
+            - generic [ref=e60]: Invoices
+          - link "Receipts" [ref=e61] [cursor=pointer]:
+            - /url: /dashboard/finance/receipts
+            - img [ref=e62]
+            - generic [ref=e65]: Receipts
+      - generic [ref=e66]:
+        - button "Management" [ref=e67] [cursor=pointer]:
+          - generic [ref=e68]: Management
+          - img [ref=e69]
+        - generic [ref=e71]:
+          - link "Users" [ref=e72] [cursor=pointer]:
+            - /url: /dashboard/users
+            - img [ref=e73]
+            - generic [ref=e85]: Users
+          - link "Media" [ref=e86] [cursor=pointer]:
+            - /url: /dashboard/media
+            - img [ref=e87]
+            - generic [ref=e91]: Media
+          - link "Reports" [ref=e92] [cursor=pointer]:
+            - /url: /dashboard/reports
+            - img [ref=e93]
+            - generic [ref=e96]: Reports
+          - link "Complaints" [ref=e97] [cursor=pointer]:
+            - /url: /dashboard/complaints
+            - img [ref=e98]
+            - generic [ref=e100]: Complaints
+      - generic [ref=e101]:
+        - button "Settings" [ref=e102] [cursor=pointer]:
+          - generic [ref=e103]: Settings
+          - img [ref=e104]
+        - generic [ref=e106]:
+          - link "Locations" [ref=e107] [cursor=pointer]:
+            - /url: /dashboard/settings/locations
+            - img [ref=e108]
+            - generic [ref=e111]: Locations
+          - link "Sports" [ref=e112] [cursor=pointer]:
+            - /url: /dashboard/settings/sports
+            - img [ref=e113]
+            - generic [ref=e119]: Sports
+          - link "Age Categories" [ref=e120] [cursor=pointer]:
+            - /url: /dashboard/settings/age-categories
+            - img [ref=e121]
+            - generic [ref=e124]: Age Categories
+          - link "Terms" [ref=e125] [cursor=pointer]:
+            - /url: /dashboard/settings/terms
+            - img [ref=e126]
+            - generic [ref=e128]: Terms
+          - link "Pricing" [ref=e129] [cursor=pointer]:
+            - /url: /dashboard/settings/pricing
+            - img [ref=e130]
+            - generic [ref=e132]: Pricing
+  - main [ref=e133]:
+    - generic [ref=e135]:
+      - generic [ref=e136]:
+        - generic [ref=e137]:
+          - paragraph [ref=e138]: ADMIN Workspace
+          - heading "Classes" [level=1] [ref=e139]
+        - generic [ref=e140]:
+          - button "Switch Academy" [ref=e141] [cursor=pointer]
+          - generic [ref=e142]: Quick Action
+          - button "Logout" [ref=e143] [cursor=pointer]:
+            - img [ref=e144]
+            - generic [ref=e147]: Logout
+      - generic [ref=e149]:
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - heading "Classes" [level=1] [ref=e152]
+            - paragraph [ref=e153]: Manage academy classes
+          - button "Create Class" [ref=e154] [cursor=pointer]:
+            - img [ref=e155]
+            - text: Create Class
+        - generic [ref=e156]:
+          - generic [ref=e157]:
+            - heading "Classes List" [level=3] [ref=e158]
+            - paragraph [ref=e159]: All classes in the academy
+          - generic [ref=e160]:
+            - generic [ref=e161]:
+              - generic [ref=e162]:
+                - img [ref=e163]
+                - textbox "Search classes..." [ref=e166]
+              - button "All" [ref=e167] [cursor=pointer]
+              - button "Active" [ref=e168] [cursor=pointer]
+              - button "Inactive" [ref=e169] [cursor=pointer]
+            - table [ref=e172]:
+              - rowgroup [ref=e173]:
+                - row "Name Coach Capacity Status Start Date Actions" [ref=e174]:
+                  - columnheader "Name" [ref=e175]
+                  - columnheader "Coach" [ref=e176]
+                  - columnheader "Capacity" [ref=e177]
+                  - columnheader "Status" [ref=e178]
+                  - columnheader "Start Date" [ref=e179]
+                  - columnheader "Actions" [ref=e180]
+              - rowgroup [ref=e181]:
+                - row "Attendance Filter Class — 1 / 10 Active — View Edit Enrollments Delete" [ref=e182]:
+                  - cell "Attendance Filter Class" [ref=e183]
+                  - cell "—" [ref=e184]
+                  - cell "1 / 10" [ref=e185]
+                  - cell "Active" [ref=e186]:
+                    - generic [ref=e187]: Active
+                  - cell "—" [ref=e188]
+                  - cell "View Edit Enrollments Delete" [ref=e189]:
+                    - generic [ref=e190]:
+                      - button "View" [ref=e191] [cursor=pointer]:
+                        - img [ref=e192]
+                        - text: View
+                      - button "Edit" [ref=e195] [cursor=pointer]:
+                        - img [ref=e196]
+                        - text: Edit
+                      - button "Enrollments" [ref=e199] [cursor=pointer]:
+                        - img [ref=e200]
+                        - text: Enrollments
+                      - button "Delete" [ref=e205] [cursor=pointer]:
+                        - img [ref=e206]
+                        - text: Delete
+                - row "Class Detail Test — 0 / 15 Active — View Edit Enrollments Delete" [ref=e209]:
+                  - cell "Class Detail Test" [ref=e210]
+                  - cell "—" [ref=e211]
+                  - cell "0 / 15" [ref=e212]
+                  - cell "Active" [ref=e213]:
+                    - generic [ref=e214]: Active
+                  - cell "—" [ref=e215]
+                  - cell "View Edit Enrollments Delete" [ref=e216]:
+                    - generic [ref=e217]:
+                      - button "View" [ref=e218] [cursor=pointer]:
+                        - img [ref=e219]
+                        - text: View
+                      - button "Edit" [ref=e222] [cursor=pointer]:
+                        - img [ref=e223]
+                        - text: Edit
+                      - button "Enrollments" [ref=e226] [cursor=pointer]:
+                        - img [ref=e227]
+                        - text: Enrollments
+                      - button "Delete" [ref=e232] [cursor=pointer]:
+                        - img [ref=e233]
+                        - text: Delete
+                - row "Class Update Test — 0 / 12 Active — View Edit Enrollments Delete" [ref=e236]:
+                  - cell "Class Update Test" [ref=e237]
+                  - cell "—" [ref=e238]
+                  - cell "0 / 12" [ref=e239]
+                  - cell "Active" [ref=e240]:
+                    - generic [ref=e241]: Active
+                  - cell "—" [ref=e242]
+                  - cell "View Edit Enrollments Delete" [ref=e243]:
+                    - generic [ref=e244]:
+                      - button "View" [ref=e245] [cursor=pointer]:
+                        - img [ref=e246]
+                        - text: View
+                      - button "Edit" [ref=e249] [cursor=pointer]:
+                        - img [ref=e250]
+                        - text: Edit
+                      - button "Enrollments" [ref=e253] [cursor=pointer]:
+                        - img [ref=e254]
+                        - text: Enrollments
+                      - button "Delete" [ref=e259] [cursor=pointer]:
+                        - img [ref=e260]
+                        - text: Delete
+                - row "Enrollment Test Class — 1 / 10 Active — View Edit Enrollments Delete" [ref=e263]:
+                  - cell "Enrollment Test Class" [ref=e264]
+                  - cell "—" [ref=e265]
+                  - cell "1 / 10" [ref=e266]
+                  - cell "Active" [ref=e267]:
+                    - generic [ref=e268]: Active
+                  - cell "—" [ref=e269]
+                  - cell "View Edit Enrollments Delete" [ref=e270]:
+                    - generic [ref=e271]:
+                      - button "View" [ref=e272] [cursor=pointer]:
+                        - img [ref=e273]
+                        - text: View
+                      - button "Edit" [ref=e276] [cursor=pointer]:
+                        - img [ref=e277]
+                        - text: Edit
+                      - button "Enrollments" [ref=e280] [cursor=pointer]:
+                        - img [ref=e281]
+                        - text: Enrollments
+                      - button "Delete" [ref=e286] [cursor=pointer]:
+                        - img [ref=e287]
+                        - text: Delete
+                - row "Remove Enrollment Class — 0 / 10 Active — View Edit Enrollments Delete" [ref=e290]:
+                  - cell "Remove Enrollment Class" [ref=e291]
+                  - cell "—" [ref=e292]
+                  - cell "0 / 10" [ref=e293]
+                  - cell "Active" [ref=e294]:
+                    - generic [ref=e295]: Active
+                  - cell "—" [ref=e296]
+                  - cell "View Edit Enrollments Delete" [ref=e297]:
+                    - generic [ref=e298]:
+                      - button "View" [ref=e299] [cursor=pointer]:
+                        - img [ref=e300]
+                        - text: View
+                      - button "Edit" [ref=e303] [cursor=pointer]:
+                        - img [ref=e304]
+                        - text: Edit
+                      - button "Enrollments" [ref=e307] [cursor=pointer]:
+                        - img [ref=e308]
+                        - text: Enrollments
+                      - button "Delete" [ref=e313] [cursor=pointer]:
+                        - img [ref=e314]
+                        - text: Delete
+```

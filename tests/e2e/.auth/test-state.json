@@ -1,0 +1,15 @@
+{
+  "setupComplete": true,
+  "setupTimestamp": "2026-01-21T17:52:44.008Z",
+  "superadmin": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY5MDIxNTYyLCJpYXQiOjE3NjkwMTc5NjIsImp0aSI6Ijk3Y2UzZTlhMDY2MTRiMjFhNzc5NGFiOGZhNWU0NjM4IiwidXNlcl9pZCI6IjIyNSJ9.Y7r0IHH4aByE8v7X6Su8kZuYxJVy8dZWm3MV3rMufsg",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2OTYyMjc2MiwiaWF0IjoxNzY5MDE3OTYyLCJqdGkiOiI0YmQ4YjM3NDM0MzA0YmRkOWY5NWIwOWJmYWM3YTY5MyIsInVzZXJfaWQiOiIyMjUifQ.Re2KblVNROmP-siB0UYQMEGZxbEvpjbooqh5oIxbkZc",
+    "user": {
+      "id": 225,
+      "email": "superadmin@test.com",
+      "role": "ADMIN",
+      "academy_id": null
+    }
+  },
+  "academyId": "da6a9be0-6d04-46b5-8f42-56e0c22c609a"
+}

@@ -22,6 +22,10 @@ import type {
   UpdateTermRequest,
   AcademySettings,
   UpdateAcademySettingsRequest,
+  BulkImportDatasetType,
+  BulkImportSchema,
+  BulkImportPreviewResponse,
+  BulkImportCommitResponse,
 } from '../types';
 
 // ==================== Locations ====================
@@ -287,6 +291,47 @@ export const updateAcademySettings = async (
   const response = await apiClient.patch<AcademySettings>(
     API_ENDPOINTS.TENANT.ACADEMY.UPDATE,
     data
+  );
+  return response.data;
+};
+
+// ==================== Bulk Imports ====================
+
+export const getBulkImportSchema = async (
+  datasetType: BulkImportDatasetType
+): Promise<BulkImportSchema> => {
+  const response = await apiClient.get<BulkImportSchema>(
+    API_ENDPOINTS.TENANT.SETTINGS.BULK_IMPORTS.SCHEMA(datasetType)
+  );
+  return response.data;
+};
+
+export const previewBulkImport = async (
+  datasetType: BulkImportDatasetType,
+  file: File
+): Promise<BulkImportPreviewResponse> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiClient.post<BulkImportPreviewResponse>(
+    API_ENDPOINTS.TENANT.SETTINGS.BULK_IMPORTS.PREVIEW(datasetType),
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+};
+
+export const commitBulkImport = async (
+  datasetType: BulkImportDatasetType,
+  previewToken: string
+): Promise<BulkImportCommitResponse> => {
+  const response = await apiClient.post<BulkImportCommitResponse>(
+    API_ENDPOINTS.TENANT.SETTINGS.BULK_IMPORTS.COMMIT(datasetType),
+    { preview_token: previewToken }
   );
   return response.data;
 };

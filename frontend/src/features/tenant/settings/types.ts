@@ -132,3 +132,51 @@ export interface UpdateAcademySettingsRequest {
   timezone?: string;
   currency?: string;
 }
+
+export type BulkImportDatasetType = 'students' | 'coaches';
+
+export interface BulkImportSchemaColumn {
+  name: string;
+  required: boolean;
+  format: string;
+  description: string;
+  allowed_values?: string[];
+}
+
+export interface BulkImportSchema {
+  dataset_type: BulkImportDatasetType;
+  label: string;
+  columns: BulkImportSchemaColumn[];
+  required_columns: string[];
+  template_headers: string[];
+  sample_row: Record<string, string>;
+}
+
+export interface BulkImportRowResult {
+  row_number: number;
+  status: 'valid' | 'invalid' | 'created' | 'failed';
+  normalized_data?: Record<string, unknown>;
+  errors: string[];
+  warnings: string[];
+  record_id?: number | null;
+}
+
+export interface BulkImportPreviewResponse {
+  preview_token: string;
+  dataset_type: BulkImportDatasetType;
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  columns_detected: string[];
+  unknown_columns: string[];
+  row_results: BulkImportRowResult[];
+}
+
+export interface BulkImportCommitResponse {
+  dataset_type: BulkImportDatasetType;
+  created_count: number;
+  skipped_count: number;
+  failed_count: number;
+  created_ids: number[];
+  row_results: BulkImportRowResult[];
+}

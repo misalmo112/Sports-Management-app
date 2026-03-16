@@ -31,9 +31,7 @@ import type {
   CreateCoachPaySchemeRequest,
   UpdateCoachPaySchemeRequest,
   CoachPaymentListResponse,
-  CreateCoachPaymentRequest,
   StaffInvoiceListResponse,
-  CreateStaffInvoiceRequest,
   UpdateStaffInvoiceRequest,
   StaffReceiptListResponse,
 } from '../services/api';
@@ -233,7 +231,7 @@ export const useUpdateStaffInvoice = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number | string; data: UpdateStaffInvoiceRequest }) =>
       updateStaffInvoice(id, data),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-invoices'] });
     },
   });

@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/v1/tenant/', include('tenant.communication.urls')),
     path('api/v1/tenant/', include('tenant.students.urls')),
     path('api/v1/tenant/', include('tenant.coaches.urls')),
+    path('api/v1/tenant/', include('tenant.bulk_imports.urls')),
     path('api/v1/tenant/', include('tenant.classes.urls')),
     path('api/v1/tenant/', include('tenant.attendance.urls')),
     path('api/v1/tenant/', include('tenant.billing.urls')),

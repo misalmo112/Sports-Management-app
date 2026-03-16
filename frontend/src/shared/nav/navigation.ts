@@ -30,6 +30,7 @@ import {
   MessageSquare,
   Warehouse,
   Users,
+  Upload,
 } from 'lucide-react';
 
 /**
@@ -326,6 +327,14 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Pricing',
           path: '/dashboard/settings/pricing',
           icon: DollarSign,
+          roles: ['ADMIN', 'OWNER'],
+          group: 'settings',
+        },
+        {
+          id: 'bulk-actions',
+          label: 'Bulk Actions',
+          path: '/dashboard/settings/bulk-actions',
+          icon: Upload,
           roles: ['ADMIN', 'OWNER'],
           group: 'settings',
         },

@@ -219,24 +219,25 @@ class StudentSerializer(serializers.ModelSerializer):
             parent_data['academy'] = academy
             parent = Parent.objects.create(**parent_data)
             
-            # Create User account with invite
-            try:
-                user, token = UserService.create_user_with_invite(
-                    role=User.Role.PARENT,
-                    email=email,
-                    academy=academy,
-                    created_by=request.user,
-                    profile_data={'phone': parent_data.get('phone', '')},
-                    first_name=parent_data.get('first_name'),
-                    last_name=parent_data.get('last_name')
-                )
-                UserService.send_invite_email_async(user, token)
-            except (ValidationError, Exception) as e:
-                # If user creation fails, still keep the parent record
-                # Log error but don't fail the student creation
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to create user account for parent {email}: {str(e)}")
+            if not self.context.get('disable_parent_invite', False):
+                # Create User account with invite
+                try:
+                    user, token = UserService.create_user_with_invite(
+                        role=User.Role.PARENT,
+                        email=email,
+                        academy=academy,
+                        created_by=request.user,
+                        profile_data={'phone': parent_data.get('phone', '')},
+                        first_name=parent_data.get('first_name'),
+                        last_name=parent_data.get('last_name')
+                    )
+                    UserService.send_invite_email_async(user, token)
+                except (ValidationError, Exception) as e:
+                    # If user creation fails, still keep the parent record
+                    # Log error but don't fail the student creation
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Failed to create user account for parent {email}: {str(e)}")
             
             validated_data['parent'] = parent
         

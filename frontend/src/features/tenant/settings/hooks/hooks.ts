@@ -25,6 +25,7 @@ import {
   deleteTerm,
   getAcademySettings,
   updateAcademySettings,
+  getBulkImportSchema,
 } from '../services/api';
 import type {
   Location,
@@ -45,6 +46,8 @@ import type {
   UpdateTermRequest,
   AcademySettings,
   UpdateAcademySettingsRequest,
+  BulkImportDatasetType,
+  BulkImportSchema,
 } from '../types';
 
 // ==================== Locations ====================
@@ -329,5 +332,18 @@ export const useUpdateAcademySettings = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-settings'] });
     },
+  });
+};
+
+// ==================== Bulk Imports ====================
+
+export const useBulkImportSchema = (
+  datasetType: BulkImportDatasetType
+) => {
+  return useQuery<BulkImportSchema, Error>({
+    queryKey: ['bulk-import-schema', datasetType],
+    queryFn: () => getBulkImportSchema(datasetType),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 };

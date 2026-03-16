@@ -42,7 +42,6 @@ import {
   useCreateCoachPayScheme,
   useUpdateCoachPayScheme,
   useDeleteCoachPayScheme,
-  useCoachPayments,
   useCreateCoachPayment,
   useStaffInvoices,
   useCreateStaffInvoice,
@@ -54,8 +53,6 @@ import type {
   CoachPayScheme,
   CoachPaySchemePeriodType,
   PaymentMethod,
-  StaffInvoice,
-  StaffReceipt,
 } from '@/features/tenant/coaches/services/api';
 import { formatErrorMessage } from '@/shared/utils/errorUtils';
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';

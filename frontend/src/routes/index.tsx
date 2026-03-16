@@ -57,6 +57,7 @@ import { LocationsPage } from '@/features/tenant/settings/pages/LocationsPage';
 import { SportsPage } from '@/features/tenant/settings/pages/SportsPage';
 import { AgeCategoriesPage } from '@/features/tenant/settings/pages/AgeCategoriesPage';
 import { TermsPage } from '@/features/tenant/settings/pages/TermsPage';
+import { BulkActionsPage } from '@/features/tenant/settings/pages/BulkActionsPage';
 import { PricingPage } from '@/features/tenant/onboarding/pages/PricingPage';
 import { MediaPage } from '@/features/tenant/media/pages/MediaPage';
 import { ReportsPage } from '@/features/tenant/reports/pages/ReportsPage';
@@ -301,6 +302,10 @@ export const router = createBrowserRouter([
       {
         path: 'settings/pricing',
         element: createProtectedRoute(<PricingPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'settings/bulk-actions',
+        element: createProtectedRoute(<BulkActionsPage />, true, ['ADMIN', 'OWNER']),
       },
       // Media route (Admin/Owner)
       {

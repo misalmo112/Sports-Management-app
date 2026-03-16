@@ -213,6 +213,11 @@ export const API_ENDPOINTS = {
       DETAIL: (id: number | string) => `/api/v1/tenant/staff-receipts/${id}/`,
     },
     SETTINGS: {
+      BULK_IMPORTS: {
+        SCHEMA: (datasetType: 'students' | 'coaches') => `/api/v1/tenant/bulk-imports/${datasetType}/schema/`,
+        PREVIEW: (datasetType: 'students' | 'coaches') => `/api/v1/tenant/bulk-imports/${datasetType}/preview/`,
+        COMMIT: (datasetType: 'students' | 'coaches') => `/api/v1/tenant/bulk-imports/${datasetType}/commit/`,
+      },
       LOCATIONS: {
         LIST: '/api/v1/tenant/locations/',
         CREATE: '/api/v1/tenant/locations/',

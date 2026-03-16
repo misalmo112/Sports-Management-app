@@ -25,6 +25,11 @@ import {
   deleteTerm,
   getAcademySettings,
   updateAcademySettings,
+  getCurrentAccount,
+  updateCurrentAccount,
+  changePassword,
+  getAcademySubscription,
+  getAcademyUsage,
   getBulkImportSchema,
 } from '../services/api';
 import type {
@@ -46,6 +51,12 @@ import type {
   UpdateTermRequest,
   AcademySettings,
   UpdateAcademySettingsRequest,
+  CurrentAccount,
+  UpdateCurrentAccountRequest,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  AcademySubscriptionSummary,
+  AcademyUsageSummary,
   BulkImportDatasetType,
   BulkImportSchema,
 } from '../types';
@@ -314,6 +325,33 @@ export const useDeleteTerm = () => {
 
 // ==================== Academy Settings ====================
 
+export const useCurrentAccount = (options?: { enabled?: boolean }) => {
+  return useQuery<CurrentAccount, Error>({
+    queryKey: ['current-account'],
+    queryFn: getCurrentAccount,
+    enabled: options?.enabled ?? true,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useUpdateCurrentAccount = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<CurrentAccount, Error, UpdateCurrentAccountRequest>({
+    mutationFn: updateCurrentAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['current-account'] });
+    },
+  });
+};
+
+export const useChangePassword = () => {
+  return useMutation<ChangePasswordResponse, Error, ChangePasswordRequest>({
+    mutationFn: changePassword,
+  });
+};
+
 export const useAcademySettings = (options?: { enabled?: boolean }) => {
   return useQuery<AcademySettings, Error>({
     queryKey: ['academy-settings'],
@@ -332,6 +370,26 @@ export const useUpdateAcademySettings = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-settings'] });
     },
+  });
+};
+
+export const useAcademySubscription = (options?: { enabled?: boolean }) => {
+  return useQuery<AcademySubscriptionSummary, Error>({
+    queryKey: ['academy-subscription'],
+    queryFn: getAcademySubscription,
+    enabled: options?.enabled ?? true,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useAcademyUsage = (options?: { enabled?: boolean }) => {
+  return useQuery<AcademyUsageSummary, Error>({
+    queryKey: ['academy-usage'],
+    queryFn: getAcademyUsage,
+    enabled: options?.enabled ?? true,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 };
 

@@ -22,6 +22,12 @@ import type {
   UpdateTermRequest,
   AcademySettings,
   UpdateAcademySettingsRequest,
+  CurrentAccount,
+  UpdateCurrentAccountRequest,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  AcademySubscriptionSummary,
+  AcademyUsageSummary,
   BulkImportDatasetType,
   BulkImportSchema,
   BulkImportPreviewResponse,
@@ -278,6 +284,33 @@ export const deleteTerm = async (id: number | string): Promise<void> => {
 
 // ==================== Academy Settings ====================
 
+export const getCurrentAccount = async (): Promise<CurrentAccount> => {
+  const response = await apiClient.get<CurrentAccount>(
+    API_ENDPOINTS.TENANT.ACCOUNT.DETAIL
+  );
+  return response.data;
+};
+
+export const updateCurrentAccount = async (
+  data: UpdateCurrentAccountRequest
+): Promise<CurrentAccount> => {
+  const response = await apiClient.patch<CurrentAccount>(
+    API_ENDPOINTS.TENANT.ACCOUNT.UPDATE,
+    data
+  );
+  return response.data;
+};
+
+export const changePassword = async (
+  data: ChangePasswordRequest
+): Promise<ChangePasswordResponse> => {
+  const response = await apiClient.post<ChangePasswordResponse>(
+    API_ENDPOINTS.TENANT.ACCOUNT.CHANGE_PASSWORD,
+    data
+  );
+  return response.data;
+};
+
 export const getAcademySettings = async (): Promise<AcademySettings> => {
   const response = await apiClient.get<AcademySettings>(
     API_ENDPOINTS.TENANT.ACADEMY.DETAIL
@@ -302,6 +335,20 @@ export const getBulkImportSchema = async (
 ): Promise<BulkImportSchema> => {
   const response = await apiClient.get<BulkImportSchema>(
     API_ENDPOINTS.TENANT.SETTINGS.BULK_IMPORTS.SCHEMA(datasetType)
+  );
+  return response.data;
+};
+
+export const getAcademySubscription = async (): Promise<AcademySubscriptionSummary> => {
+  const response = await apiClient.get<AcademySubscriptionSummary>(
+    API_ENDPOINTS.TENANT.ACADEMY.SUBSCRIPTION
+  );
+  return response.data;
+};
+
+export const getAcademyUsage = async (): Promise<AcademyUsageSummary> => {
+  const response = await apiClient.get<AcademyUsageSummary>(
+    API_ENDPOINTS.TENANT.ACADEMY.USAGE
   );
   return response.data;
 };

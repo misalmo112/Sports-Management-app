@@ -31,6 +31,9 @@ import {
   Warehouse,
   Users,
   Upload,
+  Settings,
+  Shield,
+  PackageOpen,
 } from 'lucide-react';
 
 /**
@@ -283,6 +286,31 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
       label: 'Settings',
       items: [
         {
+          id: 'settings-home',
+          label: 'Settings Home',
+          path: '/dashboard/settings',
+          icon: Settings,
+          roles: ['ADMIN', 'OWNER'],
+          group: 'settings',
+          exact: true,
+        },
+        {
+          id: 'my-account',
+          label: 'My Account',
+          path: '/dashboard/settings/account',
+          icon: Shield,
+          roles: ['ADMIN', 'OWNER'],
+          group: 'settings',
+        },
+        {
+          id: 'organization-settings',
+          label: 'Organization',
+          path: '/dashboard/settings/organization',
+          icon: Building2,
+          roles: ['ADMIN', 'OWNER'],
+          group: 'settings',
+        },
+        {
           id: 'locations',
           label: 'Locations',
           path: '/dashboard/settings/locations',
@@ -292,9 +320,17 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
         },
         {
           id: 'academy-settings',
-          label: 'Academy',
-          path: '/dashboard/settings/academy',
-          icon: Building2,
+          label: 'Subscription',
+          path: '/dashboard/settings/subscription',
+          icon: CreditCard,
+          roles: ['ADMIN', 'OWNER'],
+          group: 'settings',
+        },
+        {
+          id: 'usage-settings',
+          label: 'Usage & Limits',
+          path: '/dashboard/settings/usage',
+          icon: PackageOpen,
           roles: ['ADMIN', 'OWNER'],
           group: 'settings',
         },

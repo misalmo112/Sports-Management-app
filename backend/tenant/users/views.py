@@ -2,6 +2,7 @@
 Views for user management and invite operations.
 """
 from rest_framework import viewsets, status
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,6 +23,8 @@ from tenant.users.serializers import (
     UpdateUserSerializer,
     AcceptInviteSerializer,
     LoginSerializer,
+    CurrentAccountSerializer,
+    ChangePasswordSerializer,
 )
 from tenant.users.services import UserService
 from tenant.users.permissions import CanCreateUsers
@@ -33,6 +36,37 @@ from rest_framework import permissions
 from tenant.coaches.models import Coach
 
 User = get_user_model()
+
+
+class CurrentAccountView(RetrieveUpdateAPIView):
+    """Retrieve or update the authenticated tenant admin account."""
+
+    serializer_class = CurrentAccountSerializer
+    permission_classes = [IsTenantAdmin]
+
+    def get_object(self):
+        return self.request.user
+
+
+class ChangePasswordView(APIView):
+    """Change the authenticated tenant admin password."""
+
+    permission_classes = [IsTenantAdmin]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save(update_fields=['password', 'updated_at'])
+
+        return Response(
+            {'detail': 'Password updated successfully.'},
+            status=status.HTTP_200_OK,
+        )
 
 
 class UserViewSet(viewsets.ModelViewSet):

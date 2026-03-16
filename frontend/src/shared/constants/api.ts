@@ -51,6 +51,11 @@ export const API_ENDPOINTS = {
   },
   // Tenant endpoints
   TENANT: {
+    ACCOUNT: {
+      DETAIL: '/api/v1/tenant/account/',
+      UPDATE: '/api/v1/tenant/account/',
+      CHANGE_PASSWORD: '/api/v1/tenant/account/change-password/',
+    },
     OVERVIEW: '/api/v1/tenant/overview/',
     REPORTS: '/api/v1/tenant/reports/',
     REPORTS_EXPORT: '/api/v1/tenant/reports/export/',
@@ -250,6 +255,8 @@ export const API_ENDPOINTS = {
     ACADEMY: {
       DETAIL: '/api/v1/tenant/academy/',
       UPDATE: '/api/v1/tenant/academy/',
+      SUBSCRIPTION: '/api/v1/tenant/academy/subscription/',
+      USAGE: '/api/v1/tenant/academy/usage/',
     },
     MASTERS: {
       TIMEZONES: '/api/v1/tenant/masters/timezones/',

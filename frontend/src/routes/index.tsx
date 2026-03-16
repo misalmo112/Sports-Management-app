@@ -52,7 +52,11 @@ import { InvoiceCreatePage } from '@/features/tenant/billing/pages/InvoiceCreate
 import { InvoiceDetailPage } from '@/features/tenant/billing/pages/InvoiceDetailPage';
 import { ReceiptsListPage } from '@/features/tenant/billing/pages/ReceiptsListPage';
 import { ReceiptCreatePage } from '@/features/tenant/billing/pages/ReceiptCreatePage';
+import { SettingsHomePage } from '@/features/tenant/settings/pages/SettingsHomePage';
 import { AcademySettingsPage } from '@/features/tenant/settings/pages/AcademySettingsPage';
+import { AccountSettingsPage } from '@/features/tenant/settings/pages/AccountSettingsPage';
+import { SubscriptionSettingsPage } from '@/features/tenant/settings/pages/SubscriptionSettingsPage';
+import { UsageSettingsPage } from '@/features/tenant/settings/pages/UsageSettingsPage';
 import { LocationsPage } from '@/features/tenant/settings/pages/LocationsPage';
 import { SportsPage } from '@/features/tenant/settings/pages/SportsPage';
 import { AgeCategoriesPage } from '@/features/tenant/settings/pages/AgeCategoriesPage';
@@ -280,8 +284,28 @@ export const router = createBrowserRouter([
       },
       // Settings routes (Admin/Owner)
       {
+        path: 'settings',
+        element: createProtectedRoute(<SettingsHomePage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'settings/account',
+        element: createProtectedRoute(<AccountSettingsPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'settings/organization',
+        element: createProtectedRoute(<AcademySettingsPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
         path: 'settings/academy',
         element: createProtectedRoute(<AcademySettingsPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'settings/subscription',
+        element: createProtectedRoute(<SubscriptionSettingsPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'settings/usage',
+        element: createProtectedRoute(<UsageSettingsPage />, true, ['ADMIN', 'OWNER']),
       },
       {
         path: 'settings/locations',

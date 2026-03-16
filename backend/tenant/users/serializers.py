@@ -4,6 +4,7 @@ Serializers for user models and invite operations.
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from tenant.users.models import User, AdminProfile, CoachProfile, ParentProfile, InviteToken
 from tenant.students.models import Parent, Student
@@ -519,6 +520,76 @@ class LoginSerializer(serializers.Serializer):
         write_only=True,
         style={'input_type': 'password'}
     )
+
+
+class CurrentAccountSerializer(serializers.ModelSerializer):
+    """Serializer for the authenticated user's account settings."""
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'email',
+            'first_name',
+            'last_name',
+            'role',
+            'is_active',
+            'last_login',
+        ]
+        read_only_fields = ['id', 'role', 'is_active', 'last_login']
+
+    def validate_email(self, value):
+        value = value.lower().strip()
+        user = self.instance
+        if User.objects.filter(email=value).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError(
+                f"User with email {value} already exists."
+            )
+        return value
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Serializer for authenticated password changes."""
+
+    current_password = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'},
+    )
+    new_password = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'},
+    )
+    new_password_confirm = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'},
+    )
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        current_password = attrs['current_password']
+        new_password = attrs['new_password']
+        new_password_confirm = attrs['new_password_confirm']
+
+        if not user.check_password(current_password):
+            raise serializers.ValidationError({
+                'current_password': 'Current password is incorrect.'
+            })
+
+        if new_password != new_password_confirm:
+            raise serializers.ValidationError({
+                'new_password_confirm': 'Passwords do not match.'
+            })
+
+        if current_password == new_password:
+            raise serializers.ValidationError({
+                'new_password': 'New password must be different from the current password.'
+            })
+
+        validate_password(new_password, user=user)
+        return attrs
 
 
 class AcceptInviteSerializer(serializers.Serializer):

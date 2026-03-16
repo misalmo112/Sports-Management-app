@@ -11,6 +11,7 @@ interface ApiErrorResponse {
   detail?: string;
   message?: string;
   errors?: Record<string, string[]>;
+  details?: Record<string, string[]>;
   [key: string]: unknown;
 }
 
@@ -72,6 +73,17 @@ function extractAxiosErrorMessage(error: AxiosError<ApiErrorResponse>): string {
         .filter((msg): msg is string => typeof msg === 'string')
         .map(sanitizeMessage);
       
+      if (errorMessages.length > 0) {
+        return errorMessages[0];
+      }
+    }
+
+    if (data.details && typeof data.details === 'object') {
+      const errorMessages = Object.values(data.details)
+        .flat()
+        .filter((msg): msg is string => typeof msg === 'string')
+        .map(sanitizeMessage);
+
       if (errorMessages.length > 0) {
         return errorMessages[0];
       }
@@ -178,6 +190,22 @@ export function extractValidationErrors(
         }
       }
       
+      if (Object.keys(errors).length > 0) {
+        return errors;
+      }
+    }
+
+    if (response?.data?.details && typeof response.data.details === 'object') {
+      const errors: Record<string, string[]> = {};
+
+      for (const [field, messages] of Object.entries(response.data.details)) {
+        if (Array.isArray(messages)) {
+          errors[field] = messages
+            .filter((msg): msg is string => typeof msg === 'string')
+            .map(sanitizeMessage);
+        }
+      }
+
       if (Object.keys(errors).length > 0) {
         return errors;
       }

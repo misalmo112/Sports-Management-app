@@ -18,6 +18,8 @@ urlpatterns = [
     path('onboarding/state/', views.get_onboarding_state, name='onboarding-state'),
     path('onboarding/step/<int:step>/', views.process_step, name='onboarding-step'),
     path('onboarding/complete/', views.complete_onboarding, name='onboarding-complete'),
+    path('onboarding/checklist/', views.onboarding_checklist, name='onboarding-checklist'),
+    path('onboarding/templates/', views.onboarding_templates, name='onboarding-templates'),
     # Include router URLs
     path('', include(router.urls)),
 ]

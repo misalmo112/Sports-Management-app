@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 from saas_platform.quotas.models import TenantQuota, TenantUsage
 from saas_platform.subscriptions.models import Plan, Subscription, SubscriptionStatus
 from saas_platform.tenants.models import Academy
+from saas_platform.masters.models import Currency, Timezone
 
 User = get_user_model()
 
@@ -15,6 +16,11 @@ User = get_user_model()
 class TenantAcademySettingsViewTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+
+        # Seed master-data required by AcademySettingsSerializer validations.
+        Timezone.objects.create(code='Asia/Dubai', name='Asia/Dubai', is_active=True, sort_order=0)
+        Currency.objects.create(code='AED', name='UAE Dirham', is_active=True, sort_order=0)
+
         self.academy = Academy.objects.create(
             name='Falcons Academy',
             slug='falcons-academy',

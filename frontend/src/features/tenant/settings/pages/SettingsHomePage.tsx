@@ -12,9 +12,9 @@ import { useCurrentAccount, useAcademySettings, useAcademySubscription, useAcade
 const operationsLinks = [
   { label: 'Locations', path: '/dashboard/settings/locations' },
   { label: 'Sports', path: '/dashboard/settings/sports' },
-  { label: 'Age Categories', path: '/dashboard/settings/age-categories' },
   { label: 'Terms', path: '/dashboard/settings/terms' },
-  { label: 'Pricing', path: '/dashboard/settings/pricing' },
+  { label: 'Currencies', path: '/dashboard/settings/currencies' },
+  { label: 'Time zones', path: '/dashboard/settings/timezones' },
 ];
 
 export const SettingsHomePage = () => {

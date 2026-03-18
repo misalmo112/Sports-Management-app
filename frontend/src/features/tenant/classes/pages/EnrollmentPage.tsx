@@ -212,7 +212,7 @@ export const EnrollmentPage = () => {
               disabled={classData?.is_full || isLoadingEnrollments}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Add Student
+              Add Students
             </Button>
           </div>
         </CardHeader>
@@ -289,7 +289,7 @@ export const EnrollmentPage = () => {
                   ? 'This class is at full capacity.'
                   : 'No students are enrolled in this class yet.'
               }
-              actionLabel={classData?.is_full ? undefined : 'Add Student'}
+              actionLabel={classData?.is_full ? undefined : 'Add Students'}
               onAction={classData?.is_full ? undefined : () => setAddStudentModalOpen(true)}
             />
           )}
@@ -301,6 +301,8 @@ export const EnrollmentPage = () => {
         onOpenChange={setAddStudentModalOpen}
         classId={id!}
         enrolledStudentIds={enrolledStudentIds}
+        maxCapacity={classData?.max_capacity}
+        availableSpots={classData?.available_spots}
         onSuccess={() => {
           refetchEnrollments();
         }}

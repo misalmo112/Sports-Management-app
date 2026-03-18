@@ -12,10 +12,10 @@ const mockState: OnboardingState = {
   is_completed: false,
   steps: {
     step_1: { name: 'Academy Profile', completed: true },
-    step_2: { name: 'Location', completed: false },
+    step_2: { name: 'Branches', completed: false },
     step_3: { name: 'Sports', completed: false },
-    step_4: { name: 'Age Categories', completed: false },
-    step_5: { name: 'Terms', completed: false },
+    step_4: { name: 'Terms', completed: false },
+    step_5: { name: 'Pricing', completed: false },
     step_6: { name: 'Pricing', completed: false },
   },
   locked: false,
@@ -29,9 +29,8 @@ describe('WizardProgress', () => {
     render(<WizardProgress state={mockState} currentStep={2} />);
     
     expect(screen.getByText('Academy Profile')).toBeInTheDocument();
-    expect(screen.getByText('Location')).toBeInTheDocument();
+    expect(screen.getByText('Branches')).toBeInTheDocument();
     expect(screen.getByText('Sports')).toBeInTheDocument();
-    expect(screen.getByText('Age Categories')).toBeInTheDocument();
     expect(screen.getByText('Terms')).toBeInTheDocument();
     expect(screen.getByText('Pricing')).toBeInTheDocument();
   });
@@ -48,8 +47,8 @@ describe('WizardProgress', () => {
   it('shows current step', () => {
     render(<WizardProgress state={mockState} currentStep={2} />);
     
-    // Step 2 should be current - verify Location is shown
-    expect(screen.getByText('Location')).toBeInTheDocument();
+    // Step 2 should be current - verify Branches is shown
+    expect(screen.getByText('Branches')).toBeInTheDocument();
   });
 
   it('shows upcoming steps', () => {

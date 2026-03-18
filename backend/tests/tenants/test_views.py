@@ -26,6 +26,7 @@ class AcademyViewSetTest(TestCase):
         self.superadmin = User.objects.create_superuser(
             email='superadmin@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
         
@@ -57,7 +58,8 @@ class AcademyViewSetTest(TestCase):
             'name': 'Test Academy',
             'slug': 'test-academy',
             'email': 'test@example.com',
-            'timezone': 'UTC'
+            'address_line1': '123 Test St',
+            'phone': '+12345678901',
         }
         
         response = self.client.post('/api/v1/platform/academies/', data)

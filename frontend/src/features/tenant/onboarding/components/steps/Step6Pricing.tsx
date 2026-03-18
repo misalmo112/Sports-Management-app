@@ -1,5 +1,5 @@
 /**
- * Step 6: Pricing
+ * Step 6: Billing Items
  */
 import { useState, useEffect } from 'react';
 import { Button } from '@/shared/components/ui/button';
@@ -8,11 +8,12 @@ import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
-import { validateStep6 } from '../../utils/validation';
-import type { Step6Pricing, PricingItem, DurationType } from '../../types';
+import { validateStep5 } from '../../utils/validation';
+import { useOnboardingTemplates } from '../../hooks/useOnboardingTemplates';
+import type { Step5Pricing, PricingItem, DurationType } from '../../types';
 
 interface Step6PricingProps {
-  onSubmit: (data: Step6Pricing) => Promise<void>;
+  onSubmit: (data: Step5Pricing) => Promise<void>;
   errors?: Record<string, string[]>;
   isLoading?: boolean;
   formRef?: (form: HTMLFormElement | null) => void;
@@ -22,27 +23,56 @@ const DURATION_TYPES: DurationType[] = ['MONTHLY', 'WEEKLY', 'SESSION', 'CUSTOM'
 
 export default function Step6Pricing({ onSubmit, errors, isLoading: _isLoading, formRef }: Step6PricingProps) {
   const [pricingItems, setPricingItems] = useState<PricingItem[]>([
-    { name: '', description: '', duration_type: 'MONTHLY', duration_value: 1, price: 0, currency: 'USD' },
+    { name: '', description: '', duration_type: 'MONTHLY', duration_value: 1, price: 0 },
   ]);
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+  const { templates } = useOnboardingTemplates();
 
   useEffect(() => {
-    const saved = localStorage.getItem('onboarding_step_6');
+    const saved = localStorage.getItem('onboarding_step_5');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.pricing_items && parsed.pricing_items.length > 0) {
-          setPricingItems(parsed.pricing_items);
+          setPricingItems(
+            parsed.pricing_items.map((i: PricingItem) => ({
+              ...i,
+              // Currency is server-side; keep only what we need.
+              currency: undefined,
+            })),
+          );
+          return;
         }
       } catch (e) {
         console.error('Error loading saved step 6 data:', e);
       }
     }
+
+    // Prefill from templates if no saved data
+    if (templates?.suggested_pricing_items?.length) {
+      setPricingItems(
+        templates.suggested_pricing_items.map((i) => ({
+          ...i,
+          price: Number(i.price),
+          // Currency is server-side; keep only what we need.
+          currency: undefined,
+        })),
+      );
+    }
   }, []);
 
   const addPricingItem = () => {
-    setPricingItems([...pricingItems, { name: '', description: '', duration_type: 'MONTHLY', duration_value: 1, price: 0, currency: 'USD' }]);
+    setPricingItems([
+      ...pricingItems,
+      {
+        name: '',
+        description: '',
+        duration_type: 'MONTHLY',
+        duration_value: 1,
+        price: 0,
+      },
+    ]);
   };
 
   const removePricingItem = (index: number) => {
@@ -60,8 +90,8 @@ export default function Step6Pricing({ onSubmit, errors, isLoading: _isLoading, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const data: Step6Pricing = { pricing_items: pricingItems };
-    const clientErrors = validateStep6(data);
+    const data: Step5Pricing = { pricing_items: pricingItems };
+    const clientErrors = validateStep5(data);
     if (clientErrors.length > 0) {
       const errorMap: Record<string, string[]> = {};
       clientErrors.forEach((err) => {
@@ -84,10 +114,10 @@ export default function Step6Pricing({ onSubmit, errors, isLoading: _isLoading, 
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Pricing Items</h3>
+          <h3 className="text-lg font-semibold">Billing Items</h3>
           <Button type="button" variant="outline" size="sm" onClick={addPricingItem}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Pricing Item
+            Add Billing Item
           </Button>
         </div>
 
@@ -95,7 +125,7 @@ export default function Step6Pricing({ onSubmit, errors, isLoading: _isLoading, 
           {pricingItems.map((item, index) => (
             <div key={index} className="border rounded-lg p-4 space-y-4">
               <div className="flex justify-between items-center">
-                <h4 className="font-medium">Pricing Item {index + 1}</h4>
+                <h4 className="font-medium">Billing Item {index + 1}</h4>
                 {pricingItems.length > 1 && (
                   <Button
                     type="button"
@@ -191,22 +221,6 @@ export default function Step6Pricing({ onSubmit, errors, isLoading: _isLoading, 
                   {displayErrors[`pricing_items[${index}].price`] && (
                     <p className="text-sm text-destructive mt-1">
                       {displayErrors[`pricing_items[${index}].price`][0]}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor={`pricing-currency-${index}`}>Currency *</Label>
-                  <Input
-                    id={`pricing-currency-${index}`}
-                    value={item.currency}
-                    onChange={(e) => updatePricingItem(index, 'currency', e.target.value.toUpperCase())}
-                    maxLength={3}
-                    required
-                    placeholder="USD"
-                  />
-                  {displayErrors[`pricing_items[${index}].currency`] && (
-                    <p className="text-sm text-destructive mt-1">
-                      {displayErrors[`pricing_items[${index}].currency`][0]}
                     </p>
                   )}
                 </div>

@@ -14,6 +14,7 @@ import type {
   CoachAttendanceListResponse,
   CreateCoachAttendanceRequest,
   UpdateCoachAttendanceRequest,
+  MarkCoachAttendanceRequest,
 } from '../types';
 
 /**
@@ -245,6 +246,19 @@ export const getCoachAttendanceById = async (
 ): Promise<CoachAttendance> => {
   const response = await apiClient.get<CoachAttendance>(
     API_ENDPOINTS.TENANT.COACH_ATTENDANCE.DETAIL(id)
+  );
+  return response.data;
+};
+
+/**
+ * Mark coach attendance (idempotent update-or-create per class/coach/date)
+ */
+export const markCoachAttendance = async (
+  data: MarkCoachAttendanceRequest
+): Promise<CoachAttendance> => {
+  const response = await apiClient.post<CoachAttendance>(
+    API_ENDPOINTS.TENANT.COACH_ATTENDANCE.MARK,
+    data
   );
   return response.data;
 };

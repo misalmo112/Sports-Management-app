@@ -17,8 +17,10 @@ urlpatterns = [
     # Platform API URLs
     path('api/v1/platform/', include('saas_platform.tenants.urls')),
     path('api/v1/platform/', include('saas_platform.subscriptions.urls')),
+    path('api/v1/platform/', include('saas_platform.finance.urls')),
     path('api/v1/platform/', include('saas_platform.analytics.urls')),
     path('api/v1/platform/', include('saas_platform.audit.urls')),
+    path('api/v1/platform/', include('saas_platform.masters.urls')),
     # Tenant API URLs
     path('api/v1/tenant/', include('tenant.onboarding.urls')),
     path('api/v1/tenant/', include('tenant.overview.urls')),

@@ -6,6 +6,13 @@ This document defines the sequential onboarding wizard contract for the Sports A
 
 **Critical Rule**: If `Academy.onboarding_completed == False`, ALL tenant APIs except onboarding endpoints are blocked.
 
+## Onboarding v2 (Activation + Checklist)
+
+This system is split into two phases:
+
+- **Phase A (Activation Wizard, hard-gated)**: a short, sequential wizard that collects the minimum required tenant reference data. Completion sets `Academy.onboarding_completed=True`.
+- **Phase B (Guided Setup Checklist, soft-gated)**: post-activation setup items that improve “roster readiness” (members/staff/program setup). These items are recommended but **do not** block tenant APIs.
+
 ## Wizard Flow
 
 The onboarding wizard is **strictly sequential** (linear progression):
@@ -14,13 +21,52 @@ The onboarding wizard is **strictly sequential** (linear progression):
 - Steps can be revisited to update data
 - Final validation occurs before marking `onboarding_completed=True`
 
+### GET Onboarding State
+
+**Endpoint**: `GET /api/v1/tenant/onboarding/state/`
+
+**Purpose**: Return current onboarding progress and, for pre-fill, the academy's current profile (data collected at creation or from previous Step 1 submissions).
+
+**Success Response** (200 OK):
+```json
+{
+  "status": "success",
+  "data": {
+    "academy_id": "550e8400-e29b-41d4-a716-446655440000",
+    "current_step": 1,
+    "is_completed": false,
+    "steps": { "step_1": { "name": "Academy Profile", "completed": false }, ... },
+    "locked": false,
+    "locked_by": null,
+    "locked_at": null,
+    "completed_at": null,
+    "profile": {
+      "name": "Elite Sports Academy",
+      "email": "contact@elitesports.com",
+      "phone": "",
+      "website": "",
+      "address_line1": "123 Sports Street",
+      "address_line2": "",
+      "city": "",
+      "state": "",
+      "postal_code": "",
+      "country": "USA",
+      "timezone": "America/New_York",
+      "currency": "USD"
+    }
+  }
+}
+```
+
+The `profile` object contains the academy's current Step 1 fields. Clients should use it to pre-fill the Step 1 form when the user has not yet completed that step.
+
 ## Wizard Steps
 
 ### Step 1: Academy Profile
 
 **Purpose**: Collect basic academy information and contact details.
 
-**Endpoint**: `POST /api/v1/tenant/onboarding/profile/`
+**Endpoint**: `POST /api/v1/tenant/onboarding/step/1/`
 
 **Idempotency**: Endpoint is idempotent. Creates academy profile if missing, updates if exists.
 
@@ -40,23 +86,25 @@ The onboarding wizard is **strictly sequential** (linear progression):
   "city": "New York",
   "state": "NY",
   "postal_code": "10001",
-  "country": "United States",
-  "timezone": "America/New_York"
+  "country": "USA",
+  "timezone": "America/New_York",
+  "currency": "USD"
 }
 ```
 
 **Field Validation**:
 - `name`: Required, max 255 characters
 - `email`: Required, valid email format
-- `phone`: Optional, max 20 characters
+- `phone`: **Required**, max 20 characters. Allowed characters: digits, spaces, `+`, `-`, `(`, `)`. Must contain at least 8 digits (include country code, e.g. +1 555 123 4567).
 - `website`: Optional, valid URL format
-- `address_line1`: Optional, max 255 characters
+- `address_line1`: **Required**, max 255 characters
 - `address_line2`: Optional, max 255 characters
 - `city`: Optional, max 100 characters
 - `state`: Optional, max 100 characters
 - `postal_code`: Optional, max 20 characters
-- `country`: Optional, max 100 characters
-- `timezone`: Required, valid timezone identifier (IANA timezone database)
+- `country`: Optional; when provided must be a 3-letter ISO alpha-3 code from the **global Country master**
+- `timezone`: Required; must be a valid identifier from the **global Timezone master** (IANA)
+- `currency`: Required; must be a 3-letter code from the **global Currency master**
 
 **Success Response** (200 OK):
 ```json
@@ -105,7 +153,7 @@ The onboarding wizard is **strictly sequential** (linear progression):
 
 **Purpose**: Create at least one location (venue/facility) for the academy.
 
-**Endpoint**: `POST /api/v1/tenant/onboarding/locations/`
+**Endpoint**: `POST /api/v1/tenant/onboarding/step/2/`
 
 **Idempotency**: Endpoint is idempotent. Creates location if missing (by name), updates if exists.
 
@@ -201,7 +249,7 @@ The onboarding wizard is **strictly sequential** (linear progression):
 
 **Purpose**: Define at least one sport that the academy offers.
 
-**Endpoint**: `POST /api/v1/tenant/onboarding/sports/`
+**Endpoint**: `POST /api/v1/tenant/onboarding/step/3/`
 
 **Idempotency**: Endpoint is idempotent. Creates sport if missing (by name), updates if exists.
 
@@ -280,101 +328,11 @@ The onboarding wizard is **strictly sequential** (linear progression):
 
 ---
 
-### Step 4: Age Categories
-
-**Purpose**: Define at least one age category for organizing classes and programs.
-
-**Endpoint**: `POST /api/v1/tenant/onboarding/age-categories/`
-
-**Idempotency**: Endpoint is idempotent. Creates age category if missing (by name), updates if exists.
-
-**Unique Constraints**:
-- Age category identified by `academy_id` + `name` (unique together)
-- At least one age category must exist before proceeding
-
-**Request Payload**:
-```json
-{
-  "age_categories": [
-    {
-      "name": "U8 (Under 8)",
-      "age_min": 5,
-      "age_max": 7,
-      "description": "Ages 5-7"
-    },
-    {
-      "name": "U10 (Under 10)",
-      "age_min": 8,
-      "age_max": 9,
-      "description": "Ages 8-9"
-    },
-    {
-      "name": "U12 (Under 12)",
-      "age_min": 10,
-      "age_max": 11,
-      "description": "Ages 10-11"
-    }
-  ]
-}
-```
-
-**Field Validation**:
-- `age_categories`: Required, array with at least 1 item
-- Each age category:
-  - `name`: Required, max 255 characters, unique per academy
-  - `age_min`: Required, integer >= 0
-  - `age_max`: Required, integer > age_min
-  - `description`: Optional, text field
-
-**Success Response** (200 OK):
-```json
-{
-  "status": "success",
-  "step": 4,
-  "message": "Age categories saved successfully",
-  "data": {
-    "age_categories_created": 3,
-    "age_categories_updated": 0,
-    "total_age_categories": 3
-  },
-  "next_step": 5
-}
-```
-
-**Error Response** (400 Bad Request):
-```json
-{
-  "status": "error",
-  "step": 4,
-  "message": "Validation failed",
-  "errors": {
-    "age_categories": ["At least one age category is required."],
-    "age_categories[0].age_min": ["This field is required."],
-    "age_categories[1].age_max": ["Age max must be greater than age min."]
-  }
-}
-```
-
-**Step Completion Criteria**:
-- At least one age category is created/updated
-- All age category names are unique per academy
-- Age ranges are valid (age_max > age_min)
-- `OnboardingState.step_4_completed = True`
-- `OnboardingState.current_step` is set to 5 (if step 4 was just completed)
-
-**Upsert Behavior**:
-- Age categories matched by `academy_id` + `name`
-- If age category exists: Update all provided fields
-- If age category missing: Create new age category
-- Duplicate names within same request are rejected
-
----
-
-### Step 5: Terms
+### Step 4: Terms
 
 **Purpose**: Define at least one term (semester/period) for organizing classes and enrollments.
 
-**Endpoint**: `POST /api/v1/tenant/onboarding/terms/`
+**Endpoint**: `POST /api/v1/tenant/onboarding/step/4/`
 
 **Idempotency**: Endpoint is idempotent. Creates term if missing (by name + start_date), updates if exists.
 
@@ -414,14 +372,14 @@ The onboarding wizard is **strictly sequential** (linear progression):
 ```json
 {
   "status": "success",
-  "step": 5,
+  "step": 4,
   "message": "Terms saved successfully",
   "data": {
     "terms_created": 2,
     "terms_updated": 0,
     "total_terms": 2
   },
-  "next_step": 6
+  "next_step": 5
 }
 ```
 
@@ -429,7 +387,7 @@ The onboarding wizard is **strictly sequential** (linear progression):
 ```json
 {
   "status": "error",
-  "step": 5,
+  "step": 4,
   "message": "Validation failed",
   "errors": {
     "terms": ["At least one term is required."],
@@ -442,8 +400,8 @@ The onboarding wizard is **strictly sequential** (linear progression):
 **Step Completion Criteria**:
 - At least one term is created/updated
 - All term date ranges are valid (end_date > start_date)
-- `OnboardingState.step_5_completed = True`
-- `OnboardingState.current_step` is set to 6 (if step 5 was just completed)
+- `OnboardingState.step_4_completed = True`
+- `OnboardingState.current_step` is set to 5 (if step 4 was just completed)
 
 **Upsert Behavior**:
 - Terms matched by `academy_id` + `name` + `start_date`
@@ -453,11 +411,11 @@ The onboarding wizard is **strictly sequential** (linear progression):
 
 ---
 
-### Step 6: Pricing
+### Step 5: Pricing
 
 **Purpose**: Define pricing items and durations for classes and programs.
 
-**Endpoint**: `POST /api/v1/tenant/onboarding/pricing/`
+**Endpoint**: `POST /api/v1/tenant/onboarding/step/5/`
 
 **Idempotency**: Endpoint is idempotent. Creates pricing item if missing (by name + duration_type), updates if exists.
 
@@ -511,7 +469,7 @@ The onboarding wizard is **strictly sequential** (linear progression):
 ```json
 {
   "status": "success",
-  "step": 6,
+  "step": 5,
   "message": "Pricing items saved successfully",
   "data": {
     "pricing_items_created": 3,
@@ -527,7 +485,7 @@ The onboarding wizard is **strictly sequential** (linear progression):
 ```json
 {
   "status": "error",
-  "step": 6,
+  "step": 5,
   "message": "Validation failed",
   "errors": {
     "pricing_items": ["At least one pricing item is required."],
@@ -540,7 +498,7 @@ The onboarding wizard is **strictly sequential** (linear progression):
 **Step Completion Criteria**:
 - At least one pricing item is created/updated
 - All pricing items have valid duration types and prices
-- `OnboardingState.step_6_completed = True`
+- `OnboardingState.step_5_completed = True`
 - Final validation passes (all steps 1-6 completed)
 - `Academy.onboarding_completed = True`
 - `OnboardingState.is_completed = True`
@@ -638,10 +596,9 @@ Before marking `onboarding_completed=True`, the system validates:
 1. ✅ Academy profile exists and is complete
 2. ✅ At least one location exists
 3. ✅ At least one sport exists
-4. ✅ At least one age category exists
-5. ✅ At least one term exists
-6. ✅ At least one pricing item exists
-7. ✅ All steps are marked as completed in `OnboardingState`
+4. ✅ At least one term exists
+5. ✅ At least one pricing item exists
+6. ✅ All steps are marked as completed in `OnboardingState`
 
 If validation fails, return error with missing requirements:
 ```json
@@ -665,7 +622,7 @@ If validation fails, return error with missing requirements:
 ```json
 {
   "detail": "Onboarding not completed",
-  "required_steps": ["location", "sport", "age_category", "term", "pricing"]
+  "required_steps": ["location", "sport", "term", "pricing"]
 }
 ```
 

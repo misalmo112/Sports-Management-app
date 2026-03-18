@@ -20,6 +20,7 @@ class IsSuperadminPermissionTest(TestCase):
         user = User.objects.create_superuser(
             email='superadmin@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
         
@@ -76,6 +77,7 @@ class IsPlatformAdminPermissionTest(TestCase):
         user = User.objects.create_superuser(
             email='superadmin@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
         

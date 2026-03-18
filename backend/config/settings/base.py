@@ -63,9 +63,11 @@ INSTALLED_APPS = [
     'shared.tenancy.apps.TenancyConfig',
     'saas_platform.tenants',
     'saas_platform.subscriptions',
+    'saas_platform.finance.apps.FinanceConfig',
     'saas_platform.quotas',
     'saas_platform.analytics',
     'saas_platform.audit',
+    'saas_platform.masters.apps.MastersConfig',
     'tenant.onboarding',
     'tenant.students',
     'tenant.coaches',
@@ -208,7 +210,7 @@ CORS_ALLOW_HEADERS = [
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'shared.authentication.TenantAwareJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -217,6 +219,27 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': int(os.getenv('API_PAGE_SIZE', '20')),
     'EXCEPTION_HANDLER': 'shared.exceptions.handler.api_exception_handler',
 }
+
+# Cache (used by bulk-import preview tokens across Gunicorn workers)
+# If left unconfigured, Django falls back to a per-process in-memory cache,
+# which breaks preview/commit when requests hit different workers.
+_redis_cache_url = os.getenv('REDIS_URL')
+if _redis_cache_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _redis_cache_url,
+        }
+    }
+else:
+    # Safe fallback for environments that do not run Redis
+    # (e.g. unit tests using sqlite in-memory).
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'sports-academy-locmem-cache',
+        }
+    }
 
 # Add drf_spectacular schema class if available
 try:
@@ -261,6 +284,30 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = os.getenv('CELERY_TIMEZONE', 'UTC')
 CELERY_ENABLE_UTC = os.getenv('CELERY_ENABLE_UTC', 'True') == 'True'
+
+# Celery Beat schedule (masters sync from Frankfurter and WorldTimeAPI)
+CELERY_BEAT_SCHEDULE = {
+    'sync-frankfurter-daily': {
+        'task': 'saas_platform.masters.tasks.sync_currencies_and_rates_from_frankfurter_task',
+        'schedule': 60 * 60 * 24,  # every 24 hours (seconds)
+        'options': {'expires': 60 * 60},
+    },
+    'sync-worldtimeapi-weekly': {
+        'task': 'saas_platform.masters.tasks.sync_timezones_from_worldtimeapi_task',
+        'schedule': 60 * 60 * 24 * 7,  # every 7 days
+        'options': {'expires': 60 * 60},
+    },
+}
+
+# Frankfurter API (currencies + exchange rates)
+FRANKFURTER_BASE_URL = os.getenv('FRANKFURTER_BASE_URL', 'https://api.frankfurter.dev')
+FRANKFURTER_RATE_BASES = [
+    b.strip() for b in os.getenv('FRANKFURTER_RATE_BASES', 'EUR').split(',')
+    if b.strip()
+]
+
+# WorldTimeAPI (timezone list)
+WORLDTIMEAPI_BASE_URL = os.getenv('WORLDTIMEAPI_BASE_URL', 'http://worldtimeapi.org/api')
 
 # Email configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')

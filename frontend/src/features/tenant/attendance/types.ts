@@ -90,6 +90,14 @@ export interface CoachAttendanceListResponse {
   results: CoachAttendance[];
 }
 
+export interface MarkCoachAttendanceRequest {
+  class_id: number;
+  coach_id: number;
+  date: string;
+  status: 'PRESENT' | 'ABSENT' | 'LATE';
+  notes?: string;
+}
+
 export interface CreateCoachAttendanceRequest {
   coach: number;
   class_obj: number;

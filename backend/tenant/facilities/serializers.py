@@ -19,6 +19,16 @@ from tenant.onboarding.serializers import LocationListSerializer
 class FacilityRentConfigSerializer(serializers.ModelSerializer):
     location_detail = LocationListSerializer(source='location', read_only=True)
 
+    def _get_academy_currency(self):
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+        if not academy:
+            return None
+        currency = getattr(academy, 'currency', None)
+        if not currency:
+            return None
+        return str(currency).strip().upper()
+
     class Meta:
         model = FacilityRentConfig
         fields = [
@@ -60,7 +70,30 @@ class FacilityRentConfigSerializer(serializers.ModelSerializer):
                     {'period_type': 'A rent configuration already exists for this location and period.'}
                 )
 
+        academy_currency = self._get_academy_currency()
+        if academy_currency:
+            # If client provided currency, reject mismatches. Always store academy currency.
+            if 'currency' in attrs and attrs['currency'] is not None:
+                provided_currency = str(attrs['currency']).strip().upper()
+                if provided_currency != academy_currency:
+                    raise serializers.ValidationError({
+                        'currency': 'Currency must match the academy currency.'
+                    })
+            attrs['currency'] = academy_currency
+
         return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        academy_currency = self._get_academy_currency()
+        if not academy_currency:
+            academy = getattr(instance, 'academy', None)
+            academy_currency = getattr(academy, 'currency', None) if academy else None
+            if academy_currency:
+                academy_currency = str(academy_currency).strip().upper()
+        if academy_currency:
+            data['currency'] = academy_currency
+        return data
 
 
 class RentPaymentSerializer(serializers.ModelSerializer):
@@ -84,6 +117,16 @@ class RentInvoiceSerializer(serializers.ModelSerializer):
     payments = RentPaymentSerializer(many=True, read_only=True)
     paid_amount = serializers.SerializerMethodField()
     remaining_amount = serializers.SerializerMethodField()
+
+    def _get_academy_currency(self):
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+        if not academy:
+            return None
+        currency = getattr(academy, 'currency', None)
+        if not currency:
+            return None
+        return str(currency).strip().upper()
 
     class Meta:
         model = RentInvoice
@@ -128,6 +171,31 @@ class RentInvoiceSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'academy') and request.academy and value.academy_id != request.academy.id:
             raise serializers.ValidationError('Location must belong to the same academy.')
         return value
+
+    def validate(self, attrs):
+        academy_currency = self._get_academy_currency()
+        if academy_currency:
+            # If client provided currency, reject mismatches. Always store academy currency.
+            if 'currency' in attrs and attrs['currency'] is not None:
+                provided_currency = str(attrs['currency']).strip().upper()
+                if provided_currency != academy_currency:
+                    raise serializers.ValidationError({
+                        'currency': 'Currency must match the academy currency.'
+                    })
+            attrs['currency'] = academy_currency
+        return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        academy_currency = self._get_academy_currency()
+        if not academy_currency:
+            academy = getattr(instance, 'academy', None)
+            academy_currency = getattr(academy, 'currency', None) if academy else None
+            if academy_currency:
+                academy_currency = str(academy_currency).strip().upper()
+        if academy_currency:
+            data['currency'] = academy_currency
+        return data
 
 
 class RentReceiptSerializer(serializers.ModelSerializer):
@@ -229,6 +297,16 @@ class BillLineItemSerializer(serializers.ModelSerializer):
 class BillSerializer(serializers.ModelSerializer):
     line_items = BillLineItemSerializer(many=True, read_only=True)
 
+    def _get_academy_currency(self):
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+        if not academy:
+            return None
+        currency = getattr(academy, 'currency', None)
+        if not currency:
+            return None
+        return str(currency).strip().upper()
+
     class Meta:
         model = Bill
         fields = [
@@ -247,6 +325,31 @@ class BillSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'academy', 'total_amount', 'line_items', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        academy_currency = self._get_academy_currency()
+        if academy_currency:
+            # If client provided currency, reject mismatches. Always store academy currency.
+            if 'currency' in attrs and attrs['currency'] is not None:
+                provided_currency = str(attrs['currency']).strip().upper()
+                if provided_currency != academy_currency:
+                    raise serializers.ValidationError({
+                        'currency': 'Currency must match the academy currency.'
+                    })
+            attrs['currency'] = academy_currency
+        return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        academy_currency = self._get_academy_currency()
+        if not academy_currency:
+            academy = getattr(instance, 'academy', None)
+            academy_currency = getattr(academy, 'currency', None) if academy else None
+            if academy_currency:
+                academy_currency = str(academy_currency).strip().upper()
+        if academy_currency:
+            data['currency'] = academy_currency
+        return data
 
 
 class MarkBillPaidSerializer(serializers.Serializer):

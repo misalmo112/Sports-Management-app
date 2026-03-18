@@ -8,9 +8,9 @@ import {
   validateStep1,
   validateStep2,
   validateStep3,
+  validateAgeCategories,
   validateStep4,
   validateStep5,
-  validateStep6,
 } from '../validation';
 
 describe('validateEmail', () => {
@@ -47,6 +47,8 @@ describe('validateStep1', () => {
     const data = {
       name: 'Test Academy',
       email: 'test@example.com',
+      phone: '+1 555 012 3456',
+      address_line1: '123 Main St',
       timezone: 'America/New_York',
       currency: 'USD',
     };
@@ -191,54 +193,26 @@ describe('validateStep3', () => {
 });
 
 describe('validateStep4', () => {
-  it('validates correct age categories data', () => {
-    const data = {
-      age_categories: [
-        { name: 'U8', age_min: 5, age_max: 7 },
-      ],
-    };
-    
-    const errors = validateStep4(data);
-    expect(errors).toHaveLength(0);
-  });
-
-  it('requires age_min and age_max', () => {
-    const data = {
-      age_categories: [
-        { name: 'U8' },
-      ],
-    };
-    
-    const errors = validateStep4(data);
-    expect(errors.length).toBeGreaterThan(0);
-  });
-});
-
-describe('validateStep5', () => {
   it('validates correct terms data', () => {
     const data = {
-      terms: [
-        { name: 'Fall 2024', start_date: '2024-09-01', end_date: '2024-12-15' },
-      ],
+      terms: [{ name: 'Fall 2024', start_date: '2024-09-01', end_date: '2024-12-15' }],
     };
     
-    const errors = validateStep5(data);
+    const errors = validateStep4(data);
     expect(errors).toHaveLength(0);
   });
 
   it('requires end_date after start_date', () => {
     const data = {
-      terms: [
-        { name: 'Fall 2024', start_date: '2024-12-15', end_date: '2024-09-01' },
-      ],
+      terms: [{ name: 'Fall 2024', start_date: '2024-12-15', end_date: '2024-09-01' }],
     };
     
-    const errors = validateStep5(data);
+    const errors = validateStep4(data);
     expect(errors.some(e => e.message.includes('after start date'))).toBe(true);
   });
 });
 
-describe('validateStep6', () => {
+describe('validateStep5', () => {
   it('validates correct pricing data', () => {
     const data = {
       pricing_items: [
@@ -246,7 +220,7 @@ describe('validateStep6', () => {
       ],
     };
     
-    const errors = validateStep6(data);
+    const errors = validateStep5(data);
     expect(errors).toHaveLength(0);
   });
 
@@ -257,7 +231,7 @@ describe('validateStep6', () => {
       ],
     };
     
-    const errors = validateStep6(data);
+    const errors = validateStep5(data);
     expect(errors.some(e => e.message.includes('Duration type'))).toBe(true);
   });
 
@@ -268,7 +242,27 @@ describe('validateStep6', () => {
       ],
     };
     
-    const errors = validateStep6(data);
+    const errors = validateStep5(data);
     expect(errors.some(e => e.field.includes('price'))).toBe(true);
+  });
+});
+
+describe('validateAgeCategories', () => {
+  it('validates correct age categories data', () => {
+    const data = {
+      age_categories: [{ name: 'U8', age_min: 5, age_max: 7 }],
+    };
+    
+    const errors = validateAgeCategories(data);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('requires age_min and age_max', () => {
+    const data = {
+      age_categories: [{ name: 'U8' }],
+    };
+    
+    const errors = validateAgeCategories(data);
+    expect(errors.length).toBeGreaterThan(0);
   });
 });

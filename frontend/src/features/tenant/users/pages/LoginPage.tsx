@@ -2,7 +2,7 @@
  * Login page (public route)
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -38,23 +38,30 @@ export const LoginPage = () => {
       localStorage.setItem('auth_token', response.access);
       localStorage.setItem('refresh_token', response.refresh);
 
-      const academyId = response.user?.academy_id ?? null;
+      // Support both flat and nested response shapes (e.g. response.user or response.data.user)
+      const user = response.user ?? (response as { data?: { user?: { academy_id?: string | null; role?: string } } }).data?.user;
+      const academyId = user?.academy_id != null ? String(user.academy_id).trim() : null;
+      const role = user?.role;
       localStorage.setItem('user_academy_id', academyId ?? '');
 
-      if (response.user?.role) {
-        const normalizedRole = academyId ? response.user.role : 'SUPERADMIN';
+      if (role) {
+        const normalizedRole = academyId ? role : 'SUPERADMIN';
         localStorage.setItem('user_role', normalizedRole);
       }
-      
-      // Store user info if needed
+
+      // X-Academy-ID is required for tenant API calls; set whenever we have an academy
       if (academyId) {
         localStorage.setItem('selected_academy_id', academyId);
       } else {
         localStorage.removeItem('selected_academy_id');
       }
 
-      // Redirect to dashboard
-      navigate('/dashboard');
+      // Tenant users with an academy go to onboarding first; dashboard redirects there if incomplete
+      if (academyId) {
+        navigate('/onboarding');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || err.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
@@ -112,6 +119,14 @@ export const LoginPage = () => {
                 disabled={loginMutation.isPending}
                 autoComplete="current-password"
               />
+              <div className="flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <Button

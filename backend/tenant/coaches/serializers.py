@@ -212,6 +212,16 @@ class StaffInvoiceSerializer(serializers.ModelSerializer):
 
     coach_name = serializers.CharField(source='coach.full_name', read_only=True)
 
+    def _get_academy_currency(self):
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+        if not academy:
+            return None
+        currency = getattr(academy, 'currency', None)
+        if not currency:
+            return None
+        return str(currency).strip().upper()
+
     class Meta:
         model = StaffInvoice
         fields = [
@@ -240,6 +250,31 @@ class StaffInvoiceSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'academy') and request.academy and value.academy_id != request.academy.id:
             raise serializers.ValidationError('Coach must belong to the current academy.')
         return value
+
+    def validate(self, attrs):
+        academy_currency = self._get_academy_currency()
+        if academy_currency:
+            # If client provided currency, reject mismatches. Always store academy currency.
+            if 'currency' in attrs and attrs['currency'] is not None:
+                provided_currency = str(attrs['currency']).strip().upper()
+                if provided_currency != academy_currency:
+                    raise serializers.ValidationError({
+                        'currency': 'Currency must match the academy currency.'
+                    })
+            attrs['currency'] = academy_currency
+        return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        academy_currency = self._get_academy_currency()
+        if not academy_currency:
+            academy = getattr(instance, 'academy', None)
+            academy_currency = getattr(academy, 'currency', None) if academy else None
+            if academy_currency:
+                academy_currency = str(academy_currency).strip().upper()
+        if academy_currency:
+            data['currency'] = academy_currency
+        return data
 
 
 class StaffReceiptSerializer(serializers.ModelSerializer):

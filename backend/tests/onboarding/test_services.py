@@ -7,8 +7,9 @@ from django.utils import timezone
 from datetime import timedelta
 from saas_platform.tenants.models import Academy, OnboardingState
 from tenant.onboarding.models import (
-    Location, Sport, AgeCategory, Term, PricingItem
+    Location, Sport, AgeCategory, Term
 )
+from tenant.billing.models import Item as BillingItem
 from tenant.onboarding.services import OnboardingService, OnboardingValidationService
 
 User = get_user_model()
@@ -192,12 +193,11 @@ class OnboardingValidationServiceTest(TestCase):
             start_date='2024-09-01',
             end_date='2024-12-15'
         )
-        PricingItem.objects.create(
+        BillingItem.objects.create(
             academy=self.academy,
             name='Monthly',
-            duration_type=PricingItem.DurationType.MONTHLY,
-            duration_value=1,
-            price=99.99
+            price=99.99,
+            currency='USD',
         )
         
         # Complete all steps
@@ -242,12 +242,11 @@ class OnboardingValidationServiceTest(TestCase):
             start_date='2024-09-01',
             end_date='2024-12-15'
         )
-        PricingItem.objects.create(
+        BillingItem.objects.create(
             academy=self.academy,
             name='Monthly',
-            duration_type=PricingItem.DurationType.MONTHLY,
-            duration_value=1,
-            price=99.99
+            price=99.99,
+            currency='USD',
         )
         
         # Complete all steps

@@ -2,12 +2,25 @@
  * Academy Create Page (Platform - SUPERADMIN)
  * Create a new academy
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { SearchableSelect } from '@/shared/components/ui/searchable-select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
+import { usePlatformCountries } from '@/features/platform/masters/hooks/usePlatformCountries';
+import { usePlatformCurrencies } from '@/features/platform/masters/hooks/usePlatformCurrencies';
+import { usePlatformTimezones } from '@/features/platform/masters/hooks/usePlatformTimezones';
+import { useMasterCountries } from '@/shared/hooks/useMasters';
+import { usePlans } from '@/features/platform/subscriptions/hooks/usePlans';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useCreateAcademy } from '../hooks/hooks';
@@ -29,12 +42,66 @@ export const AcademyCreatePage = () => {
     postal_code: '',
     country: '',
     timezone: 'UTC',
+    currency: 'USD',
     owner_email: '',
+    plan_id: undefined,
   });
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
 
   const createAcademy = useCreateAcademy();
+  const { data: timezonesData, isLoading: isLoadingTimezones } = usePlatformTimezones({
+    is_active: true,
+    page_size: 2000,
+  });
+  const { data: currenciesData, isLoading: isLoadingCurrencies } = usePlatformCurrencies({
+    is_active: true,
+  });
+  const {
+    data: countriesData,
+    isLoading: isLoadingCountries,
+    isError: isCountriesError,
+  } = usePlatformCountries({
+    is_active: true,
+    page_size: 300,
+  });
+  const { data: tenantCountriesData } = useMasterCountries();
+  const { data: plansData, isLoading: isLoadingPlans } = usePlans({ is_active: true });
+  const timezones = timezonesData?.results ?? [];
+  const currencies = currenciesData?.results ?? [];
+  // Prefer platform countries; fallback to tenant masters when platform fails or is empty
+  const countries =
+    countriesData?.results?.length > 0
+      ? countriesData.results
+      : (tenantCountriesData?.countries ?? []).map((c) => ({
+          id: 0,
+          code: c.code,
+          name: c.name,
+          phone_code: '',
+          region: '',
+          is_active: true,
+          sort_order: 0,
+          created_at: '',
+          updated_at: '',
+        }));
+  const plans = plansData?.results ?? [];
+
+  const timezoneOptions = useMemo(
+    () => timezones.map((tz) => ({ value: tz.code, label: tz.name || tz.code })),
+    [timezones]
+  );
+  const currencyOptions = useMemo(
+    () =>
+      currencies.map((curr) => ({
+        value: curr.code,
+        label: curr.name ? `${curr.code} — ${curr.name}` : curr.code,
+      })),
+    [currencies]
+  );
+  const countryOptions = useMemo(
+    () => countries.map((c) => ({ value: c.code, label: `${c.name} (${c.code})` })),
+    [countries]
+  );
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -68,6 +135,23 @@ export const AcademyCreatePage = () => {
       } catch {
         newErrors.website = 'Please enter a valid URL';
       }
+    }
+
+    if (!formData.address_line1 || formData.address_line1.trim().length === 0) {
+      newErrors.address_line1 = 'Address line 1 is required';
+    } else if (formData.address_line1.length > 255) {
+      newErrors.address_line1 = 'Address line 1 must be 255 characters or less';
+    }
+
+    const phoneTrimmed = formData.phone?.trim() ?? '';
+    if (phoneTrimmed.length === 0) {
+      newErrors.phone = 'Phone is required';
+    } else if (phoneTrimmed.length > 20) {
+      newErrors.phone = 'Phone must be 20 characters or less';
+    } else if (!/^[\d+\s\-()]+$/.test(phoneTrimmed)) {
+      newErrors.phone = 'Phone may only contain digits, spaces, and + - ( ). Example: +1 555 123 4567';
+    } else if ((phoneTrimmed.match(/\d/g) || []).length < 8) {
+      newErrors.phone = 'Phone must contain at least 8 digits (include country code if needed)';
     }
 
     if (!formData.owner_email || formData.owner_email.trim().length === 0) {
@@ -117,16 +201,12 @@ export const AcademyCreatePage = () => {
         slug: formData.slug.trim().toLowerCase(),
         email: formData.email.trim().toLowerCase(),
         owner_email: formData.owner_email.trim().toLowerCase(),
+        address_line1: formData.address_line1.trim(),
       };
 
-      if (formData.phone?.trim()) {
-        submitData.phone = formData.phone.trim();
-      }
+      submitData.phone = formData.phone.trim();
       if (formData.website?.trim()) {
         submitData.website = formData.website.trim();
-      }
-      if (formData.address_line1?.trim()) {
-        submitData.address_line1 = formData.address_line1.trim();
       }
       if (formData.address_line2?.trim()) {
         submitData.address_line2 = formData.address_line2.trim();
@@ -145,6 +225,12 @@ export const AcademyCreatePage = () => {
       }
       if (formData.timezone?.trim()) {
         submitData.timezone = formData.timezone.trim();
+      }
+      if (formData.currency?.trim()) {
+        submitData.currency = formData.currency.trim();
+      }
+      if (formData.plan_id != null && formData.plan_id !== undefined) {
+        submitData.plan_id = formData.plan_id;
       }
 
       const academy = await createAcademy.mutateAsync(submitData);
@@ -250,15 +336,24 @@ export const AcademyCreatePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">Phone <span className="text-destructive">*</span></Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
+                    placeholder="+1 555 123 4567"
+                    required
+                    maxLength={20}
+                    aria-describedby="phone-hint"
                   />
-                  {errors.phone && (
-                    <p className="text-sm text-destructive">{errors.phone[0]}</p>
+                  <p id="phone-hint" className="text-xs text-muted-foreground">
+                    Include country code (e.g. +1 for US, +44 for UK). Only digits, spaces, and + - ( ) allowed.
+                  </p>
+                  {(errors.phone || clientErrors.phone) && (
+                    <p className="text-sm text-destructive">
+                      {errors.phone?.[0] || clientErrors.phone}
+                    </p>
                   )}
                 </div>
               </div>
@@ -284,14 +379,19 @@ export const AcademyCreatePage = () => {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Address Information</h3>
               <div className="space-y-2">
-                <Label htmlFor="address_line1">Address Line 1</Label>
+                <Label htmlFor="address_line1">
+                  Address Line 1 <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="address_line1"
                   value={formData.address_line1}
                   onChange={(e) => handleChange('address_line1', e.target.value)}
+                  required
                 />
-                {errors.address_line1 && (
-                  <p className="text-sm text-destructive">{errors.address_line1[0]}</p>
+                {(errors.address_line1 || clientErrors.address_line1) && (
+                  <p className="text-sm text-destructive">
+                    {errors.address_line1?.[0] || clientErrors.address_line1}
+                  </p>
                 )}
               </div>
 
@@ -348,10 +448,24 @@ export const AcademyCreatePage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="country">Country</Label>
-                  <Input
+                  <SearchableSelect
                     id="country"
-                    value={formData.country}
-                    onChange={(e) => handleChange('country', e.target.value)}
+                    options={countryOptions}
+                    value={formData.country || '__none__'}
+                    onValueChange={(value) =>
+                      handleChange('country', value === '__none__' ? '' : value)
+                    }
+                    placeholder="Select country"
+                    searchPlaceholder="Search countries..."
+                    allowEmpty
+                    emptyOptionLabel="Select country"
+                    isLoading={isLoadingCountries && countryOptions.length === 0}
+                    loadingMessage="Loading countries..."
+                    emptyMessage={
+                      isCountriesError && countryOptions.length === 0
+                        ? 'Could not load countries. Ensure you are logged in as a platform admin.'
+                        : 'No countries configured'
+                    }
                   />
                   {errors.country && (
                     <p className="text-sm text-destructive">{errors.country[0]}</p>
@@ -360,16 +474,78 @@ export const AcademyCreatePage = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="timezone">Timezone</Label>
-                  <Input
+                  <SearchableSelect
                     id="timezone"
-                    value={formData.timezone}
-                    onChange={(e) => handleChange('timezone', e.target.value)}
-                    placeholder="UTC"
+                    options={timezoneOptions}
+                    value={formData.timezone || ''}
+                    onValueChange={(value) => handleChange('timezone', value)}
+                    placeholder="Select timezone"
+                    searchPlaceholder="Search timezones..."
+                    isLoading={isLoadingTimezones}
+                    loadingMessage="Loading timezones..."
+                    emptyMessage="No timezones configured"
                   />
                   {errors.timezone && (
                     <p className="text-sm text-destructive">{errors.timezone[0]}</p>
                   )}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <SearchableSelect
+                  id="currency"
+                  options={currencyOptions}
+                  value={formData.currency || ''}
+                  onValueChange={(value) => handleChange('currency', value)}
+                  placeholder="Select currency"
+                  searchPlaceholder="Search currencies..."
+                  isLoading={isLoadingCurrencies}
+                  loadingMessage="Loading currencies..."
+                  emptyMessage="No currencies configured"
+                />
+                {errors.currency && (
+                  <p className="text-sm text-destructive">{errors.currency[0]}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Subscription Plan */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Subscription Plan</h3>
+              <div className="space-y-2">
+                <Label htmlFor="plan_id">Plan</Label>
+                <Select
+                  value={formData.plan_id != null ? String(formData.plan_id) : '__default__'}
+                  onValueChange={(value) =>
+                    handleChange('plan_id', value === '__default__' ? undefined : Number(value))
+                  }
+                >
+                  <SelectTrigger id="plan_id">
+                    <SelectValue placeholder="Select a plan (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">
+                      {isLoadingPlans ? 'Loading plans...' : 'Use default (first active plan)'}
+                    </SelectItem>
+                    {!isLoadingPlans &&
+                      plans.map((plan) => (
+                        <SelectItem key={plan.id} value={String(plan.id)}>
+                          {plan.name}
+                          {plan.price_monthly != null
+                            ? ` — ${plan.currency} ${Number(plan.price_monthly)}/mo`
+                            : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {errors.plan_id && (
+                  <p className="text-sm text-destructive">{errors.plan_id[0]}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Choose a subscription plan for this academy. If not set, the first active plan is
+                  used.
+                </p>
               </div>
             </div>
 

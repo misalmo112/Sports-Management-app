@@ -11,6 +11,7 @@ import {
   markAttendance,
   getCoachAttendance,
   getCoachAttendanceById,
+  markCoachAttendance,
   createCoachAttendance,
   updateCoachAttendance,
   deleteCoachAttendance,
@@ -26,6 +27,7 @@ import type {
   CoachAttendance,
   CreateCoachAttendanceRequest,
   UpdateCoachAttendanceRequest,
+  MarkCoachAttendanceRequest,
 } from '../types';
 
 /**
@@ -153,6 +155,20 @@ export const useCoachAttendanceById = (id: number | string | undefined) => {
     enabled: !!id,
     staleTime: 30000,
     refetchOnWindowFocus: false,
+  });
+};
+
+/**
+ * Hook for marking coach attendance (idempotent)
+ */
+export const useMarkCoachAttendance = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<CoachAttendance, Error, MarkCoachAttendanceRequest>({
+    mutationFn: markCoachAttendance,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['coach-attendance', 'list'] });
+    },
   });
 };
 

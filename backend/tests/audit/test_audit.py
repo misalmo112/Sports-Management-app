@@ -21,6 +21,7 @@ class AuditServiceTest(TestCase):
         self.user = User.objects.create_superuser(
             email='test@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
     
@@ -114,6 +115,7 @@ class AuditLogModelTest(TestCase):
         self.user = User.objects.create_superuser(
             email='test@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
     

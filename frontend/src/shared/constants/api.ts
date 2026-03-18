@@ -8,6 +8,8 @@ export const API_ENDPOINTS = {
     STATE: '/api/v1/tenant/onboarding/state/',
     STEP: (step: number) => `/api/v1/tenant/onboarding/step/${step}/`,
     COMPLETE: '/api/v1/tenant/onboarding/complete/',
+    CHECKLIST: '/api/v1/tenant/onboarding/checklist/',
+    TEMPLATES: '/api/v1/tenant/onboarding/templates/',
   },
   // User management endpoints
   USERS: {
@@ -24,6 +26,8 @@ export const API_ENDPOINTS = {
     LOGIN: '/api/v1/auth/token/',
     VALIDATE_INVITE: (token: string) => `/api/v1/auth/invite/validate/?token=${token}`,
     ACCEPT_INVITE: '/api/v1/auth/invite/accept/',
+    FORGOT_PASSWORD: '/api/v1/auth/forgot-password/',
+    RESET_PASSWORD: '/api/v1/auth/reset-password/',
   },
   // Platform endpoints
   PLATFORM: {
@@ -35,6 +39,7 @@ export const API_ENDPOINTS = {
       PLAN: (id: number | string) => `/api/v1/platform/academies/${id}/plan/`,
       QUOTA: (id: number | string) => `/api/v1/platform/academies/${id}/quota/`,
       INVITE_LINK: (id: number | string) => `/api/v1/platform/academies/${id}/invite-link/`,
+      EXPORT: (id: number | string) => `/api/v1/platform/academies/${id}/export/`,
     },
     PLANS: {
       LIST: '/api/v1/platform/plans/',
@@ -47,6 +52,32 @@ export const API_ENDPOINTS = {
     AUDIT_LOGS: {
       LIST: '/api/v1/platform/audit-logs/',
       DETAIL: (id: number | string) => `/api/v1/platform/audit-logs/${id}/`,
+    },
+    FINANCE: {
+      SUMMARY: '/api/v1/platform/finance/summary/',
+      PAYMENTS: {
+        LIST: '/api/v1/platform/finance/payments/',
+        DETAIL: (id: number | string) => `/api/v1/platform/finance/payments/${id}/`,
+      },
+      EXPENSES: {
+        LIST: '/api/v1/platform/finance/expenses/',
+        DETAIL: (id: number | string) => `/api/v1/platform/finance/expenses/${id}/`,
+      },
+      EXPORT: '/api/v1/platform/finance/payments/export/',
+    },
+    MASTERS: {
+      CURRENCIES: {
+        LIST: '/api/v1/platform/masters/currencies/',
+        DETAIL: (id: number | string) => `/api/v1/platform/masters/currencies/${id}/`,
+      },
+      TIMEZONES: {
+        LIST: '/api/v1/platform/masters/timezones/',
+        DETAIL: (id: number | string) => `/api/v1/platform/masters/timezones/${id}/`,
+      },
+      COUNTRIES: {
+        LIST: '/api/v1/platform/masters/countries/',
+        DETAIL: (id: number | string) => `/api/v1/platform/masters/countries/${id}/`,
+      },
     },
   },
   // Tenant endpoints
@@ -106,6 +137,7 @@ export const API_ENDPOINTS = {
     COACH_ATTENDANCE: {
       LIST: '/api/v1/tenant/coach-attendance/',
       CREATE: '/api/v1/tenant/coach-attendance/',
+      MARK: '/api/v1/tenant/coach-attendance/mark/',
       DETAIL: (id: number | string) => `/api/v1/tenant/coach-attendance/${id}/`,
       UPDATE: (id: number | string) => `/api/v1/tenant/coach-attendance/${id}/`,
       DELETE: (id: number | string) => `/api/v1/tenant/coach-attendance/${id}/`,
@@ -261,6 +293,7 @@ export const API_ENDPOINTS = {
     MASTERS: {
       TIMEZONES: '/api/v1/tenant/masters/timezones/',
       CURRENCIES: '/api/v1/tenant/masters/currencies/',
+      COUNTRIES: '/api/v1/tenant/masters/countries/',
     },
   },
 } as const;

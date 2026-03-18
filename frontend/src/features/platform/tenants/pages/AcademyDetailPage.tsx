@@ -10,8 +10,8 @@ import { Badge } from '@/shared/components/ui/badge';
 import { Label } from '@/shared/components/ui/label';
 import { Input } from '@/shared/components/ui/input';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-import { Settings, Link2, Copy, RefreshCw, AlertCircle } from 'lucide-react';
-import { useAcademy, useAcademyInviteLink } from '../hooks/hooks';
+import { Settings, Link2, Copy, RefreshCw, AlertCircle, Download } from 'lucide-react';
+import { useAcademy, useAcademyInviteLink, useExportAcademy } from '../hooks/hooks';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
 
@@ -20,6 +20,7 @@ export const AcademyDetailPage = () => {
   const navigate = useNavigate();
   const { data: academy, isLoading, error } = useAcademy(id);
   const inviteMutation = useAcademyInviteLink();
+  const exportMutation = useExportAcademy();
   const [copied, setCopied] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const inviteErrorResponse = (inviteMutation.error as any)?.response?.data;
@@ -142,6 +143,14 @@ export const AcademyDetailPage = () => {
           ← Back to Academies
         </Button>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => id && exportMutation.mutate(id)}
+            disabled={exportMutation.isPending}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {exportMutation.isPending ? 'Exporting...' : 'Export data'}
+          </Button>
           <Button
             variant="outline"
             onClick={() => navigate(`/dashboard/platform/academies/${id}/plan`)}

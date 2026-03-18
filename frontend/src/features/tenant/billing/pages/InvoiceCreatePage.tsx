@@ -2,7 +2,7 @@
  * Invoice Create Page
  * Create a new invoice with line items
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
@@ -54,6 +54,8 @@ export const InvoiceCreatePage = () => {
     due_date: new Date().toISOString().split('T')[0],
     issued_date: new Date().toISOString().split('T')[0],
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedParentMeta, setSelectedParentMeta] = useState<{ full_name: string; email: string } | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { id: '1', description: '', quantity: 1, unit_price: 0 },
   ]);
@@ -62,10 +64,17 @@ export const InvoiceCreatePage = () => {
 
   const createInvoice = useCreateInvoice();
   const { data: itemsData } = useBillingItems({ is_active: true, page_size: 100 });
-  const { data: parentsData } = useParents({ is_active: true, page_size: 100 });
-  const { data: studentsData } = useStudents({
-    parent: formData.parent_id,
+  const { data: parentsData } = useParents({
     is_active: true,
+    search: searchQuery || undefined,
+    page_size: 100,
+  });
+  const { data: studentsData } = useStudents({
+    is_active: true,
+    ...(formData.parent_id ? { parent: formData.parent_id } : {}),
+    // When a parent is selected, show that parent's full student list (unfiltered),
+    // since the search term may be a parent name/email and we still want students to appear.
+    search: formData.parent_id ? undefined : searchQuery || undefined,
     page_size: 100,
   });
   const { data: locationsData } = useLocations({ page_size: 100 });
@@ -100,6 +109,99 @@ export const InvoiceCreatePage = () => {
 
   const { subtotal, discountAmount, taxAmount, total } = calculateTotals();
 
+  const selectedStudentIds = useMemo(() => {
+    const ids = lineItems.map((li) => li.student_id).filter((id): id is number => id !== undefined);
+    // Keep stable ordering + uniqueness
+    return Array.from(new Set(ids));
+  }, [lineItems]);
+
+  const studentById = useMemo(() => {
+    const map = new Map<number, any>();
+    if (!studentsData?.results) return map;
+    for (const s of studentsData.results) {
+      map.set(s.id, s);
+    }
+    return map;
+  }, [studentsData]);
+
+  const getStudentLabel = (studentId?: number) => {
+    if (!studentId) return '—';
+    const s = studentById.get(studentId);
+    if (!s) return `Student #${studentId}`;
+    return s.full_name || `${s.first_name} ${s.last_name}`;
+  };
+
+  const buildLineItemsFromTemplate = (nextSelectedStudentIds: number[]) => {
+    const template = lineItems[0] ?? { id: '1', description: '', quantity: 1, unit_price: 0 };
+    const base: Omit<LineItem, 'id' | 'student_id'> = {
+      item_id: template.item_id,
+      description: template.description,
+      quantity: template.quantity,
+      unit_price: template.unit_price,
+    };
+
+    if (nextSelectedStudentIds.length === 0) {
+      return [
+        {
+          ...base,
+          id: template.id,
+          student_id: undefined,
+        },
+      ];
+    }
+
+    return nextSelectedStudentIds.map((studentId, idx) => ({
+      ...base,
+      id: idx === 0 ? template.id : `${Date.now()}_${studentId}_${idx}`,
+      student_id: studentId,
+    }));
+  };
+
+  const handlePickParent = (parent: any) => {
+    setSelectedParentMeta({ full_name: parent.full_name, email: parent.email });
+    setFormData((prev) => ({ ...prev, parent_id: parent.id }));
+    // Clear any student selections when changing parent.
+    setLineItems(buildLineItemsFromTemplate([]));
+    if (errors.parent_id) setErrors((prev) => clearFieldError(prev, 'parent_id'));
+    if (clientErrors.parent_id) setClientErrors((prev) => ({ ...prev, parent_id: '' }));
+  };
+
+  const handleToggleStudent = (student: any, nextChecked: boolean) => {
+    const studentParentId = student.parent ?? student.parent_detail?.id;
+    if (!studentParentId) return;
+
+    const nextSelectedIds = (() => {
+      if (nextChecked) {
+        if (selectedStudentIds.includes(student.id)) return selectedStudentIds;
+        return [...selectedStudentIds, student.id];
+      }
+      return selectedStudentIds.filter((id) => id !== student.id);
+    })();
+
+    // Single-parent constraint: if switching to another student's parent,
+    // clear selection to only the clicked student (or keep empty if unchecked).
+    if (formData.parent_id !== studentParentId) {
+      if (errors.parent_id) setErrors((prev) => clearFieldError(prev, 'parent_id'));
+      if (clientErrors.parent_id) setClientErrors((prev) => ({ ...prev, parent_id: '' }));
+      setSelectedParentMeta({
+        full_name: student.parent_detail?.full_name ?? '',
+        email: student.parent_detail?.email ?? '',
+      });
+      setFormData((prev) => ({ ...prev, parent_id: studentParentId }));
+      setLineItems(buildLineItemsFromTemplate(nextChecked ? [student.id] : []));
+      return;
+    }
+
+    if (errors.parent_id) setErrors((prev) => clearFieldError(prev, 'parent_id'));
+    if (clientErrors.parent_id) setClientErrors((prev) => ({ ...prev, parent_id: '' }));
+    setLineItems(buildLineItemsFromTemplate(nextSelectedIds));
+  };
+
+  const handleToggleSelectAllStudents = (nextChecked: boolean) => {
+    const allIds = studentsData?.results?.map((s) => s.id) ?? [];
+    setLineItems(buildLineItemsFromTemplate(nextChecked ? allIds : []));
+  };
+
   const handleAddLineItem = () => {
     setLineItems([
       ...lineItems,
@@ -123,21 +225,58 @@ export const InvoiceCreatePage = () => {
     field: keyof LineItem,
     value: string | number | undefined
   ) => {
-    setLineItems(
-      lineItems.map((item) => {
-        if (item.id === id) {
-          const updated = { ...item, [field]: value };
-          // If item_id is selected, auto-fill description and price
-          if (field === 'item_id' && value) {
-            const selectedItem = itemsData?.results.find((i) => i.id === Number(value));
-            if (selectedItem) {
-              updated.description = selectedItem.name;
-              updated.unit_price = parseFloat(selectedItem.price);
-            }
+    // Student auto-link logic (single student per line item)
+    if (field === 'student_id') {
+      const nextStudentId = value === undefined ? undefined : Number(value);
+      const prevParentId = formData.parent_id;
+
+      // Clearing student only affects this row (invoice parent stays as-is).
+      if (nextStudentId === undefined || Number.isNaN(nextStudentId)) {
+        setLineItems((prev) => prev.map((li) => (li.id === id ? { ...li, student_id: undefined } : li)));
+        return;
+      }
+
+      const selectedStudent = studentsData?.results.find((s) => s.id === nextStudentId);
+      const nextParentId = selectedStudent?.parent ?? selectedStudent?.parent_detail?.id;
+
+      // Switch behavior: if parent changes, clear other line items' student selections.
+      const parentChanged = nextParentId !== undefined && nextParentId !== prevParentId;
+
+      // Auto-set invoice parent if we have it from the student.
+      if (nextParentId !== undefined) {
+        setFormData((prev) => ({ ...prev, parent_id: nextParentId }));
+      }
+
+      setLineItems((prev) =>
+        prev.map((li) => {
+          if (li.id === id) {
+            return { ...li, student_id: nextStudentId };
           }
-          return updated;
+          if (parentChanged) {
+            return { ...li, student_id: undefined };
+          }
+          return li;
+        })
+      );
+      return;
+    }
+
+    setLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+
+        const updated = { ...item, [field]: value };
+
+        // If item_id is selected, auto-fill description and price
+        if (field === 'item_id' && value) {
+          const selectedItem = itemsData?.results.find((i) => i.id === Number(value));
+          if (selectedItem) {
+            updated.description = selectedItem.name;
+            updated.unit_price = parseFloat(selectedItem.price);
+          }
         }
-        return item;
+
+        return updated;
       })
     );
   };
@@ -269,39 +408,137 @@ export const InvoiceCreatePage = () => {
               )}
 
               <div className="grid gap-2">
-                <Label htmlFor="parent_id">
-                  Parent <span className="text-destructive">*</span>
+                <Label htmlFor="invoice-party-search">
+                  Search by parent name/email or student name <span className="text-destructive">*</span>
                 </Label>
-                <Select
-                  value={formData.parent_id?.toString() || ''}
-                  onValueChange={(value) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      parent_id: value ? parseInt(value) : undefined,
-                    }));
-                    if (errors.parent_id) setErrors((prev) => clearFieldError(prev, 'parent_id'));
-                    if (clientErrors.parent_id)
-                      setClientErrors((prev) => ({ ...prev, parent_id: '' }));
-                  }}
+                <Input
+                  id="invoice-party-search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Type and select from results below..."
                   disabled={createInvoice.isPending}
-                >
-                  <SelectTrigger id="parent_id">
-                    <SelectValue placeholder="Select a parent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {parentsData?.results.map((parent) => (
-                      <SelectItem key={parent.id} value={parent.id.toString()}>
-                        {parent.full_name} ({parent.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
+
+                {selectedParentMeta && (
+                  <p className="text-sm text-muted-foreground">
+                    Selected parent: {selectedParentMeta.full_name} ({selectedParentMeta.email})
+                  </p>
+                )}
+
                 {(errors.parent_id || clientErrors.parent_id) && (
                   <p className="text-sm text-destructive">
                     {errors.parent_id?.[0] || clientErrors.parent_id}
                   </p>
                 )}
               </div>
+
+              {searchQuery.trim() && parentsData?.results?.length ? (
+                <div className="space-y-2">
+                  <Label>Parent matches</Label>
+                  <div className="space-y-2">
+                    {parentsData.results.map((parent) => (
+                      <div
+                        key={parent.id}
+                        className="flex items-center justify-between gap-3 border rounded-lg p-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{parent.full_name}</div>
+                          <div className="text-sm text-muted-foreground truncate">{parent.email}</div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePickParent(parent)}
+                          disabled={createInvoice.isPending}
+                        >
+                          Select
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {formData.parent_id ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label>Students for selected parent</Label>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={
+                          studentsData?.results?.length
+                            ? selectedStudentIds.length === studentsData.results.length
+                            : false
+                        }
+                        onChange={(e) => handleToggleSelectAllStudents(e.target.checked)}
+                        disabled={createInvoice.isPending || !studentsData?.results?.length}
+                      />
+                      Select all
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    {studentsData?.results?.length ? (
+                      studentsData.results.map((student) => {
+                        const isChecked = selectedStudentIds.includes(student.id);
+                        return (
+                          <label
+                            key={student.id}
+                            className="flex items-center gap-2 border rounded-lg p-2 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => handleToggleStudent(student, e.target.checked)}
+                              disabled={createInvoice.isPending}
+                            />
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">
+                                {student.full_name || `${student.first_name} ${student.last_name}`}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No students found.</p>
+                    )}
+                  </div>
+                </div>
+              ) : searchQuery.trim() ? (
+                <div className="space-y-2">
+                  <Label>Student matches</Label>
+                  <div className="space-y-2">
+                    {studentsData?.results?.length ? (
+                      studentsData.results.map((student) => {
+                        const isChecked = selectedStudentIds.includes(student.id);
+                        return (
+                          <label
+                            key={student.id}
+                            className="flex items-center gap-2 border rounded-lg p-2 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => handleToggleStudent(student, e.target.checked)}
+                              disabled={createInvoice.isPending}
+                            />
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">
+                                {student.full_name || `${student.first_name} ${student.last_name}`}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No student matches.</p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -497,32 +734,10 @@ export const InvoiceCreatePage = () => {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div className="grid gap-2">
-                        <Label>
-                          Student (Optional)
-                        </Label>
-                        <Select
-                          value={item.student_id?.toString() || '__none__'}
-                          onValueChange={(value) =>
-                            handleLineItemChange(
-                              item.id,
-                              'student_id',
-                              value === '__none__' ? 0 : parseInt(value, 10)
-                            )
-                          }
-                          disabled={createInvoice.isPending || !formData.parent_id}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select student" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
-                            {studentsData?.results.map((student) => (
-                              <SelectItem key={student.id} value={student.id.toString()}>
-                                {student.full_name || `${student.first_name} ${student.last_name}`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label>Student</Label>
+                        <div className="text-sm text-muted-foreground">
+                          {getStudentLabel(item.student_id)}
+                        </div>
                       </div>
 
                       <div className="grid gap-2">

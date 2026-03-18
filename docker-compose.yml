@@ -59,6 +59,7 @@ services:
       dockerfile: Dockerfile
     container_name: sports_academy_backend
     command: python run_gunicorn.py
+    entrypoint: ["/app/entrypoint.sh"]
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -141,6 +142,7 @@ services:
       dockerfile: Dockerfile
     container_name: sports_academy_celery_worker
     command: python run_celery.py -A celery_app worker --loglevel=info --concurrency=2
+    entrypoint: ["/app/entrypoint.sh"]
     volumes:
       - ./backend:/app
     environment:

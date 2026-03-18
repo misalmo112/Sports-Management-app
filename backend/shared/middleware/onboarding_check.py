@@ -26,6 +26,7 @@ class OnboardingCheckMiddleware(MiddlewareMixin):
     EXEMPT_PATHS = [
         '/api/v1/platform/',
         '/api/v1/tenant/onboarding/',
+        '/api/v1/tenant/masters/',  # timezones, currencies, countries for Step 1 dropdowns
         '/api/v1/auth/',
         '/admin/',
         '/health/',

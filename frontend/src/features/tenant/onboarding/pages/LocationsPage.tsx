@@ -1,6 +1,6 @@
 /**
- * Locations Settings Page
- * Manage academy locations
+ * Branches Settings Page
+ * Manage academy branches
  */
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -37,12 +37,12 @@ export const LocationsPage = () => {
           setErrors(errorData);
         } else {
           setErrors({
-            non_field_errors: [errorData || 'Failed to save locations'],
+            non_field_errors: [errorData || 'Failed to save branches'],
           });
         }
       } else {
         setErrors({
-          non_field_errors: [error.message || 'Failed to save locations'],
+          non_field_errors: [error.message || 'Failed to save branches'],
         });
       }
     }
@@ -52,8 +52,8 @@ export const LocationsPage = () => {
     <div className="container mx-auto py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Locations</h1>
-          <p className="text-muted-foreground mt-2">Manage academy locations</p>
+          <h1 className="text-3xl font-bold">Branches</h1>
+          <p className="text-muted-foreground mt-2">Manage academy branches</p>
         </div>
         <Button variant="outline" onClick={() => navigate('/dashboard')}>
           Back to Dashboard
@@ -64,7 +64,7 @@ export const LocationsPage = () => {
         <Alert className="mb-6 border-green-200 bg-green-50">
           <CheckCircle2 className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Locations saved successfully!
+            Branches saved successfully!
           </AlertDescription>
         </Alert>
       )}
@@ -82,9 +82,9 @@ export const LocationsPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Locations</CardTitle>
+          <CardTitle>Branches</CardTitle>
           <CardDescription>
-            Manage your academy locations. Add, edit, or remove locations as needed.
+            Manage your academy branches. Add, edit, or remove branches as needed.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -110,7 +110,7 @@ export const LocationsPage = () => {
               onClick={() => formRef.current?.requestSubmit()}
               disabled={saveLocations.isPending}
             >
-              {saveLocations.isPending ? 'Saving...' : 'Save Locations'}
+              {saveLocations.isPending ? 'Saving...' : 'Save Branches'}
             </Button>
           </div>
         </CardContent>

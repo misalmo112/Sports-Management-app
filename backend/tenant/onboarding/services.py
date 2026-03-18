@@ -3,17 +3,48 @@ Business logic services for onboarding wizard.
 """
 from django.db import transaction
 from django.utils import timezone
-from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from saas_platform.tenants.models import Academy, OnboardingState
+from tenant.users.models import User
 from tenant.onboarding.models import (
-    Location, Sport, AgeCategory, Term, PricingItem
+    Location, Sport, Term
 )
+from tenant.billing.models import Item as BillingItem
 
 
 class OnboardingService:
     """Service for processing onboarding steps."""
     
     LOCK_TIMEOUT_MINUTES = 30
+
+    @staticmethod
+    def _resolve_schema_user(user, academy):
+        """
+        Resolve a user instance that exists in the current schema.
+        In tenant schema mode, request.user can come from a different schema/user table.
+        """
+        if not user or not getattr(user, "is_authenticated", False):
+            return None
+
+        # Fast path: same PK exists in current schema.
+        try:
+            schema_user = User.objects.filter(pk=user.pk).first()
+            if schema_user:
+                return schema_user
+        except Exception:
+            # Keep onboarding resilient; fallback by email below.
+            pass
+
+        email = (getattr(user, "email", "") or "").strip().lower()
+        if not email:
+            return None
+
+        # Fallback: match by academy + email in current tenant schema.
+        return User.objects.filter(
+            academy=academy,
+            email__iexact=email,
+            is_active=True,
+        ).first()
     
     @staticmethod
     def get_or_create_state(academy):
@@ -43,9 +74,10 @@ class OnboardingService:
         lock_error = OnboardingService.check_lock(state, user)
         if lock_error:
             return lock_error
-        
+
+        schema_user = OnboardingService._resolve_schema_user(user, state.academy)
         # Acquire lock
-        state.locked_by = user
+        state.locked_by = schema_user
         state.locked_at = timezone.now()
         state.save(update_fields=['locked_by', 'locked_at'])
         return None
@@ -84,9 +116,10 @@ class OnboardingService:
         # Update onboarding state
         state = OnboardingService.get_or_create_state(academy)
         state.step_1_completed = True
+        state.step_1_completed_at = timezone.now()
         if state.current_step == 1:
             state.current_step = 2
-        state.save(update_fields=['step_1_completed', 'current_step'])
+        state.save(update_fields=['step_1_completed', 'step_1_completed_at', 'current_step'])
         
         return {
             'academy_id': str(academy.id),
@@ -117,9 +150,10 @@ class OnboardingService:
         # Update onboarding state
         state = OnboardingService.get_or_create_state(academy)
         state.step_2_completed = True
+        state.step_2_completed_at = timezone.now()
         if state.current_step == 2:
             state.current_step = 3
-        state.save(update_fields=['step_2_completed', 'current_step'])
+        state.save(update_fields=['step_2_completed', 'step_2_completed_at', 'current_step'])
         
         return {
             'locations_created': created_count,
@@ -149,9 +183,10 @@ class OnboardingService:
         # Update onboarding state
         state = OnboardingService.get_or_create_state(academy)
         state.step_3_completed = True
+        state.step_3_completed_at = timezone.now()
         if state.current_step == 3:
             state.current_step = 4
-        state.save(update_fields=['step_3_completed', 'current_step'])
+        state.save(update_fields=['step_3_completed', 'step_3_completed_at', 'current_step'])
         
         return {
             'sports_created': created_count,
@@ -162,43 +197,11 @@ class OnboardingService:
     @staticmethod
     @transaction.atomic
     def process_step_4(academy, validated_data):
-        """Process Step 4: Age Categories."""
-        age_categories_data = validated_data['age_categories']
-        created_count = 0
-        updated_count = 0
-        
-        for category_data in age_categories_data:
-            category, created = AgeCategory.objects.update_or_create(
-                academy=academy,
-                name=category_data['name'],
-                defaults=category_data
-            )
-            if created:
-                created_count += 1
-            else:
-                updated_count += 1
-        
-        # Update onboarding state
-        state = OnboardingService.get_or_create_state(academy)
-        state.step_4_completed = True
-        if state.current_step == 4:
-            state.current_step = 5
-        state.save(update_fields=['step_4_completed', 'current_step'])
-        
-        return {
-            'age_categories_created': created_count,
-            'age_categories_updated': updated_count,
-            'total_age_categories': AgeCategory.objects.filter(academy=academy).count()
-        }
-    
-    @staticmethod
-    @transaction.atomic
-    def process_step_5(academy, validated_data):
-        """Process Step 5: Terms."""
+        """Process Step 4: Terms (Age Categories removed from onboarding)."""
         terms_data = validated_data['terms']
         created_count = 0
         updated_count = 0
-        
+
         for term_data in terms_data:
             term, created = Term.objects.update_or_create(
                 academy=academy,
@@ -210,14 +213,15 @@ class OnboardingService:
                 created_count += 1
             else:
                 updated_count += 1
-        
+
         # Update onboarding state
         state = OnboardingService.get_or_create_state(academy)
-        state.step_5_completed = True
-        if state.current_step == 5:
-            state.current_step = 6
-        state.save(update_fields=['step_5_completed', 'current_step'])
-        
+        state.step_4_completed = True
+        state.step_4_completed_at = timezone.now()
+        if state.current_step == 4:
+            state.current_step = 5
+        state.save(update_fields=['step_4_completed', 'step_4_completed_at', 'current_step'])
+
         return {
             'terms_created': created_count,
             'terms_updated': updated_count,
@@ -226,18 +230,39 @@ class OnboardingService:
     
     @staticmethod
     @transaction.atomic
-    def process_step_6(academy, validated_data):
-        """Process Step 6: Pricing."""
+    def process_step_5(academy, validated_data):
+        """Process Step 5: Pricing (Age Categories removed; pricing shifted up)."""
         pricing_items_data = validated_data['pricing_items']
         created_count = 0
         updated_count = 0
+
+        academy_currency = str(getattr(academy, 'currency', None) or '').strip().upper() or 'USD'
         
         for item_data in pricing_items_data:
-            item, created = PricingItem.objects.update_or_create(
+            payload_currency = item_data.get('currency')
+            if payload_currency is not None:
+                provided_currency = str(payload_currency).strip().upper()
+                if provided_currency != academy_currency:
+                    raise DRFValidationError({
+                        'currency': 'Currency must match the academy currency.'
+                    })
+
+            # Always persist academy currency (reject mismatches above).
+            item_data['currency'] = academy_currency
+
+            # Persist onboarding "pricing" as reusable billing items.
+            # Billing items are what the academic dashboard exposes (ItemViewSet -> /finance/items).
+            item, created = BillingItem.objects.update_or_create(
                 academy=academy,
                 name=item_data['name'],
-                duration_type=item_data['duration_type'],
-                defaults=item_data
+                defaults={
+                    'description': item_data.get('description', '') or '',
+                    'price': item_data['price'],
+                    'currency': academy_currency,
+                    # Keep billing items active by default; if you need inactive items,
+                    # add support in the onboarding UI + serializer later.
+                    'is_active': True,
+                },
             )
             if created:
                 created_count += 1
@@ -246,15 +271,16 @@ class OnboardingService:
         
         # Update onboarding state
         state = OnboardingService.get_or_create_state(academy)
-        state.step_6_completed = True
-        if state.current_step == 6:
-            state.current_step = 6  # Stay at 6 until completion
-        state.save(update_fields=['step_6_completed', 'current_step'])
+        state.step_5_completed = True
+        state.step_5_completed_at = timezone.now()
+        if state.current_step == 5:
+            state.current_step = 5  # Stay at 5 until completion
+        state.save(update_fields=['step_5_completed', 'step_5_completed_at', 'current_step'])
         
         return {
-            'pricing_items_created': created_count,
-            'pricing_items_updated': updated_count,
-            'total_pricing_items': PricingItem.objects.filter(academy=academy).count()
+            'billing_items_created': created_count,
+            'billing_items_updated': updated_count,
+            'total_billing_items': BillingItem.objects.filter(academy=academy).count(),
         }
 
 
@@ -278,17 +304,13 @@ class OnboardingValidationService:
         if not Sport.objects.filter(academy=academy).exists():
             errors.append("At least one sport is required")
         
-        # Check at least one age category
-        if not AgeCategory.objects.filter(academy=academy).exists():
-            errors.append("At least one age category is required")
-        
         # Check at least one term
         if not Term.objects.filter(academy=academy).exists():
             errors.append("At least one term is required")
         
-        # Check at least one pricing item
-        if not PricingItem.objects.filter(academy=academy).exists():
-            errors.append("At least one pricing item is required")
+        # Check at least one billing item (source of truth for dashboard billing)
+        if not BillingItem.objects.filter(academy=academy).exists():
+            errors.append("At least one billing item is required")
         
         # Check all steps are completed
         state = OnboardingService.get_or_create_state(academy)
@@ -298,7 +320,6 @@ class OnboardingValidationService:
             state.step_3_completed,
             state.step_4_completed,
             state.step_5_completed,
-            state.step_6_completed,
         ]):
             errors.append("All onboarding steps must be completed")
         
@@ -324,7 +345,7 @@ class OnboardingValidationService:
         # Update onboarding state
         state = OnboardingService.get_or_create_state(academy)
         state.is_completed = True
-        state.completed_by_user = user
+        state.completed_by_user = OnboardingService._resolve_schema_user(user, academy)
         state.completed_at = timezone.now()
         OnboardingService.release_lock(state)
         state.save(update_fields=['is_completed', 'completed_by_user', 'completed_at', 'locked_by', 'locked_at'])

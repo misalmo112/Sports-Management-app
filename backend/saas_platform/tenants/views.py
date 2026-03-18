@@ -1,4 +1,6 @@
 import logging
+from django.db.models import deletion
+from django.http import HttpResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -9,6 +11,7 @@ from django_filters import rest_framework as filters
 from django.conf import settings
 from django.utils import timezone
 from saas_platform.tenants.models import Academy
+from saas_platform.tenants.export_service import build_academy_export_zip
 from saas_platform.tenants.serializers import (
     AcademySerializer,
     AcademyCreateSerializer,
@@ -92,10 +95,11 @@ class AcademyViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # Extract owner_email from validated data (validated by serializer)
+        # Extract owner_email and plan_id from validated data (not stored on Academy)
         owner_email = serializer.validated_data.pop('owner_email', None)
+        plan_id = serializer.validated_data.pop('plan_id', None)
         
-        # Create academy with remaining validated data (excluding owner_email)
+        # Create academy with remaining validated data
         academy = AcademyService.create_academy(serializer.validated_data)
         try:
             AcademyService.provision_tenant_schema(academy)
@@ -106,6 +110,21 @@ class AcademyViewSet(viewsets.ModelViewSet):
             )
             Academy.objects.filter(pk=academy.pk).delete()
             raise APIException("Failed to provision academy. Please retry.") from exc
+        
+        # Assign subscription so quota is set (required before creating owner)
+        from saas_platform.subscriptions.models import Plan
+        if not plan_id:
+            first_plan = Plan.objects.filter(is_active=True).order_by('id').first()
+            if first_plan:
+                plan_id = first_plan.id
+        if plan_id:
+            try:
+                AcademyService.update_academy_plan(academy, plan_id=plan_id)
+            except Exception as exc:
+                logger.warning(
+                    "Could not assign plan to new academy; owner creation may fail if quota is 0",
+                    extra={'academy_id': str(academy.id), 'plan_id': plan_id},
+                )
         
         # Create owner user (as ADMIN with full permissions) and send invite if owner_email is provided
         if owner_email:
@@ -128,6 +147,8 @@ class AcademyViewSet(viewsets.ModelViewSet):
         audit_data = serializer.validated_data.copy()
         if owner_email:
             audit_data['owner_email'] = owner_email
+        if plan_id is not None:
+            audit_data['plan_id'] = plan_id
         AuditService.log_action(
             user=request.user,
             action=AuditAction.CREATE,
@@ -183,7 +204,18 @@ class AcademyViewSet(viewsets.ModelViewSet):
             changes_json={'deleted': {'name': academy_name}},
             request=request
         )
-        return super().destroy(request, *args, **kwargs)
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except deletion.ProtectedError:
+            return Response(
+                {
+                    'detail': (
+                        'Cannot delete academy: it is referenced by protected records '
+                        '(e.g. platform payments). Export data first, then try again.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
     
     @action(detail=True, methods=['patch'], url_path='plan')
     def update_plan(self, request, pk=None):
@@ -299,6 +331,18 @@ class AcademyViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
     
+    @action(detail=True, methods=['get'], url_path='export')
+    def export(self, request, pk=None):
+        """Export all academy data (platform + tenant) as a ZIP for download before delete."""
+        academy = self.get_object()
+        zip_buffer = build_academy_export_zip(academy)
+        safe_slug = (academy.slug or str(academy.id))[:50].replace(' ', '-')
+        date_str = timezone.now().strftime('%Y-%m-%d')
+        filename = f'academy-{safe_slug}-export-{date_str}.zip'
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
     @action(detail=True, methods=['patch'], url_path='quota')
     def update_quota(self, request, pk=None):
         """Update quota overrides for academy."""

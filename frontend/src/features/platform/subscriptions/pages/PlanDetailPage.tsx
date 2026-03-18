@@ -8,6 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
+import { usePlatformCurrencies } from '@/features/platform/masters/hooks/usePlatformCurrencies';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Switch } from '@/shared/components/ui/switch';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
@@ -16,7 +24,9 @@ import { usePlan } from '../hooks/usePlan';
 import { useUpdatePlan } from '../hooks/useUpdatePlan';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
+import { PlanLimitsFields } from '../components/PlanLimitsFields';
 import type { UpdatePlanRequest } from '../types';
+import { limitsFromJson, limitsToJson, formatLimitsForDisplay, type PlanLimits } from '../types';
 
 export const PlanDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,10 +34,14 @@ export const PlanDetailPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<UpdatePlanRequest>({});
   const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const [limitsJson, setLimitsJson] = useState('{}');
+  const [limits, setLimits] = useState<PlanLimits>({});
 
   const { data: plan, isLoading, error } = usePlan(id);
   const updatePlan = useUpdatePlan(id!);
+  const { data: currenciesData, isLoading: isLoadingCurrencies } = usePlatformCurrencies({
+    is_active: true,
+  });
+  const currencies = currenciesData?.results ?? [];
 
   useEffect(() => {
     if (plan) {
@@ -44,7 +58,7 @@ export const PlanDetailPage = () => {
         is_active: plan.is_active,
         is_public: plan.is_public,
       });
-      setLimitsJson(JSON.stringify(plan.limits_json || {}, null, 2));
+      setLimits(limitsFromJson(plan.limits_json as Record<string, unknown>));
     }
   }, [plan]);
 
@@ -59,33 +73,14 @@ export const PlanDetailPage = () => {
     }
   };
 
-  const handleLimitsJsonChange = (value: string) => {
-    setLimitsJson(value);
-    try {
-      const parsed = JSON.parse(value);
-      handleChange('limits_json', parsed);
-    } catch {
-      // Invalid JSON, will be caught on submit
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
-    // Parse limits_json
-    let limitsParsed = formData.limits_json;
-    try {
-      limitsParsed = JSON.parse(limitsJson);
-    } catch {
-      setErrors({ limits_json: ['Invalid JSON format'] });
-      return;
-    }
-
     try {
       await updatePlan.mutateAsync({
         ...formData,
-        limits_json: limitsParsed,
+        limits_json: limitsToJson(limits),
       });
       setIsEditing(false);
     } catch (error: any) {
@@ -231,18 +226,38 @@ export const PlanDetailPage = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="currency">Currency</Label>
-                  <Input
-                    id="currency"
-                    value={formData.currency || 'USD'}
-                    onChange={(e) => handleChange('currency', e.target.value)}
-                  />
+                  <Select
+                    value={formData.currency || ''}
+                    onValueChange={(value) => handleChange('currency', value)}
+                  >
+                    <SelectTrigger id="currency">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingCurrencies ? (
+                        <SelectItem value="__loading__" disabled>
+                          Loading currencies...
+                        </SelectItem>
+                      ) : currencies.length === 0 ? (
+                        <SelectItem value="__empty__" disabled>
+                          No currencies configured
+                        </SelectItem>
+                      ) : (
+                        currencies.map((c) => (
+                          <SelectItem key={c.id} value={c.code}>
+                            {c.name || c.code}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
                   {errors.currency && (
                     <p className="text-sm text-destructive">{errors.currency[0]}</p>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="trial_days">Trial Days</Label>
                   <Input
@@ -257,17 +272,9 @@ export const PlanDetailPage = () => {
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="limits_json">Limits JSON</Label>
-                  <Textarea
-                    id="limits_json"
-                    value={limitsJson}
-                    onChange={(e) => handleLimitsJsonChange(e.target.value)}
-                    rows={4}
-                  />
-                  {errors.limits_json && (
-                    <p className="text-sm text-destructive">{errors.limits_json[0]}</p>
-                  )}
+                <div>
+                  <Label className="mb-2 block">Plan limits</Label>
+                  <PlanLimitsFields value={limits} onChange={setLimits} errors={errors} />
                 </div>
               </div>
 
@@ -321,7 +328,7 @@ export const PlanDetailPage = () => {
                         is_active: plan.is_active,
                         is_public: plan.is_public,
                       });
-                      setLimitsJson(JSON.stringify(plan.limits_json || {}, null, 2));
+                      setLimits(limitsFromJson(plan.limits_json as Record<string, unknown>));
                     }
                   }}
                   disabled={updatePlan.isPending}
@@ -384,9 +391,21 @@ export const PlanDetailPage = () => {
 
               <div>
                 <Label className="text-muted-foreground">Limits</Label>
-                <pre className="mt-2 rounded-md bg-muted p-4 text-sm">
-                  {JSON.stringify(plan.limits_json || {}, null, 2)}
-                </pre>
+                {(() => {
+                  const displayItems = formatLimitsForDisplay(plan.limits_json as Record<string, unknown>);
+                  if (displayItems.length === 0) {
+                    return <p className="mt-2 text-sm text-muted-foreground">No limits set</p>;
+                  }
+                  return (
+                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
+                      {displayItems.map((item) => (
+                        <li key={item.label}>
+                          {item.label}: {item.value}
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
               </div>
 
               <div className="flex gap-4">

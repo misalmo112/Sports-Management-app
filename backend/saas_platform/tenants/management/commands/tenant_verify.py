@@ -62,7 +62,11 @@ class Command(BaseCommand):
                 tenant_count = cursor.fetchone()[0]
 
                 status = 'OK'
-                if public_count != tenant_count:
+                # Verification is intended to catch data loss during backfill.
+                # It's valid for tenant schemas to already contain data (e.g. created
+                # directly in the tenant schema), so we only fail when tenant has fewer
+                # rows than public for the academy.
+                if tenant_count < public_count:
                     status = 'MISMATCH'
                     mismatches += 1
                 rows.append((table, public_count, tenant_count, status))

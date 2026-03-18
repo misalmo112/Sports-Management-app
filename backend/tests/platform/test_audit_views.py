@@ -29,6 +29,7 @@ class AuditLogViewSetTest(TestCase):
         self.superadmin = User.objects.create_superuser(
             email='superadmin-audit@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
         

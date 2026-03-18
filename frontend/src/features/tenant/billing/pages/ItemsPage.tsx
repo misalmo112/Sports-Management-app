@@ -55,7 +55,7 @@ export const ItemsPage = () => {
     name: '',
     description: '',
     price: 0,
-    currency: 'USD',
+    currency,
     is_active: true,
   });
   const [editFormData, setEditFormData] = useState<UpdateBillingItemRequest>({});
@@ -119,9 +119,8 @@ export const ItemsPage = () => {
       if (formData.description?.trim()) {
         submitData.description = formData.description.trim();
       }
-      if (formData.currency) {
-        submitData.currency = formData.currency;
-      }
+      // Backend enforces academy currency; lock currency to `currency` for safety.
+      submitData.currency = currency;
 
       await createItem.mutateAsync(submitData);
 
@@ -130,7 +129,7 @@ export const ItemsPage = () => {
         name: '',
         description: '',
         price: 0,
-        currency: 'USD',
+        currency,
         is_active: true,
       });
       setErrors({});
@@ -156,7 +155,7 @@ export const ItemsPage = () => {
       name: item.name,
       description: item.description || '',
       price: parseFloat(item.price),
-      currency: item.currency,
+      currency,
       is_active: item.is_active,
     });
     setEditErrors({});
@@ -211,9 +210,8 @@ export const ItemsPage = () => {
       if (editFormData.price !== undefined) {
         submitData.price = editFormData.price;
       }
-      if (editFormData.currency !== undefined) {
-        submitData.currency = editFormData.currency;
-      }
+      // Backend enforces academy currency; lock currency to `currency`.
+      submitData.currency = currency;
       if (editFormData.is_active !== undefined) {
         submitData.is_active = editFormData.is_active;
       }
@@ -568,16 +566,10 @@ export const ItemsPage = () => {
                   <Label htmlFor="currency">Currency</Label>
                   <Input
                     id="currency"
-                    value={formData.currency || 'USD'}
-                    onChange={(e) => {
-                      setFormData((prev) => ({ ...prev, currency: e.target.value.toUpperCase() }));
-                      if (errors.currency) setErrors((prev) => clearFieldError(prev, 'currency'));
-                      if (clientErrors.currency)
-                        setClientErrors((prev) => ({ ...prev, currency: '' }));
-                    }}
+                    value={currency}
+                    disabled
                     placeholder="USD"
                     maxLength={3}
-                    disabled={createItem.isPending}
                   />
                   {(errors.currency || clientErrors.currency) && (
                     <p className="text-sm text-destructive">
@@ -717,16 +709,10 @@ export const ItemsPage = () => {
                   <Label htmlFor="edit-currency">Currency</Label>
                   <Input
                     id="edit-currency"
-                    value={editFormData.currency || 'USD'}
-                    onChange={(e) => {
-                      setEditFormData((prev) => ({ ...prev, currency: e.target.value.toUpperCase() }));
-                      if (editErrors.currency) setEditErrors((prev) => clearFieldError(prev, 'currency'));
-                      if (editClientErrors.currency)
-                        setEditClientErrors((prev) => ({ ...prev, currency: '' }));
-                    }}
+                    value={currency}
+                    disabled
                     placeholder="USD"
                     maxLength={3}
-                    disabled={updateItem.isPending}
                   />
                   {(editErrors.currency || editClientErrors.currency) && (
                     <p className="text-sm text-destructive">

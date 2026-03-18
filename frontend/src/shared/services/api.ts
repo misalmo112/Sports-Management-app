@@ -68,10 +68,14 @@ apiClient.interceptors.response.use(
       
       if (status === 401) {
         // Unauthorized - clear token and redirect to login so user can re-authenticate
-        localStorage.removeItem('auth_token');
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-        if (currentPath && currentPath !== '/login' && !currentPath.startsWith('/auth/')) {
-          window.location.href = '/login';
+        const isOnboarding = currentPath === '/onboarding';
+        // Don't redirect away from onboarding on 401: let the page show error so user isn't stuck in a loop
+        if (!isOnboarding) {
+          localStorage.removeItem('auth_token');
+          if (currentPath && currentPath !== '/login' && !currentPath.startsWith('/auth/')) {
+            window.location.href = '/login';
+          }
         }
       }
       

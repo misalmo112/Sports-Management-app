@@ -1,36 +1,61 @@
 """
-Master data endpoints (timezones and currencies).
+Master data endpoints (timezones, currencies, countries).
+Read-only list from platform masters; tenant does not own this data.
 """
+import logging
+from django.db import DatabaseError, connection
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from shared.permissions.tenant import IsTenantAdmin
-from tenant.masters.constants import CURRENCIES
+from saas_platform.masters.models import Country, Currency, Timezone
 
-try:
-    from zoneinfo import available_timezones
-except ImportError:  # pragma: no cover
-    available_timezones = None
-
-
-def _get_timezones():
-    if available_timezones is not None:
-        return sorted(available_timezones())
-    try:
-        import pytz
-        return list(pytz.all_timezones)
-    except Exception:
-        return ["UTC"]
+logger = logging.getLogger(__name__)
 
 
 class TimezonesView(APIView):
     permission_classes = [IsTenantAdmin]
 
     def get(self, request):
-        return Response({'timezones': _get_timezones()})
+        codes = list(
+            Timezone.objects.filter(is_active=True)
+            .order_by("sort_order", "code")
+            .values_list("code", flat=True)
+        )
+        return Response({"timezones": codes})
 
 
 class CurrenciesView(APIView):
     permission_classes = [IsTenantAdmin]
 
     def get(self, request):
-        return Response({'currencies': CURRENCIES})
+        codes = list(
+            Currency.objects.filter(is_active=True)
+            .order_by("sort_order", "code")
+            .values_list("code", flat=True)
+        )
+        return Response({"currencies": codes})
+
+
+class CountriesView(APIView):
+    permission_classes = [IsTenantAdmin]
+
+    def get(self, request):
+        try:
+            countries = list(
+                Country.objects.filter(is_active=True)
+                .order_by("sort_order", "name")
+                .values("code", "name")
+            )
+        except DatabaseError:
+            logger.exception("Country ORM query failed; falling back to public schema query.")
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT code, name
+                    FROM public.platform_countries
+                    WHERE is_active = TRUE
+                    ORDER BY sort_order, name
+                    """
+                )
+                countries = [{"code": code, "name": name} for code, name in cursor.fetchall()]
+        return Response({"countries": countries})

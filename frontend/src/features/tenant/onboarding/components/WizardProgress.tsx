@@ -12,9 +12,8 @@ interface WizardProgressProps {
 
 const STEP_NAMES = [
   'Academy Profile',
-  'Location',
+  'Branches',
   'Sports',
-  'Age Categories',
   'Terms',
   'Pricing',
 ];

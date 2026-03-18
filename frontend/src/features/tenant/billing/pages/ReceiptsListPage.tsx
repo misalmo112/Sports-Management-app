@@ -1,8 +1,8 @@
 /**
  * Receipts List Page
- * Lists all receipts
+ * Lists all receipts (student fees, rent, staff salary, paid bills) with search and filter.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
@@ -15,7 +15,10 @@ import {
   TableRow,
 } from '@/shared/components/ui/table';
 import { Plus, Eye, ChevronLeft, ChevronRight, Edit, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Input } from '@/shared/components/ui/input';
 import { useReceipts, useUpdateReceipt, useDeleteReceipt } from '../hooks/hooks';
+import { useRentReceipts, useBills } from '@/features/tenant/facilities/hooks/hooks';
+import { useStaffReceipts } from '@/features/tenant/coaches/hooks/hooks';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
 import { EmptyState } from '@/shared/components/common/EmptyState';
@@ -28,7 +31,6 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
-import { Input } from '@/shared/components/ui/input';
 import { Textarea } from '@/shared/components/ui/textarea';
 import {
   Select,
@@ -40,7 +42,12 @@ import {
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { extractValidationErrors, clearFieldError } from '@/shared/utils/errorUtils';
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';
-import type { UpdateReceiptRequest, Receipt } from '../types';
+import {
+  normalizeUnifiedReceipts,
+  filterUnifiedReceipts,
+  PAGE_SIZE as UNIFIED_PAGE_SIZE,
+} from '../utils/normalizeUnifiedReceipts';
+import type { UpdateReceiptRequest, Receipt, ReceiptClassification } from '../types';
 
 const formatPaymentMethod = (method: string) => {
   const methodMap: Record<string, string> = {
@@ -53,12 +60,22 @@ const formatPaymentMethod = (method: string) => {
   return methodMap[method] || method;
 };
 
+const CLASSIFICATION_LABELS: Record<ReceiptClassification | 'ALL', string> = {
+  ALL: 'All',
+  student_fee: 'Student fees',
+  rent: 'Rent',
+  staff_salary: 'Staff salary',
+  bill: 'Bills',
+};
+
 export const ReceiptsListPage = () => {
   const navigate = useNavigate();
   const { formatCurrency, formatDateTime } = useAcademyFormat();
   const [searchParams] = useSearchParams();
   const invoiceFilter = searchParams.get('invoice');
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [classificationFilter, setClassificationFilter] = useState<'ALL' | ReceiptClassification>('ALL');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
@@ -67,13 +84,53 @@ export const ReceiptsListPage = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const pageSize = 20;
 
+  const isUnifiedView = !invoiceFilter;
+
   const { data, isLoading, error, refetch } = useReceipts({
     invoice: invoiceFilter ? parseInt(invoiceFilter) : undefined,
-    page,
-    page_size: pageSize,
+    page: isUnifiedView ? 1 : page,
+    page_size: isUnifiedView ? UNIFIED_PAGE_SIZE : pageSize,
   });
+  const { data: rentData, isLoading: rentLoading, refetch: refetchRent } = useRentReceipts({
+    page_size: UNIFIED_PAGE_SIZE,
+  });
+  const { data: staffData, isLoading: staffLoading, refetch: refetchStaff } = useStaffReceipts({
+    page_size: UNIFIED_PAGE_SIZE,
+  });
+  const { data: billsData, isLoading: billsLoading, refetch: refetchBills } = useBills({
+    status: 'PAID',
+    page_size: UNIFIED_PAGE_SIZE,
+  });
+
   const updateReceipt = useUpdateReceipt();
   const deleteReceipt = useDeleteReceipt();
+
+  const unifiedList = useMemo(() => {
+    if (!isUnifiedView || !data?.results) return [];
+    return normalizeUnifiedReceipts(
+      data.results,
+      rentData?.results ?? [],
+      staffData?.results ?? [],
+      billsData?.results ?? []
+    );
+  }, [isUnifiedView, data?.results, rentData?.results, staffData?.results, billsData?.results]);
+
+  const filteredList = useMemo(
+    () => filterUnifiedReceipts(unifiedList, searchQuery, classificationFilter),
+    [unifiedList, searchQuery, classificationFilter]
+  );
+
+  const allLoading = isUnifiedView && (isLoading || rentLoading || staffLoading || billsLoading);
+  const allError = isUnifiedView ? (error ?? null) : error;
+
+  const refetchAll = () => {
+    refetch();
+    if (isUnifiedView) {
+      refetchRent();
+      refetchStaff();
+      refetchBills();
+    }
+  };
 
   const handleNextPage = () => {
     if (data?.next) {
@@ -117,7 +174,7 @@ export const ReceiptsListPage = () => {
       setEditFormData({});
       setSuccessMessage('Receipt updated successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
-      refetch();
+      refetchAll();
     } catch (error: any) {
       const validationErrors = extractValidationErrors(error);
       if (validationErrors) {
@@ -144,7 +201,7 @@ export const ReceiptsListPage = () => {
       setSelectedReceipt(null);
       setSuccessMessage('Receipt deleted successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
-      refetch();
+      refetchAll();
     } catch (error: any) {
       setEditErrors({
         non_field_errors: [error.message || 'Failed to delete receipt'],
@@ -165,10 +222,10 @@ export const ReceiptsListPage = () => {
         </Button>
       </div>
 
-      {error && (
+      {(allError ?? error) && (
         <ErrorState
-          error={error}
-          onRetry={() => refetch()}
+          error={allError ?? error}
+          onRetry={refetchAll}
           title="Failed to load receipts"
           className="mb-6"
         />
@@ -187,12 +244,113 @@ export const ReceiptsListPage = () => {
           <CardDescription>
             {invoiceFilter
               ? `Receipts for invoice ${invoiceFilter}`
-              : 'All receipts in the academy'}
+              : 'All receipts (student fees, rent, staff salary, paid bills)'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isUnifiedView && (
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+              <Input
+                placeholder="Search by name, receipt #, bill..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="max-w-sm"
+              />
+              <Select
+                value={classificationFilter}
+                onValueChange={(v) => setClassificationFilter(v as 'ALL' | ReceiptClassification)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Classification" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CLASSIFICATION_LABELS) as Array<keyof typeof CLASSIFICATION_LABELS>).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {CLASSIFICATION_LABELS[k]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {allLoading || (!isUnifiedView && isLoading) ? (
             <LoadingState message="Loading receipts..." />
+          ) : isUnifiedView ? (
+            filteredList.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Classification</TableHead>
+                      <TableHead>Ref #</TableHead>
+                      <TableHead>Payer / Name</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredList.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>{CLASSIFICATION_LABELS[row.classification]}</TableCell>
+                        <TableCell className="font-medium">{row.ref_number}</TableCell>
+                        <TableCell>{row.payer_or_name}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(row.amount)}
+                        </TableCell>
+                        <TableCell>{formatDateTime(row.date)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {row.linkTo && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(row.linkTo!)}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                            )}
+                            {row.classification === 'student_fee' && row.raw && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditClick(row.raw!)}
+                                  disabled={updateReceipt.isPending || deleteReceipt.isPending}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(row.raw!)}
+                                  disabled={updateReceipt.isPending || deleteReceipt.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <EmptyState
+                title="No receipts found"
+                description={
+                  searchQuery || classificationFilter !== 'ALL'
+                    ? 'Try changing search or filter.'
+                    : 'Get started by creating your first receipt or recording a payment.'
+                }
+                actionLabel="Create Receipt"
+                onAction={() => navigate('/dashboard/finance/receipts/new')}
+              />
+            )
           ) : data?.results && data.results.length > 0 ? (
             <>
               <div className="rounded-md border">
@@ -216,8 +374,8 @@ export const ReceiptsListPage = () => {
                           {receipt.receipt_number}
                         </TableCell>
                         <TableCell>{receipt.invoice_number}</TableCell>
-                        <TableCell>{receipt.sport_name || 'â€”'}</TableCell>
-                        <TableCell>{receipt.location_name || 'â€”'}</TableCell>
+                        <TableCell>{receipt.sport_name || '—'}</TableCell>
+                        <TableCell>{receipt.location_name || '—'}</TableCell>
                         <TableCell>{formatPaymentMethod(receipt.payment_method)}</TableCell>
                         <TableCell>
                           {formatDateTime(receipt.payment_date)}
@@ -263,7 +421,6 @@ export const ReceiptsListPage = () => {
                 </Table>
               </div>
 
-              {/* Pagination */}
               {data.count > pageSize && (
                 <div className="mt-4 flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">

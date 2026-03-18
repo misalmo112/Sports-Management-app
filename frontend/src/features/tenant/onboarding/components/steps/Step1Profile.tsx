@@ -1,53 +1,80 @@
 /**
  * Step 1: Academy Profile
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import { useMasterCurrencies, useMasterTimezones } from '@/shared/hooks/useMasters';
+import { SearchableSelect } from '@/shared/components/ui/searchable-select';
+import { useMasterCountries, useMasterCurrencies, useMasterTimezones } from '@/shared/hooks/useMasters';
 import { validateStep1 } from '../../utils/validation';
 import type { Step1Profile } from '../../types';
+
+const DEFAULT_STEP1: Step1Profile = {
+  name: '',
+  email: '',
+  phone: '',
+  website: '',
+  address_line1: '',
+  address_line2: '',
+  city: '',
+  state: '',
+  postal_code: '',
+  country: '',
+  timezone: '',
+  currency: '',
+};
 
 interface Step1ProfileProps {
   onSubmit: (data: Step1Profile) => Promise<void>;
   errors?: Record<string, string[]>;
   isLoading?: boolean;
   formRef?: (form: HTMLFormElement | null) => void;
+  /** Pre-fill from GET onboarding/state/ profile (academy creation data) */
+  initialData?: Partial<Step1Profile> | null;
 }
 
-export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, formRef }: Step1ProfileProps) {
-  const [formData, setFormData] = useState<Step1Profile>({
-    name: '',
-    email: '',
-    phone: '',
-    website: '',
-    address_line1: '',
-    address_line2: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: '',
-    timezone: '',
-    currency: '',
-  });
+function normalizeCountryCode(
+  rawValue: string | undefined,
+  countries: Array<{ code: string; name: string }>
+): string {
+  if (!rawValue) return '';
+  const value = rawValue.trim();
+  if (!value) return '';
 
+  // Already an alpha-3 code.
+  if (value.length === 3) {
+    return value.toUpperCase();
+  }
+
+  // Handle legacy values saved as country name (or non-uppercased code).
+  const byCode = countries.find((c) => c.code.toLowerCase() === value.toLowerCase());
+  if (byCode) return byCode.code;
+  const byName = countries.find((c) => c.name.toLowerCase() === value.toLowerCase());
+  if (byName) return byName.code;
+  return '';
+}
+
+export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, formRef, initialData }: Step1ProfileProps) {
+  const [formData, setFormData] = useState<Step1Profile>({ ...DEFAULT_STEP1 });
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
   const { data: timezonesData, isLoading: isLoadingTimezones } = useMasterTimezones();
   const { data: currenciesData, isLoading: isLoadingCurrencies } = useMasterCurrencies();
+  const { data: countriesData, isLoading: isLoadingCountries } = useMasterCountries();
 
-  // Load from localStorage on mount
+  // Pre-fill from API profile then localStorage draft
   useEffect(() => {
     const saved = localStorage.getItem('onboarding_step_1');
+    let parsed: Partial<Step1Profile> = {};
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        setFormData((prev) => ({ ...prev, ...parsed }));
+        parsed = JSON.parse(saved);
       } catch (e) {
         console.error('Error loading saved step 1 data:', e);
       }
     }
-  }, []);
+    const fromApi = initialData ?? {};
+    setFormData((prev) => ({ ...DEFAULT_STEP1, ...fromApi, ...parsed }));
+  }, [initialData]);
 
   const handleChange = (field: keyof Step1Profile, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -78,11 +105,36 @@ export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, 
       return;
     }
 
+    // Normalize legacy country names to alpha-3 codes before submit.
+    const normalizedCountry = normalizeCountryCode(formData.country, countriesData?.countries || []);
+    const payload: Step1Profile = {
+      ...formData,
+      country: normalizedCountry,
+    };
+
     setValidationErrors({});
-    await onSubmit(formData);
+    setFormData(payload);
+    await onSubmit(payload);
   };
 
   const displayErrors = { ...validationErrors, ...errors };
+
+  const timezoneOptions = useMemo(
+    () => (timezonesData?.timezones || []).map((tz) => ({ value: tz, label: tz })),
+    [timezonesData?.timezones]
+  );
+  const currencyOptions = useMemo(
+    () => (currenciesData?.currencies || []).map((c) => ({ value: c, label: c })),
+    [currenciesData?.currencies]
+  );
+  const countryOptions = useMemo(
+    () =>
+      (countriesData?.countries || []).map((c) => ({
+        value: c.code,
+        label: `${c.name} (${c.code})`,
+      })),
+    [countriesData?.countries]
+  );
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
@@ -119,14 +171,20 @@ export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, 
           </div>
 
           <div>
-            <Label htmlFor="phone">Phone</Label>
+            <Label htmlFor="phone">Phone *</Label>
             <Input
               id="phone"
               type="tel"
               value={formData.phone}
               onChange={(e) => handleChange('phone', e.target.value)}
+              placeholder="+1 555 123 4567"
+              required
               maxLength={20}
+              aria-describedby="phone-hint"
             />
+            <p id="phone-hint" className="text-xs text-muted-foreground mt-1">
+              Include country code (e.g. +1 for US, +44 for UK). Only digits, spaces, and + - ( ) allowed.
+            </p>
             {displayErrors.phone && (
               <p className="text-sm text-destructive mt-1">{displayErrors.phone[0]}</p>
             )}
@@ -148,28 +206,17 @@ export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, 
 
           <div>
             <Label htmlFor="timezone">Timezone *</Label>
-            <Select
+            <SearchableSelect
+              id="timezone"
+              options={timezoneOptions}
               value={formData.timezone}
               onValueChange={(value) => handleChange('timezone', value)}
+              placeholder="Select timezone"
+              searchPlaceholder="Search timezones..."
               required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select timezone" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingTimezones ? (
-                  <SelectItem value="loading" disabled>
-                    Loading timezones...
-                  </SelectItem>
-                ) : (
-                  (timezonesData?.timezones || []).map((tz) => (
-                    <SelectItem key={tz} value={tz}>
-                      {tz}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+              isLoading={isLoadingTimezones}
+              loadingMessage="Loading timezones..."
+            />
             {displayErrors.timezone && (
               <p className="text-sm text-destructive mt-1">{displayErrors.timezone[0]}</p>
             )}
@@ -177,28 +224,17 @@ export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, 
 
           <div>
             <Label htmlFor="currency">Currency *</Label>
-            <Select
+            <SearchableSelect
+              id="currency"
+              options={currencyOptions}
               value={formData.currency}
               onValueChange={(value) => handleChange('currency', value)}
+              placeholder="Select currency"
+              searchPlaceholder="Search currencies..."
               required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingCurrencies ? (
-                  <SelectItem value="loading" disabled>
-                    Loading currencies...
-                  </SelectItem>
-                ) : (
-                  (currenciesData?.currencies || []).map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+              isLoading={isLoadingCurrencies}
+              loadingMessage="Loading currencies..."
+            />
             {displayErrors.currency && (
               <p className="text-sm text-destructive mt-1">{displayErrors.currency[0]}</p>
             )}
@@ -210,13 +246,17 @@ export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, 
         <h3 className="text-lg font-semibold mb-4">Address</h3>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="address_line1">Address Line 1</Label>
+            <Label htmlFor="address_line1">Address Line 1 *</Label>
             <Input
               id="address_line1"
               value={formData.address_line1}
               onChange={(e) => handleChange('address_line1', e.target.value)}
+              required
               maxLength={255}
             />
+            {displayErrors.address_line1 && (
+              <p className="text-sm text-destructive mt-1">{displayErrors.address_line1[0]}</p>
+            )}
           </div>
 
           <div>
@@ -264,12 +304,21 @@ export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, 
 
             <div>
               <Label htmlFor="country">Country</Label>
-              <Input
+              <SearchableSelect
                 id="country"
-                value={formData.country}
-                onChange={(e) => handleChange('country', e.target.value)}
-                maxLength={100}
+                options={countryOptions}
+                value={formData.country || '__none__'}
+                onValueChange={(value) => handleChange('country', value === '__none__' ? '' : value)}
+                placeholder="Select country"
+                searchPlaceholder="Search countries..."
+                allowEmpty
+                emptyOptionLabel="Select country"
+                isLoading={isLoadingCountries}
+                loadingMessage="Loading countries..."
               />
+              {displayErrors.country && (
+                <p className="text-sm text-destructive mt-1">{displayErrors.country[0]}</p>
+              )}
             </div>
           </div>
         </div>

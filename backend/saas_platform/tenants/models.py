@@ -114,6 +114,14 @@ class OnboardingState(models.Model):
     step_4_completed = models.BooleanField(default=False)  # Age Categories
     step_5_completed = models.BooleanField(default=False)  # Terms
     step_6_completed = models.BooleanField(default=False)  # Pricing
+
+    # Per-step timestamps (analytics)
+    step_1_completed_at = models.DateTimeField(null=True, blank=True)
+    step_2_completed_at = models.DateTimeField(null=True, blank=True)
+    step_3_completed_at = models.DateTimeField(null=True, blank=True)
+    step_4_completed_at = models.DateTimeField(null=True, blank=True)
+    step_5_completed_at = models.DateTimeField(null=True, blank=True)
+    step_6_completed_at = models.DateTimeField(null=True, blank=True)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -147,4 +155,10 @@ class OnboardingState(models.Model):
         """Check if onboarding is locked by a specific user."""
         if not self.is_locked():
             return False
-        return self.locked_by == user
+        if not user:
+            return False
+        if self.locked_by_id and getattr(user, "id", None) == self.locked_by_id:
+            return True
+        locked_email = (getattr(self.locked_by, "email", "") or "").strip().lower()
+        user_email = (getattr(user, "email", "") or "").strip().lower()
+        return bool(locked_email and user_email and locked_email == user_email)

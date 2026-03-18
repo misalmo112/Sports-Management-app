@@ -13,6 +13,49 @@ from django.core.validators import MinValueValidator
 from saas_platform.tenants.models import Academy
 
 
+class OnboardingChecklistState(models.Model):
+    """
+    Soft-gated setup checklist state (post-activation).
+
+    This is intentionally separate from the activation wizard steps:
+    - Activation is enforced via Academy.onboarding_completed + OnboardingState
+    - Checklist is guidance for roster readiness and does not block APIs
+    """
+
+    id = models.AutoField(primary_key=True)
+    academy = models.OneToOneField(
+        Academy,
+        on_delete=models.CASCADE,
+        related_name="onboarding_checklist_state",
+    )
+
+    # Roster-readiness oriented checklist items
+    members_imported = models.BooleanField(default=False)
+    members_imported_at = models.DateTimeField(null=True, blank=True)
+    staff_invited = models.BooleanField(default=False)
+    staff_invited_at = models.DateTimeField(null=True, blank=True)
+    first_program_created = models.BooleanField(default=False)
+    first_program_created_at = models.DateTimeField(null=True, blank=True)
+    age_categories_configured = models.BooleanField(default=False)
+    age_categories_configured_at = models.DateTimeField(null=True, blank=True)
+    attendance_defaults_configured = models.BooleanField(default=False)
+    attendance_defaults_configured_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "tenant_onboarding_checklist_state"
+        indexes = [
+            models.Index(fields=["academy"]),
+        ]
+        verbose_name = "Onboarding Checklist State"
+        verbose_name_plural = "Onboarding Checklist States"
+
+    def __str__(self):
+        return f"OnboardingChecklistState({self.academy_id})"
+
+
 class Location(models.Model):
     """Venue/facility location for an academy."""
     

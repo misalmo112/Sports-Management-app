@@ -11,14 +11,13 @@ import { ErrorDisplay } from './ErrorDisplay';
 import Step1Profile from './steps/Step1Profile';
 import Step2Locations from './steps/Step2Locations';
 import Step3Sports from './steps/Step3Sports';
-import Step4AgeCategories from './steps/Step4AgeCategories';
 import Step5Terms from './steps/Step5Terms';
 import Step6Pricing from './steps/Step6Pricing';
 import { logout } from '@/shared/utils/auth';
 import { LogOut } from 'lucide-react';
 import type { StepData } from '../types';
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
 export const OnboardingWizard = () => {
   const navigate = useNavigate();
@@ -39,7 +38,7 @@ export const OnboardingWizard = () => {
   useEffect(() => {
     if (state?.is_completed) {
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/dashboard/setup');
       }, 2000);
     }
   }, [state?.is_completed, navigate]);
@@ -126,16 +125,14 @@ export const OnboardingWizard = () => {
 
     switch (currentStep) {
       case 1:
-        return <Step1Profile {...commonProps} />;
+        return <Step1Profile {...commonProps} initialData={state?.profile} />;
       case 2:
         return <Step2Locations {...commonProps} />;
       case 3:
         return <Step3Sports {...commonProps} />;
       case 4:
-        return <Step4AgeCategories {...commonProps} />;
-      case 5:
         return <Step5Terms {...commonProps} />;
-      case 6:
+      case 5:
         return <Step6Pricing {...commonProps} />;
       default:
         return null;
@@ -159,7 +156,7 @@ export const OnboardingWizard = () => {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Onboarding Complete!</CardTitle>
-            <CardDescription>Redirecting to dashboard...</CardDescription>
+            <CardDescription>Redirecting to setup checklist...</CardDescription>
           </CardHeader>
         </Card>
       </div>

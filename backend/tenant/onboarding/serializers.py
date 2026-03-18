@@ -2,13 +2,14 @@
 Serializers for onboarding wizard endpoints.
 """
 from rest_framework import serializers
+from django.db import DatabaseError, connection
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 from saas_platform.tenants.models import Academy, OnboardingState
 from tenant.onboarding.models import (
-    Location, Sport, AgeCategory, Term, PricingItem
+    Location, Sport, AgeCategory, Term, PricingItem, OnboardingChecklistState
 )
-from tenant.masters.constants import CURRENCIES
+from saas_platform.masters.models import Currency, Timezone, Country
 
 
 class OnboardingStateSerializer(serializers.ModelSerializer):
@@ -50,7 +51,7 @@ class OnboardingStateSerializer(serializers.ModelSerializer):
                 'completed': obj.step_1_completed
             },
             'step_2': {
-                'name': 'Location',
+                'name': 'Branches',
                 'completed': obj.step_2_completed
             },
             'step_3': {
@@ -58,17 +59,13 @@ class OnboardingStateSerializer(serializers.ModelSerializer):
                 'completed': obj.step_3_completed
             },
             'step_4': {
-                'name': 'Age Categories',
+                'name': 'Terms',
                 'completed': obj.step_4_completed
             },
             'step_5': {
-                'name': 'Terms',
+                'name': 'Pricing',
                 'completed': obj.step_5_completed
             },
-            'step_6': {
-                'name': 'Pricing',
-                'completed': obj.step_6_completed
-            }
         }
     
     def get_locked(self, obj):
@@ -112,21 +109,52 @@ class AcademyProfileSerializer(serializers.ModelSerializer):
             except DjangoValidationError:
                 raise serializers.ValidationError("Enter a valid email address.")
         return value
+
+
+class OnboardingChecklistStateSerializer(serializers.ModelSerializer):
+    """Serializer for post-activation onboarding checklist state."""
+
+    academy_id = serializers.UUIDField(source="academy.id", read_only=True)
+
+    class Meta:
+        model = OnboardingChecklistState
+        fields = [
+            "academy_id",
+            "members_imported",
+            "members_imported_at",
+            "staff_invited",
+            "staff_invited_at",
+            "first_program_created",
+            "first_program_created_at",
+            "age_categories_configured",
+            "age_categories_configured_at",
+            "attendance_defaults_configured",
+            "attendance_defaults_configured_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "academy_id",
+            "members_imported_at",
+            "staff_invited_at",
+            "first_program_created_at",
+            "age_categories_configured_at",
+            "attendance_defaults_configured_at",
+            "created_at",
+            "updated_at",
+        ]
     
     def validate_timezone(self, value):
         """Validate timezone identifier."""
         if not value or len(value) > 50:
             raise serializers.ValidationError("Invalid timezone identifier.")
-        
-        # Try to validate with pytz if available, otherwise just check format
+        if not Timezone.objects.filter(code=value, is_active=True).exists():
+            raise serializers.ValidationError("Unsupported timezone.")
         try:
             import pytz
             pytz.timezone(value)
         except (pytz.exceptions.UnknownTimeZoneError, ImportError):
-            # If pytz not available, do basic format validation
-            # Common timezone formats: America/New_York, UTC, Europe/London, etc.
             if '/' not in value and value != 'UTC':
-                # Allow UTC and timezones with / separator
                 pass
         return value
 
@@ -134,8 +162,61 @@ class AcademyProfileSerializer(serializers.ModelSerializer):
         """Validate currency code."""
         if not value or len(value) != 3:
             raise serializers.ValidationError("Currency must be a 3-letter code.")
-        if value not in CURRENCIES:
+        code = value.upper()
+        if not Currency.objects.filter(code=code, is_active=True).exists():
             raise serializers.ValidationError("Unsupported currency code.")
+        return code
+
+    def validate_country(self, value):
+        """Validate country against Country master when provided."""
+        if not value:
+            return value
+        code = str(value).strip().upper()
+        if len(code) != 3:
+            raise serializers.ValidationError("Country must be a 3-letter ISO alpha-3 code.")
+        try:
+            exists = Country.objects.filter(code=code, is_active=True).exists()
+        except DatabaseError:
+            # Fallback to explicit public schema lookup when tenant search_path
+            # context is out of sync and ORM lookups fail intermittently.
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT 1
+                    FROM public.platform_countries
+                    WHERE code = %s AND is_active = TRUE
+                    LIMIT 1
+                    """,
+                    [code],
+                )
+                exists = cursor.fetchone() is not None
+        if not exists:
+            raise serializers.ValidationError("Unsupported country code.")
+        return code
+
+    def validate_address_line1(self, value):
+        """Require address line 1 (non-blank)."""
+        if not value or not str(value).strip():
+            raise serializers.ValidationError("Address line 1 is required.")
+        return value.strip()
+
+    def validate_phone(self, value):
+        """Require phone and validate syntax (digits, +, spaces, hyphens, parentheses; 8-20 chars, min 8 digits)."""
+        if not value or not str(value).strip():
+            raise serializers.ValidationError("Phone is required.")
+        value = str(value).strip()
+        if len(value) > 20:
+            raise serializers.ValidationError("Phone must be 20 characters or less.")
+        import re
+        if not re.match(r'^[\d+\s\-()]+$', value):
+            raise serializers.ValidationError(
+                "Phone may only contain digits, spaces, and + - ( ). Example: +1 555 123 4567"
+            )
+        digit_count = sum(1 for c in value if c.isdigit())
+        if digit_count < 8:
+            raise serializers.ValidationError(
+                "Phone must contain at least 8 digits (include country code if needed)."
+            )
         return value
 
 
@@ -394,6 +475,9 @@ class TermBulkSerializer(serializers.Serializer):
 class PricingItemSerializer(serializers.ModelSerializer):
     """Serializer for pricing item."""
     
+    # Currency should be optional in the request; it will be derived from academy.profile.
+    currency = serializers.CharField(required=False)
+    
     class Meta:
         model = PricingItem
         fields = [
@@ -404,6 +488,11 @@ class PricingItemSerializer(serializers.ModelSerializer):
             'price',
             'currency',
         ]
+        extra_kwargs = {
+            # Currency is derived from the academy profile on the server.
+            'currency': {'required': False},
+        }
+
     
     def validate_duration_type(self, value):
         """Validate duration type."""

@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
-from saas_platform.subscriptions.models import Plan
-from saas_platform.subscriptions.serializers import PlanSerializer
+from saas_platform.subscriptions.models import Plan, PlatformPayment, PaymentMethod
+from saas_platform.subscriptions.serializers import PlanSerializer, PlatformPaymentSerializer
 from saas_platform.audit.services import AuditService
 from saas_platform.audit.models import AuditAction, ResourceType
 from shared.permissions.platform import IsPlatformAdmin
@@ -111,3 +111,42 @@ class PlanViewSet(viewsets.ModelViewSet):
             request=request
         )
         return super().destroy(request, *args, **kwargs)
+
+
+class PlatformPaymentFilter(filters.FilterSet):
+    """Filter set for platform payment list view."""
+
+    academy = filters.UUIDFilter(field_name='academy_id')
+    subscription = filters.NumberFilter(field_name='subscription_id')
+    payment_method = filters.ChoiceFilter(choices=PaymentMethod.choices)
+    payment_date_after = filters.DateFilter(field_name='payment_date', lookup_expr='gte')
+    payment_date_before = filters.DateFilter(field_name='payment_date', lookup_expr='lte')
+
+    class Meta:
+        model = PlatformPayment
+        fields = [
+            'academy',
+            'subscription',
+            'payment_method',
+            'payment_date_after',
+            'payment_date_before',
+        ]
+
+
+class PlatformPaymentViewSet(viewsets.ModelViewSet):
+    """ViewSet for platform payment management (superadmin only)."""
+
+    permission_classes = [IsPlatformAdmin]
+    serializer_class = PlatformPaymentSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = PlatformPaymentFilter
+    ordering_fields = ['payment_date', 'amount', 'created_at']
+    ordering = ['-payment_date']
+
+    def get_queryset(self):
+        return PlatformPayment.objects.select_related(
+            'academy', 'subscription', 'subscription__plan'
+        ).all()
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)

@@ -3,13 +3,13 @@
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { savePricing } from '../services/settingsApi';
-import type { Step6Pricing } from '../types';
+import type { Step5Pricing } from '../types';
 
 export const useSavePricing = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Step6Pricing) => savePricing(data),
+    mutationFn: (data: Step5Pricing) => savePricing(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['onboarding', 'state'] });
     },

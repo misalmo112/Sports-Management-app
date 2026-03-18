@@ -7,11 +7,11 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Plus, Trash2 } from 'lucide-react';
-import { validateStep4 } from '../../utils/validation';
-import type { Step4AgeCategories, AgeCategory } from '../../types';
+import { validateAgeCategories } from '../../utils/validation';
+import type { AgeCategoriesPayload, AgeCategory } from '../../types';
 
 interface Step4AgeCategoriesProps {
-  onSubmit: (data: Step4AgeCategories) => Promise<void>;
+  onSubmit: (data: AgeCategoriesPayload) => Promise<void>;
   errors?: Record<string, string[]>;
   isLoading?: boolean;
   formRef?: (form: HTMLFormElement | null) => void;
@@ -57,8 +57,8 @@ export default function Step4AgeCategories({ onSubmit, errors, isLoading: _isLoa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const data: Step4AgeCategories = { age_categories: ageCategories };
-    const clientErrors = validateStep4(data);
+    const data: AgeCategoriesPayload = { age_categories: ageCategories };
+    const clientErrors = validateAgeCategories(data);
     if (clientErrors.length > 0) {
       const errorMap: Record<string, string[]> = {};
       clientErrors.forEach((err) => {

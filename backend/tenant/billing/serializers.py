@@ -10,6 +10,16 @@ from tenant.onboarding.serializers import SportListSerializer, LocationListSeria
 
 class ItemSerializer(serializers.ModelSerializer):
     """Full item details serializer."""
+
+    def _get_academy_currency(self):
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+        if not academy:
+            return None
+        currency = getattr(academy, 'currency', None)
+        if not currency:
+            return None
+        return str(currency).strip().upper()
     
     class Meta:
         model = Item
@@ -19,14 +29,64 @@ class ItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'academy', 'created_at', 'updated_at']
 
+    def validate(self, attrs):
+        academy_currency = self._get_academy_currency()
+        if not academy_currency:
+            return attrs
+
+        # If client provided currency, reject mismatches. Always store academy currency.
+        if 'currency' in attrs and attrs['currency'] is not None:
+            provided_currency = str(attrs['currency']).strip().upper()
+            if provided_currency != academy_currency:
+                raise serializers.ValidationError({
+                    'currency': 'Currency must match the academy currency.'
+                })
+
+        attrs['currency'] = academy_currency
+        return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        academy_currency = self._get_academy_currency()
+        if not academy_currency:
+            academy = getattr(instance, 'academy', None)
+            academy_currency = getattr(academy, 'currency', None) if academy else None
+            if academy_currency:
+                academy_currency = str(academy_currency).strip().upper()
+        if academy_currency:
+            data['currency'] = academy_currency
+        return data
+
 
 class ItemListSerializer(serializers.ModelSerializer):
     """List view serializer for items."""
+
+    def _get_academy_currency(self):
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+        if not academy:
+            return None
+        currency = getattr(academy, 'currency', None)
+        if not currency:
+            return None
+        return str(currency).strip().upper()
     
     class Meta:
         model = Item
         fields = ['id', 'name', 'price', 'currency', 'is_active']
         read_only_fields = ['id']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        academy_currency = self._get_academy_currency()
+        if not academy_currency:
+            academy = getattr(instance, 'academy', None)
+            academy_currency = getattr(academy, 'currency', None) if academy else None
+            if academy_currency:
+                academy_currency = str(academy_currency).strip().upper()
+        if academy_currency:
+            data['currency'] = academy_currency
+        return data
 
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
@@ -86,13 +146,6 @@ class ReceiptSerializer(serializers.ModelSerializer):
     
     def validate_sport(self, value):
         """Validate sport belongs to the same academy."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"serializers.py:ReceiptSerializer.validate_sport","message":"validate_sport called","data":{"value":value.id if value else None,"has_context":'request' in self.context if hasattr(self,'context') else False,"has_academy":hasattr(self.context.get('request',None),'academy') if 'request' in (self.context if hasattr(self,'context') else {}) else False},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         if value and 'request' in self.context and hasattr(self.context['request'], 'academy') and self.context['request'].academy:
             if value.academy_id != self.context['request'].academy.id:
                 raise serializers.ValidationError(
@@ -102,13 +155,6 @@ class ReceiptSerializer(serializers.ModelSerializer):
     
     def validate_location(self, value):
         """Validate location belongs to the same academy."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"serializers.py:ReceiptSerializer.validate_location","message":"validate_location called","data":{"value":value.id if value else None,"has_context":'request' in self.context if hasattr(self,'context') else False,"has_academy":hasattr(self.context.get('request',None),'academy') if 'request' in (self.context if hasattr(self,'context') else {}) else False},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         if value and 'request' in self.context and hasattr(self.context['request'], 'academy') and self.context['request'].academy:
             if value.academy_id != self.context['request'].academy.id:
                 raise serializers.ValidationError(
@@ -135,36 +181,43 @@ class ReceiptListSerializer(serializers.ModelSerializer):
     invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
     sport_name = serializers.SerializerMethodField()
     location_name = serializers.SerializerMethodField()
+    parent_name = serializers.SerializerMethodField()
+    student_names = serializers.SerializerMethodField()
     
     class Meta:
         model = Receipt
         fields = [
             'id', 'invoice', 'invoice_number', 'receipt_number', 'amount',
             'payment_method', 'payment_date', 'sport', 'sport_name',
-            'location', 'location_name'
+            'location', 'location_name', 'parent_name', 'student_names'
         ]
         read_only_fields = ['id', 'invoice', 'receipt_number']
     
+    def get_parent_name(self, obj):
+        """Get parent full name from invoice."""
+        if obj.invoice and obj.invoice.parent:
+            return obj.invoice.parent.full_name
+        return None
+    
+    def get_student_names(self, obj):
+        """Get comma-separated student names from invoice items."""
+        if not obj.invoice:
+            return None
+        names = []
+        seen = set()
+        # InvoiceItem -> Invoice uses related_name='items'
+        for item in obj.invoice.items.filter(student__isnull=False).select_related('student'):
+            if item.student_id and item.student_id not in seen:
+                seen.add(item.student_id)
+                names.append(f"{item.student.first_name} {item.student.last_name}".strip())
+        return ", ".join(names) if names else None
+    
     def get_sport_name(self, obj):
         """Get sport name safely."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"serializers.py:get_sport_name","message":"get_sport_name called","data":{"obj_id":obj.id if hasattr(obj,'id') else None,"sport":obj.sport_id if hasattr(obj,'sport_id') else None,"sport_obj":str(obj.sport) if hasattr(obj,'sport') else None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         return obj.sport.name if obj.sport else None
     
     def get_location_name(self, obj):
         """Get location name safely."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"serializers.py:get_location_name","message":"get_location_name called","data":{"obj_id":obj.id if hasattr(obj,'id') else None,"location":obj.location_id if hasattr(obj,'location_id') else None,"location_obj":str(obj.location) if hasattr(obj,'location') else None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         return obj.location.name if obj.location else None
 
 
@@ -217,13 +270,6 @@ class InvoiceSerializer(serializers.ModelSerializer):
     
     def validate_sport(self, value):
         """Validate sport belongs to the same academy."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"serializers.py:InvoiceSerializer.validate_sport","message":"validate_sport called","data":{"value":value.id if value else None,"has_context":'request' in self.context if hasattr(self,'context') else False,"has_academy":hasattr(self.context.get('request',None),'academy') if 'request' in (self.context if hasattr(self,'context') else {}) else False},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         if value and 'request' in self.context and hasattr(self.context['request'], 'academy') and self.context['request'].academy:
             if value.academy_id != self.context['request'].academy.id:
                 raise serializers.ValidationError(
@@ -233,13 +279,6 @@ class InvoiceSerializer(serializers.ModelSerializer):
     
     def validate_location(self, value):
         """Validate location belongs to the same academy."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"serializers.py:InvoiceSerializer.validate_location","message":"validate_location called","data":{"value":value.id if value else None,"has_context":'request' in self.context if hasattr(self,'context') else False,"has_academy":hasattr(self.context.get('request',None),'academy') if 'request' in (self.context if hasattr(self,'context') else {}) else False},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         if value and 'request' in self.context and hasattr(self.context['request'], 'academy') and self.context['request'].academy:
             if value.academy_id != self.context['request'].academy.id:
                 raise serializers.ValidationError(
@@ -289,24 +328,10 @@ class InvoiceListSerializer(serializers.ModelSerializer):
     
     def get_sport_name(self, obj):
         """Get sport name safely."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"serializers.py:get_sport_name","message":"InvoiceListSerializer get_sport_name called","data":{"obj_id":obj.id if hasattr(obj,'id') else None,"sport":obj.sport_id if hasattr(obj,'sport_id') else None,"sport_obj":str(obj.sport) if hasattr(obj,'sport') else None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         return obj.sport.name if obj.sport else None
     
     def get_location_name(self, obj):
         """Get location name safely."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"serializers.py:get_location_name","message":"InvoiceListSerializer get_location_name called","data":{"obj_id":obj.id if hasattr(obj,'id') else None,"location":obj.location_id if hasattr(obj,'location_id') else None,"location_obj":str(obj.location) if hasattr(obj,'location') else None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         return obj.location.name if obj.location else None
     
     def get_paid_amount(self, obj):

@@ -3,7 +3,7 @@
  * Coaches only: list, create, edit, delete coaches; salary; attendance view.
  */
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Edit, Plus, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { Badge } from '@/shared/components/ui/badge';
@@ -137,6 +137,7 @@ export const StaffPage = () => {
   const [attendanceDateFilter, setAttendanceDateFilter] = useState<string>('');
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: coachesData, isLoading: coachesLoading, error: coachesError, refetch: refetchCoaches } = useCoaches({
     is_active: undefined,
   });
@@ -149,6 +150,8 @@ export const StaffPage = () => {
   const { data: paySchemesData, isLoading: paySchemesLoading, refetch: refetchPaySchemes } = useCoachPaySchemes({
     coach: salaryCoachFilter === 'ALL' ? undefined : Number(salaryCoachFilter),
   });
+  const { data: allPaySchemesData } = useCoachPaySchemes({ page_size: 500 });
+  const allPaySchemes = allPaySchemesData?.results ?? [];
   const createPaySchemeMutation = useCreateCoachPayScheme();
   const updatePaySchemeMutation = useUpdateCoachPayScheme();
   const deletePaySchemeMutation = useDeleteCoachPayScheme();
@@ -200,6 +203,18 @@ export const StaffPage = () => {
 
   const coaches = coachesData?.results ?? [];
   const hasError = coachesError;
+
+  // Open edit modal when navigating from CoachDetailPage with state.editCoachId
+  useEffect(() => {
+    const editCoachId = (location.state as { editCoachId?: number })?.editCoachId;
+    if (editCoachId == null || coachesLoading || coaches.length === 0) return;
+    const coachToEdit = coaches.find((c) => c.id === editCoachId);
+    if (coachToEdit) {
+      setActiveTab('coaches');
+      openEditCoach(coachToEdit as Coach & { full_name?: string });
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, coachesLoading, coaches]);
 
   const refetchAll = () => {
     refetchCoaches();
@@ -575,7 +590,14 @@ export const StaffPage = () => {
                     </TableHeader>
                     <TableBody>
                       {coaches.map((c) => (
-                        <TableRow key={c.id}>
+                        <TableRow
+                          key={c.id}
+                          className="cursor-pointer"
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest('button')) return;
+                            navigate(`/dashboard/management/staff/${c.id}`);
+                          }}
+                        >
                           <TableCell className="font-medium">{c.full_name}</TableCell>
                           <TableCell>{c.email}</TableCell>
                           <TableCell>{c.phone || '-'}</TableCell>
@@ -591,7 +613,10 @@ export const StaffPage = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => openEditCoach(c as Coach)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditCoach(c as Coach);
+                                }}
                               >
                                 <Edit className="mr-1 h-4 w-4" />
                                 Edit
@@ -599,12 +624,13 @@ export const StaffPage = () => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() =>
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setDeleteTarget({
                                     id: c.id,
                                     name: c.full_name,
-                                  })
-                                }
+                                  });
+                                }}
                                 disabled={!c.is_active}
                               >
                                 <Trash2 className="mr-1 h-4 w-4" />
@@ -895,7 +921,7 @@ export const StaffPage = () => {
                   <CardTitle>Coach Attendance</CardTitle>
                   <CardDescription>View coach attendance by coach and date.</CardDescription>
                 </div>
-                <Button variant="outline" onClick={() => navigate('/dashboard/attendance/coach')}>
+                <Button variant="outline" onClick={() => navigate('/dashboard/attendance/coach/mark')}>
                   Mark coach attendance
                 </Button>
               </div>
@@ -1234,7 +1260,22 @@ export const StaffPage = () => {
           <form onSubmit={handleRecordPayment} className="space-y-4">
             <div className="space-y-2">
               <Label>Coach</Label>
-              <Select value={paymentForm.coach} onValueChange={(v) => setPaymentForm((p) => ({ ...p, coach: v }))}>
+              <Select
+                value={paymentForm.coach}
+                onValueChange={(v) => {
+                  setPaymentForm((p) => {
+                    const next = { ...p, coach: v };
+                    if (v) {
+                      const schemes = allPaySchemes.filter((s: CoachPayScheme) => s.coach === Number(v));
+                      if (schemes.length > 0) {
+                        next.period_type = schemes[0].period_type;
+                        next.amount = schemes[0].amount;
+                      }
+                    }
+                    return next;
+                  });
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Select coach" /></SelectTrigger>
                 <SelectContent>
                   {coaches.map((c) => (
@@ -1246,7 +1287,22 @@ export const StaffPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Period type</Label>
-                <Select value={paymentForm.period_type} onValueChange={(v) => setPaymentForm((p) => ({ ...p, period_type: v as CoachPaySchemePeriodType }))}>
+                <Select
+                  value={paymentForm.period_type}
+                  onValueChange={(v) => {
+                    const periodType = v as CoachPaySchemePeriodType;
+                    setPaymentForm((p) => {
+                      const next = { ...p, period_type: periodType };
+                      if (p.coach) {
+                        const scheme = allPaySchemes.find(
+                          (s: CoachPayScheme) => s.coach === Number(p.coach) && s.period_type === periodType
+                        );
+                        if (scheme) next.amount = scheme.amount;
+                      }
+                      return next;
+                    });
+                  }}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="SESSION">Per Session</SelectItem>
@@ -1398,6 +1454,15 @@ export const StaffPage = () => {
                               setBatchPaymentRows((rows) => {
                                 const next = [...rows];
                                 next[idx] = { ...next[idx], coach: v === '__none__' ? '' : v };
+                                if (v && v !== '__none__') {
+                                  const schemes = allPaySchemes.filter(
+                                    (s: CoachPayScheme) => s.coach === Number(v)
+                                  );
+                                  if (schemes.length > 0) {
+                                    next[idx].period_type = schemes[0].period_type;
+                                    next[idx].amount = schemes[0].amount;
+                                  }
+                                }
                                 return next;
                               })
                             }
@@ -1417,7 +1482,15 @@ export const StaffPage = () => {
                             onValueChange={(v) =>
                               setBatchPaymentRows((rows) => {
                                 const next = [...rows];
-                                next[idx] = { ...next[idx], period_type: v as CoachPaySchemePeriodType };
+                                const periodType = v as CoachPaySchemePeriodType;
+                                next[idx] = { ...next[idx], period_type: periodType };
+                                if (next[idx].coach) {
+                                  const scheme = allPaySchemes.find(
+                                    (s: CoachPayScheme) =>
+                                      s.coach === Number(next[idx].coach) && s.period_type === periodType
+                                  );
+                                  if (scheme) next[idx].amount = scheme.amount;
+                                }
                                 return next;
                               })
                             }

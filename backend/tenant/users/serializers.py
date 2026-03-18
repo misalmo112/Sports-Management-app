@@ -621,6 +621,38 @@ class AcceptInviteSerializer(serializers.Serializer):
         return attrs
 
 
+class ForgotPasswordSerializer(serializers.Serializer):
+    """Serializer for forgot password request."""
+    email = serializers.EmailField(required=True)
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    """Serializer for resetting password with token."""
+    token = serializers.CharField(required=True, write_only=True)
+    password = serializers.CharField(
+        required=True,
+        write_only=True,
+        min_length=8,
+        style={'input_type': 'password'},
+    )
+    password_confirm = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'},
+    )
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        password_confirm = attrs.get('password_confirm')
+        if password != password_confirm:
+            raise serializers.ValidationError({
+                'password_confirm': 'Passwords do not match.',
+            })
+        # Optional: run Django password validation (no user context for reset)
+        validate_password(password)
+        return attrs
+
+
 class StaffCoachNotInvitedSerializer(serializers.Serializer):
     """Minimal serializer for a staff Coach with no linked User (for coaches-for-management list)."""
     

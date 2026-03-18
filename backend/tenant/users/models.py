@@ -494,3 +494,76 @@ class InviteToken(models.Model):
         """Override save to validate."""
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class PasswordResetToken(models.Model):
+    """
+    Secure token for password reset flow.
+    Tokens are hashed before storage and expire after 1 hour.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='password_reset_tokens',
+        db_index=True,
+    )
+    token_hash = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text='Hashed reset token',
+    )
+    expires_at = models.DateTimeField(
+        db_index=True,
+        help_text='Token expiration timestamp',
+    )
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Timestamp when token was used (null if unused)',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'tenant_password_reset_tokens'
+        indexes = [
+            models.Index(fields=['token_hash']),
+            models.Index(fields=['user', 'used_at']),
+            models.Index(fields=['expires_at', 'used_at']),
+        ]
+        verbose_name = 'Password Reset Token'
+        verbose_name_plural = 'Password Reset Tokens'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        status = 'used' if self.used_at else 'active' if self.is_valid() else 'expired'
+        return f"Password reset token for {self.user.email} ({status})"
+
+    def is_valid(self):
+        """Check if token is valid (not used and not expired)."""
+        if self.used_at:
+            return False
+        return timezone.now() < self.expires_at
+
+    def mark_as_used(self):
+        """Mark token as used."""
+        if self.used_at:
+            raise ValidationError('Token has already been used.')
+        self.used_at = timezone.now()
+        self.save(update_fields=['used_at'])
+
+    @staticmethod
+    def generate_token():
+        """Generate a secure random token."""
+        return secrets.token_urlsafe(32)
+
+    @staticmethod
+    def hash_token(token):
+        """Hash a token using Django's password hashing."""
+        return make_password(token)
+
+    @staticmethod
+    def verify_token(hashed_token, token):
+        """Verify a token against its hash."""
+        from django.contrib.auth.hashers import check_password
+        return check_password(token, hashed_token)

@@ -1,8 +1,14 @@
 /**
- * Add Student Modal Component
- * Dialog for adding students to a class
+ * Add Students Modal Component
+ * Dialog for adding multiple students to a class
  */
-import { useState, useDeferredValue, useMemo } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Check, Loader2, XCircle } from 'lucide-react';
+import { createEnrollment as createEnrollmentApi } from '../services/api';
+import type { CreateEnrollmentRequest } from '../types';
+import type { Student } from '@/features/tenant/students/types';
+import { useStudents } from '@/features/tenant/students/hooks/hooks';
 import {
   Dialog,
   DialogContent,
@@ -11,20 +17,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/dialog';
-import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
-import { Input } from '@/shared/components/ui/input';
-import { Textarea } from '@/shared/components/ui/textarea';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
+import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { AlertCircle } from 'lucide-react';
-import { useStudents } from '@/features/tenant/students/hooks/hooks';
-import { useCreateEnrollment } from '../hooks/hooks';
 
 interface AddStudentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   classId: number | string;
   enrolledStudentIds?: number[];
+  maxCapacity?: number;
+  availableSpots?: number;
   onSuccess?: () => void;
 }
 
@@ -33,17 +39,29 @@ export const AddStudentModal = ({
   onOpenChange,
   classId,
   enrolledStudentIds = [],
+  maxCapacity,
+  availableSpots,
   onSuccess,
 }: AddStudentModalProps) => {
-  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const queryClient = useQueryClient();
+
+  const [step, setStep] = useState<1 | 2>(1);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [selectedStudentsById, setSelectedStudentsById] = useState<Record<number, Student>>({});
+
   const [studentSearch, setStudentSearch] = useState('');
   const [showAllStudents, setShowAllStudents] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
+
+  const [enrollPhase, setEnrollPhase] = useState<'review' | 'enrolling' | 'results'>('review');
+  const [batchResults, setBatchResults] = useState<{
+    enrolled: number[];
+    failed: Array<{ studentId: number; reason: string }>;
+  } | null>(null);
 
   const deferredSearch = useDeferredValue(studentSearch.trim());
   const isSearching = deferredSearch.length > 0;
-  const pageSize = isSearching ? 20 : showAllStudents ? 100 : 20;
+  const pageSize = isSearching ? 20 : showAllStudents ? 200 : 20;
+
   const {
     data: studentsData,
     isLoading: isLoadingStudents,
@@ -53,224 +71,433 @@ export const AddStudentModal = ({
     search: isSearching ? deferredSearch : undefined,
     page_size: pageSize,
   });
-  const createEnrollment = useCreateEnrollment();
 
-  // Filter out already enrolled students
+  // Reset wizard each time modal opens.
+  const resetWizard = () => {
+    setStep(1);
+    setSelectedStudentIds([]);
+    setSelectedStudentsById({});
+    setStudentSearch('');
+    setShowAllStudents(false);
+    setEnrollPhase('review');
+    setBatchResults(null);
+  };
+
   const availableStudents = useMemo(
     () =>
-      studentsData?.results.filter(
-        (student) => !enrolledStudentIds.includes(student.id)
-      ) || [],
+      studentsData?.results.filter((student) => !enrolledStudentIds.includes(student.id)) || [],
     [studentsData?.results, enrolledStudentIds]
   );
+
   const filteredStudents = useMemo(() => {
-    if (isSearching || showAllStudents) {
-      return availableStudents;
-    }
+    if (isSearching || showAllStudents) return availableStudents;
     return [];
   }, [availableStudents, isSearching, showAllStudents]);
+
   const shouldShowList = studentSearch.trim().length > 0 || showAllStudents;
-  const selectedStudent =
-    availableStudents.find((student) => student.id.toString() === selectedStudentId) || null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
-    if (!selectedStudentId) {
-      setErrors({
-        student: ['Please select a student'],
-      });
-      return;
-    }
-
-    try {
-      await createEnrollment.mutateAsync({
-        student: parseInt(selectedStudentId),
-        class_obj: typeof classId === 'string' ? parseInt(classId) : classId,
-        notes: notes || undefined,
-      });
-
-      // Reset form
-      setSelectedStudentId('');
-      setNotes('');
-      setErrors({});
-
-      onOpenChange(false);
-      onSuccess?.();
-    } catch (error: any) {
-      if (error.response?.data) {
-        const errorData = error.response.data;
-        if (errorData.errors) {
-          setErrors(errorData.errors);
-        } else if (typeof errorData === 'object') {
-          setErrors(errorData);
-        } else {
-          setErrors({
-            non_field_errors: [errorData || 'Failed to enroll student'],
-          });
-        }
-      } else {
-        setErrors({
-          non_field_errors: [error.message || 'Failed to enroll student'],
-        });
+  const addOrRemoveSelected = (student: Student) => {
+    setSelectedStudentIds((prev) => {
+      const exists = prev.includes(student.id);
+      if (exists) return prev.filter((id) => id !== student.id);
+      return [...prev, student.id];
+    });
+    setSelectedStudentsById((prev) => {
+      const exists = prev[student.id] !== undefined;
+      if (exists) {
+        const { [student.id]: _, ...rest } = prev;
+        return rest;
       }
-    }
+      return { ...prev, [student.id]: student };
+    });
   };
+
+  const removeSelectedById = (studentId: number) => {
+    setSelectedStudentIds((prev) => prev.filter((id) => id !== studentId));
+    setSelectedStudentsById((prev) => {
+      if (!prev[studentId]) return prev;
+      const { [studentId]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const extractEnrollmentReason = (error: any) => {
+    const data = error?.response?.data ?? error?.data;
+    if (!data) return error?.message || 'Failed to enroll student';
+    if (typeof data === 'string') return data;
+    if (data?.detail) return data.detail;
+
+    if (data?.non_field_errors && Array.isArray(data.non_field_errors)) {
+      return data.non_field_errors.join(', ');
+    }
+
+    if (typeof data === 'object') {
+      const firstArrayValue = Object.values(data).find(
+        (v) => Array.isArray(v) && v.length > 0
+      ) as string[] | undefined;
+      if (firstArrayValue && firstArrayValue.length > 0) return firstArrayValue[0];
+    }
+
+    return error?.message || 'Failed to enroll student';
+  };
+
+  const selectedCount = selectedStudentIds.length;
 
   const handleClose = () => {
-    if (!createEnrollment.isPending) {
-      setSelectedStudentId('');
-      setStudentSearch('');
-      setShowAllStudents(false);
-      setNotes('');
-      setErrors({});
+    if (enrollPhase !== 'enrolling') {
+      resetWizard();
       onOpenChange(false);
     }
   };
+
+  const enrollAll = async () => {
+    if (selectedStudentIds.length === 0) return;
+
+    const class_obj = typeof classId === 'string' ? parseInt(classId) : classId;
+
+    setEnrollPhase('enrolling');
+    setBatchResults({ enrolled: [], failed: [] });
+
+    const enrolledIds: number[] = [];
+    const failed: Array<{ studentId: number; reason: string }> = [];
+
+    // Backend validates capacity/duplicates per enrollment, so we enroll sequentially for predictable UX.
+    for (const studentId of selectedStudentIds) {
+      try {
+        const payload: CreateEnrollmentRequest = {
+          student: studentId,
+          class_obj,
+        };
+        await createEnrollmentApi(payload);
+        enrolledIds.push(studentId);
+      } catch (error: any) {
+        failed.push({ studentId, reason: extractEnrollmentReason(error) });
+      }
+    }
+
+    setBatchResults({ enrolled: enrolledIds, failed });
+    queryClient.invalidateQueries({ queryKey: ['enrollments', 'list'] });
+    queryClient.invalidateQueries({ queryKey: ['classes', 'detail', classId] });
+    onSuccess?.();
+    setEnrollPhase('results');
+  };
+
+  const handleStepToReview = () => {
+    setEnrollPhase('review');
+    setBatchResults(null);
+    setStep(2);
+  };
+
+  // Keep wizard state fresh when the modal is opened from the UI.
+  useEffect(() => {
+    if (open) resetWizard();
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[1100px] w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Student to Class</DialogTitle>
+          <DialogTitle>Add Students to Class</DialogTitle>
           <DialogDescription>
-            Select a student to enroll in this class.
+            Search, select multiple students, and review before enrolling.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            {errors.non_field_errors && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {errors.non_field_errors.map((err, idx) => (
-                    <div key={idx}>{err}</div>
-                  ))}
-                </AlertDescription>
-              </Alert>
-            )}
 
-            <div className="grid gap-2">
-              <Label htmlFor="student">
-                Student <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="student-search"
-                value={studentSearch}
-                onChange={(e) => {
-                  setStudentSearch(e.target.value);
-                  if (e.target.value.trim().length > 0) {
-                    setShowAllStudents(false);
-                  }
-                }}
-                placeholder="Search students..."
-                disabled={isLoadingStudents || createEnrollment.isPending}
-              />
-              {shouldShowList ? (
-                <div className="rounded-md border bg-background">
-                  <div className="max-h-56 overflow-y-auto">
-                    {isLoadingStudents || isFetchingStudents ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        Loading students...
+        <div className="grid gap-4 py-4">
+          {step === 1 && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="student">
+                    Student <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="student-search"
+                    value={studentSearch}
+                    onChange={(e) => {
+                      setStudentSearch(e.target.value);
+                      if (e.target.value.trim().length > 0) setShowAllStudents(false);
+                    }}
+                    placeholder="Search students (name/email)..."
+                    disabled={isLoadingStudents || enrollPhase === 'enrolling'}
+                  />
+                </div>
+
+                {shouldShowList ? (
+                  <div className="rounded-md border bg-background">
+                    <div className="max-h-[48vh] overflow-y-auto">
+                      {isLoadingStudents || isFetchingStudents ? (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">Loading students...</div>
+                      ) : filteredStudents.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          {studentSearch.trim().length > 0 ? 'No matching students' : 'No students available'}
+                        </div>
+                      ) : (
+                        filteredStudents.map((student) => {
+                          const isSelected = selectedStudentIds.includes(student.id);
+                          return (
+                            <button
+                              key={student.id}
+                              type="button"
+                              className={`w-full text-left px-4 py-3 text-sm hover:bg-muted ${
+                                isSelected ? 'bg-muted' : ''
+                              }`}
+                              onClick={() => addOrRemoveSelected(student)}
+                              disabled={enrollPhase === 'enrolling'}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{student.full_name}</div>
+                                  {student.email ? (
+                                    <div className="text-xs text-muted-foreground truncate">{student.email}</div>
+                                  ) : null}
+                                </div>
+                                {isSelected ? <Check className="mt-1 h-4 w-4" /> : null}
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {!isSearching && showAllStudents && studentsData?.count && studentsData.count > pageSize && (
+                      <div className="border-t px-3 py-2 text-xs text-muted-foreground">
+                        Showing {filteredStudents.length} of {studentsData.count} students. Start typing to narrow the list.
                       </div>
-                    ) : filteredStudents.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        {studentSearch.trim().length > 0
-                          ? 'No matching students'
-                          : 'No students available'}
-                      </div>
-                    ) : (
-                      filteredStudents.map((student) => {
-                        const isSelected = student.id.toString() === selectedStudentId;
-                        return (
-                          <button
-                            key={student.id}
-                            type="button"
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-muted ${
-                              isSelected ? 'bg-muted' : ''
-                            }`}
-                            onClick={() => setSelectedStudentId(student.id.toString())}
-                            disabled={createEnrollment.isPending}
-                          >
-                            <div className="font-medium">{student.full_name}</div>
-                            {student.email && (
-                              <div className="text-xs text-muted-foreground">{student.email}</div>
-                            )}
-                          </button>
-                        );
-                      })
                     )}
                   </div>
-                  {!isSearching && showAllStudents && studentsData?.count && studentsData.count > pageSize && (
-                    <div className="border-t px-3 py-2 text-xs text-muted-foreground">
-                      Showing {filteredStudents.length} of {studentsData.count} students. Start typing to narrow the list.
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-                  Type to search or{' '}
-                  <button
-                    type="button"
-                    className="underline"
-                    onClick={() => setShowAllStudents(true)}
-                    disabled={isLoadingStudents || createEnrollment.isPending}
-                  >
-                    show all students
-                  </button>
-                </div>
-              )}
-              {selectedStudent && (
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Selected: {selectedStudent.full_name}</span>
-                  <button
-                    type="button"
-                    className="underline"
-                    onClick={() => setSelectedStudentId('')}
-                    disabled={createEnrollment.isPending}
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
-              {errors.student && (
-                <p className="text-sm text-destructive">{errors.student[0]}</p>
-              )}
-              {errors.class_obj && (
-                <p className="text-sm text-destructive">{errors.class_obj[0]}</p>
-              )}
-            </div>
+                ) : (
+                  <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                    Type to search or{' '}
+                    <button
+                      type="button"
+                      className="underline"
+                      onClick={() => setShowAllStudents(true)}
+                      disabled={isLoadingStudents || enrollPhase === 'enrolling'}
+                    >
+                      show all students
+                    </button>
+                  </div>
+                )}
+              </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                placeholder="Add any notes about this enrollment..."
-                disabled={createEnrollment.isPending}
-              />
-              {errors.notes && (
-                <p className="text-sm text-destructive">{errors.notes[0]}</p>
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between">
+                  <Label>Selected</Label>
+                  <Badge variant={selectedCount === 0 ? 'secondary' : 'default'}>
+                    {selectedCount} student{selectedCount === 1 ? '' : 's'}
+                  </Badge>
+                </div>
+
+                {selectedCount === 0 ? (
+                  <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                    Click student rows to select them.
+                  </div>
+                ) : (
+                  <div className="rounded-md border bg-background">
+                    <div className="max-h-[48vh] overflow-y-auto">
+                      {selectedStudentIds.map((studentId) => {
+                        const student = selectedStudentsById[studentId];
+                        return (
+                          <div key={studentId} className="flex items-center justify-between gap-3 px-3 py-2">
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{student?.full_name ?? `Student #${studentId}`}</div>
+                              {student?.email ? (
+                                <div className="text-xs text-muted-foreground truncate">{student.email}</div>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => removeSelectedById(studentId)}
+                              disabled={enrollPhase === 'enrolling'}
+                              aria-label={`Remove ${student?.full_name ?? studentId}`}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="border-t px-3 py-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedStudentIds([]);
+                          setSelectedStudentsById({});
+                        }}
+                        disabled={enrollPhase === 'enrolling'}
+                      >
+                        Clear selection
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {availableSpots !== undefined && maxCapacity !== undefined ? (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Capacity: {availableSpots} spot{availableSpots === 1 ? '' : 's'} remaining (of {maxCapacity}).
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="grid gap-4">
+              {enrollPhase === 'review' && (
+                <div className="grid gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="text-lg font-semibold">Review & Enroll</div>
+                      <div className="text-sm text-muted-foreground">
+                        You are about to enroll {selectedCount} student{selectedCount === 1 ? '' : 's'}.
+                      </div>
+                    </div>
+                    <Badge variant="secondary">{selectedCount} selected</Badge>
+                  </div>
+
+                  {availableSpots !== undefined && selectedCount > availableSpots ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        This class has {availableSpots} spot{availableSpots === 1 ? '' : 's'} remaining, so some enrollments may fail.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  <div className="rounded-md border bg-background">
+                    <div className="max-h-[45vh] overflow-y-auto">
+                      {selectedStudentIds.length === 0 ? (
+                        <div className="px-3 py-3 text-sm text-muted-foreground">No students selected.</div>
+                      ) : (
+                        selectedStudentIds.map((studentId) => {
+                          const student = selectedStudentsById[studentId];
+                          return (
+                            <div key={studentId} className="flex items-center justify-between gap-3 px-3 py-2">
+                              <div className="min-w-0">
+                                <div className="font-medium truncate">
+                                  {student?.full_name ?? `Student #${studentId}`}
+                                </div>
+                                {student?.email ? (
+                                  <div className="text-xs text-muted-foreground truncate">{student.email}</div>
+                                ) : null}
+                              </div>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground"
+                                onClick={() => removeSelectedById(studentId)}
+                                aria-label={`Unselect ${student?.full_name ?? studentId}`}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {enrollPhase === 'enrolling' && (
+                <div className="rounded-md border bg-background p-4">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="font-medium">Enrolling students...</div>
+                  </div>
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    Submitting {selectedCount} request{selectedCount === 1 ? '' : 's'}.
+                  </div>
+                </div>
+              )}
+
+              {enrollPhase === 'results' && batchResults && (
+                <div className="grid gap-3">
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Enrolled {batchResults.enrolled.length} student{batchResults.enrolled.length === 1 ? '' : 's'} successfully. {batchResults.failed.length} failed.
+                    </AlertDescription>
+                  </Alert>
+
+                  {batchResults.failed.length > 0 ? (
+                    <div className="rounded-md border bg-background">
+                      <div className="max-h-[35vh] overflow-y-auto">
+                        {batchResults.failed.map((f) => {
+                          const student = selectedStudentsById[f.studentId];
+                          return (
+                            <div key={f.studentId} className="px-3 py-2 border-b last:border-b-0">
+                              <div className="min-w-0">
+                                <div className="font-medium truncate">
+                                  {student?.full_name ?? `Student #${f.studentId}`}
+                                </div>
+                                <div className="text-sm text-destructive">{f.reason}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="flex justify-end">
+                    <Button type="button" onClick={handleClose}>
+                      Done
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={createEnrollment.isPending}
-            >
-              Cancel
+          )}
+        </div>
+
+        <DialogFooter>
+          {step === 1 && (
+            <>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={enrollPhase === 'enrolling'}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={selectedCount === 0 || enrollPhase === 'enrolling'}
+                onClick={handleStepToReview}
+              >
+                Review {selectedCount} student{selectedCount === 1 ? '' : 's'}
+              </Button>
+            </>
+          )}
+
+          {step === 2 && enrollPhase === 'review' && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep(1)}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={enrollAll}
+                disabled={selectedStudentIds.length === 0}
+              >
+                {`Enroll ${selectedCount}`}
+              </Button>
+            </>
+          )}
+
+          {step === 2 && enrollPhase !== 'review' && (
+            <Button type="button" variant="outline" onClick={handleClose} disabled={enrollPhase === 'enrolling'}>
+              Close
             </Button>
-            <Button type="submit" disabled={createEnrollment.isPending || !selectedStudentId}>
-              {createEnrollment.isPending ? 'Enrolling...' : 'Enroll Student'}
-            </Button>
-          </DialogFooter>
-        </form>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -27,8 +27,8 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
-import { Eye, MoreHorizontal, UserX, UserCheck, Trash2 } from 'lucide-react';
-import { useUpdateAcademy, useDeleteAcademy } from '../hooks/hooks';
+import { Eye, MoreHorizontal, UserX, UserCheck, Trash2, Download } from 'lucide-react';
+import { useUpdateAcademy, useDeleteAcademy, useExportAcademy } from '../hooks/hooks';
 import type { Academy } from '../types';
 
 interface AcademyTableProps {
@@ -49,6 +49,7 @@ export const AcademyTable = ({
   const navigate = useNavigate();
   const updateAcademy = useUpdateAcademy();
   const deleteAcademyMutation = useDeleteAcademy();
+  const exportAcademyMutation = useExportAcademy();
   const [deleteTarget, setDeleteTarget] = useState<Academy | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -101,6 +102,15 @@ export const AcademyTable = ({
     setDeleteTarget(academy);
   };
 
+  const handleExportClick = async (e: React.MouseEvent, academy: Academy) => {
+    e.stopPropagation();
+    try {
+      await exportAcademyMutation.mutateAsync(academy.id);
+    } catch {
+      // Error handled by mutation
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     setDeleteError(null);
@@ -129,6 +139,7 @@ export const AcademyTable = ({
               <TableHead>Slug</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Admin</TableHead>
               <TableHead>Onboarding</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -136,7 +147,7 @@ export const AcademyTable = ({
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8">
+              <TableCell colSpan={8} className="text-center py-8">
                 Loading...
               </TableCell>
             </TableRow>
@@ -156,6 +167,7 @@ export const AcademyTable = ({
               <TableHead>Slug</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Admin</TableHead>
               <TableHead>Onboarding</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -163,7 +175,7 @@ export const AcademyTable = ({
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                 No academies found
               </TableCell>
             </TableRow>
@@ -183,6 +195,7 @@ export const AcademyTable = ({
               <TableHead>Slug</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Admin</TableHead>
               <TableHead>Onboarding</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -203,6 +216,18 @@ export const AcademyTable = ({
                     <Badge variant="default">Active</Badge>
                   ) : (
                     <Badge variant="secondary">Inactive</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {academy.primary_admin ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm">{academy.primary_admin.email}</span>
+                      <Badge variant={academy.primary_admin.is_active ? 'default' : 'secondary'}>
+                        {academy.primary_admin.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No admin</span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -245,6 +270,13 @@ export const AcademyTable = ({
                           Set active
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem
+                        onClick={(e) => handleExportClick(e, academy)}
+                        disabled={exportAcademyMutation.isPending}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        {exportAcademyMutation.isPending ? 'Exporting...' : 'Export data'}
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={(e) => handleDeleteClick(e, academy)}

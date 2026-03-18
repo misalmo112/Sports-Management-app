@@ -78,6 +78,24 @@ class FacilitiesViewSetTest(TestCase):
         self.assertTrue(response.data.get('invoice_number'))
         self.assertEqual(response.data.get('issued_date'), timezone.now().date().isoformat())
 
+    def test_create_rent_invoice_currency_mismatch_returns_400(self):
+        """Reject create when payload currency differs from academy currency."""
+        self.academy.currency = 'AED'
+        self.academy.save(update_fields=['currency'])
+
+        response = self.client.post(
+            '/api/v1/tenant/facilities/rent-invoices/',
+            {
+                'location': self.location.id,
+                'amount': '850.00',
+                'currency': 'USD',
+                'period_description': 'January 2026',
+                'status': 'PENDING',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_create_duplicate_rent_config_returns_400(self):
         payload = {
             'location': self.location.id,
@@ -155,6 +173,22 @@ class FacilitiesViewSetTest(TestCase):
             format='json',
         )
         self.assertEqual(inventory_response.status_code, status.HTTP_201_CREATED)
+
+    def test_create_bill_currency_mismatch_returns_400(self):
+        """Reject create when payload currency differs from academy currency."""
+        self.academy.currency = 'AED'
+        self.academy.save(update_fields=['currency'])
+
+        bill_response = self.client.post(
+            '/api/v1/tenant/facilities/bills/',
+            {
+                'vendor_name': 'Training Shop',
+                'currency': 'USD',
+                'status': 'PENDING',
+            },
+            format='json',
+        )
+        self.assertEqual(bill_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_bill_line_item_updates_inventory(self):
         bill = Bill.objects.create(

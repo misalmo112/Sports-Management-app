@@ -11,8 +11,11 @@ import type { UserRole } from '@/shared/utils/roleAccess';
 
 // Public pages
 import OnboardingPage from '@/features/tenant/onboarding/pages/OnboardingPage';
+import { SetupChecklistPage } from '@/features/tenant/onboarding/pages/SetupChecklistPage';
 import { AcceptInvitePage } from '@/features/tenant/users/pages/AcceptInvitePage';
 import { LoginPage } from '@/features/tenant/users/pages/LoginPage';
+import { ForgotPasswordPage } from '@/features/tenant/users/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/features/tenant/users/pages/ResetPasswordPage';
 
 // Platform pages (SUPERADMIN)
 import { AcademyListPage } from '@/features/platform/tenants/pages/AcademyListPage';
@@ -26,6 +29,13 @@ import { PlanDetailPage } from '@/features/platform/subscriptions/pages/PlanDeta
 import { StatsPage } from '@/features/platform/analytics/pages/StatsPage';
 import { ErrorsPage } from '@/features/platform/audit/pages/ErrorsPage';
 import { AuditLogsPage } from '@/features/platform/audit/pages/AuditLogsPage';
+import { FinancePage } from '@/features/platform/finance/pages/FinancePage';
+import { PaymentsPage } from '@/features/platform/finance/pages/PaymentsPage';
+import { ExpensesPage } from '@/features/platform/finance/pages/ExpensesPage';
+import { CurrenciesListPage } from '@/features/platform/masters/pages/CurrenciesListPage';
+import { CurrencyFormPage } from '@/features/platform/masters/pages/CurrencyFormPage';
+import { TimezonesListPage } from '@/features/platform/masters/pages/TimezonesListPage';
+import { TimezoneFormPage } from '@/features/platform/masters/pages/TimezoneFormPage';
 
 // Owner pages
 import { OwnerOverviewPage } from '@/features/tenant/overview/pages/OwnerOverviewPage';
@@ -46,6 +56,7 @@ import { AttendancePage } from '@/features/tenant/attendance/pages/AttendancePag
 import { AttendanceMarkPage } from '@/features/tenant/attendance/pages/AttendanceMarkPage';
 import { CoachAttendancePage } from '@/features/tenant/attendance/pages/CoachAttendancePage';
 import { CoachAttendanceMarkPage } from '@/features/tenant/attendance/pages/CoachAttendanceMarkPage';
+import { CoachAttendanceMarkStaffPage } from '@/features/tenant/attendance/pages/CoachAttendanceMarkStaffPage';
 import { ItemsPage } from '@/features/tenant/billing/pages/ItemsPage';
 import { InvoicesListPage } from '@/features/tenant/billing/pages/InvoicesListPage';
 import { InvoiceCreatePage } from '@/features/tenant/billing/pages/InvoiceCreatePage';
@@ -59,15 +70,16 @@ import { SubscriptionSettingsPage } from '@/features/tenant/settings/pages/Subsc
 import { UsageSettingsPage } from '@/features/tenant/settings/pages/UsageSettingsPage';
 import { LocationsPage } from '@/features/tenant/settings/pages/LocationsPage';
 import { SportsPage } from '@/features/tenant/settings/pages/SportsPage';
-import { AgeCategoriesPage } from '@/features/tenant/settings/pages/AgeCategoriesPage';
 import { TermsPage } from '@/features/tenant/settings/pages/TermsPage';
+import { CurrenciesPage } from '@/features/tenant/settings/pages/CurrenciesPage';
+import { TimezonesPage } from '@/features/tenant/settings/pages/TimezonesPage';
 import { BulkActionsPage } from '@/features/tenant/settings/pages/BulkActionsPage';
-import { PricingPage } from '@/features/tenant/onboarding/pages/PricingPage';
 import { MediaPage } from '@/features/tenant/media/pages/MediaPage';
 import { ReportsPage } from '@/features/tenant/reports/pages/ReportsPage';
 import { FinanceOverviewPage } from '@/features/tenant/finance/pages/FinanceOverviewPage';
 import { FacilitiesPage } from '@/features/tenant/facilities/pages/FacilitiesPage';
 import { StaffPage } from '@/features/tenant/staff/pages/StaffPage';
+import { CoachDetailPage } from '@/features/tenant/staff/pages/CoachDetailPage';
 import { UsersPage } from '@/features/tenant/users/pages/UsersPage';
 import { UserDetailPage } from '@/features/tenant/users/pages/UserDetailPage';
 
@@ -126,6 +138,14 @@ export const router = createBrowserRouter([
   {
     path: '/accept-invite',
     element: <AcceptInvitePage />,
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPasswordPage />,
+  },
+  {
+    path: '/reset-password',
+    element: <ResetPasswordPage />,
   },
   {
     path: '/',
@@ -192,6 +212,42 @@ export const router = createBrowserRouter([
         path: 'platform/audit-logs',
         element: createProtectedRoute(<AuditLogsPage />, false, ['SUPERADMIN']),
       },
+      {
+        path: 'platform/finance',
+        element: createProtectedRoute(<FinancePage />, false, ['SUPERADMIN']),
+      },
+      {
+        path: 'platform/finance/payments',
+        element: createProtectedRoute(<PaymentsPage />, false, ['SUPERADMIN']),
+      },
+      {
+        path: 'platform/finance/expenses',
+        element: createProtectedRoute(<ExpensesPage />, false, ['SUPERADMIN']),
+      },
+      {
+        path: 'platform/masters/currencies',
+        element: createProtectedRoute(<CurrenciesListPage />, false, ['SUPERADMIN']),
+      },
+      {
+        path: 'platform/masters/currencies/new',
+        element: createProtectedRoute(<CurrencyFormPage />, false, ['SUPERADMIN']),
+      },
+      {
+        path: 'platform/masters/currencies/:id',
+        element: createProtectedRoute(<CurrencyFormPage />, false, ['SUPERADMIN']),
+      },
+      {
+        path: 'platform/masters/timezones',
+        element: createProtectedRoute(<TimezonesListPage />, false, ['SUPERADMIN']),
+      },
+      {
+        path: 'platform/masters/timezones/new',
+        element: createProtectedRoute(<TimezoneFormPage />, false, ['SUPERADMIN']),
+      },
+      {
+        path: 'platform/masters/timezones/:id',
+        element: createProtectedRoute(<TimezoneFormPage />, false, ['SUPERADMIN']),
+      },
       // Owner routes
       {
         path: 'owner/overview',
@@ -205,6 +261,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin/overview',
         element: createProtectedRoute(<AdminOverviewPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'setup',
+        element: createProtectedRoute(<SetupChecklistPage />, true, ['ADMIN', 'OWNER']),
       },
       // Students routes (Admin/Owner)
       {
@@ -252,6 +312,10 @@ export const router = createBrowserRouter([
       {
         path: 'attendance/mark',
         element: createProtectedRoute(<AttendanceMarkPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'attendance/coach/mark',
+        element: createProtectedRoute(<CoachAttendanceMarkStaffPage />, true, ['ADMIN', 'OWNER']),
       },
       {
         path: 'attendance/coach',
@@ -316,16 +380,16 @@ export const router = createBrowserRouter([
         element: createProtectedRoute(<SportsPage />, true, ['ADMIN', 'OWNER']),
       },
       {
-        path: 'settings/age-categories',
-        element: createProtectedRoute(<AgeCategoriesPage />, true, ['ADMIN', 'OWNER']),
-      },
-      {
         path: 'settings/terms',
         element: createProtectedRoute(<TermsPage />, true, ['ADMIN', 'OWNER']),
       },
       {
-        path: 'settings/pricing',
-        element: createProtectedRoute(<PricingPage />, true, ['ADMIN', 'OWNER']),
+        path: 'settings/currencies',
+        element: createProtectedRoute(<CurrenciesPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'settings/timezones',
+        element: createProtectedRoute(<TimezonesPage />, true, ['ADMIN', 'OWNER']),
       },
       {
         path: 'settings/bulk-actions',
@@ -352,6 +416,10 @@ export const router = createBrowserRouter([
       {
         path: 'management/staff',
         element: createProtectedRoute(<StaffPage />, true, ['ADMIN', 'OWNER']),
+      },
+      {
+        path: 'management/staff/:id',
+        element: createProtectedRoute(<CoachDetailPage />, true, ['ADMIN', 'OWNER']),
       },
       // Complaints route (Admin/Owner)
       {

@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import Step4AgeCategories from '../components/steps/Step4AgeCategories';
 import { useSaveAgeCategories } from '../hooks/useSaveAgeCategories';
-import type { Step4AgeCategories as Step4AgeCategoriesType } from '../types';
+import type { AgeCategoriesPayload } from '../types';
 
 export const AgeCategoriesPage = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export const AgeCategoriesPage = () => {
   const [success, setSuccess] = useState(false);
   const saveAgeCategories = useSaveAgeCategories();
 
-  const handleSubmit = async (data: Step4AgeCategoriesType) => {
+  const handleSubmit = async (data: AgeCategoriesPayload) => {
     setErrors({});
     setSuccess(false);
 

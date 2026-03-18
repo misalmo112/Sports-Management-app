@@ -95,6 +95,30 @@ export const deleteAcademy = async (id: string): Promise<void> => {
 };
 
 /**
+ * Export academy data as ZIP (platform + tenant). Triggers browser download.
+ */
+export const exportAcademy = async (id: string): Promise<void> => {
+  const response = await apiClient.get(API_ENDPOINTS.PLATFORM.ACADEMIES.EXPORT(id), {
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const disposition = response.headers['content-disposition'];
+  let filename = 'academy-export.zip';
+  if (typeof disposition === 'string') {
+    const match = disposition.match(/filename="?([^";\n]+)"?/);
+    if (match) filename = match[1].trim();
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+/**
  * Update academy plan
  */
 export const updateAcademyPlan = async (

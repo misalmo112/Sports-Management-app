@@ -2,6 +2,10 @@ from rest_framework import serializers
 from django.db.models import Sum
 from django.utils import timezone
 from saas_platform.tenants.models import Academy
+from saas_platform.masters.models import Country, Currency, Timezone
+from django.contrib.auth import get_user_model
+from shared.tenancy.schema import schema_context
+from django.db import connection
 from saas_platform.subscriptions.serializers import SubscriptionSerializer
 from saas_platform.quotas.serializers import TenantQuotaSerializer
 
@@ -37,34 +41,63 @@ class AcademySerializer(serializers.ModelSerializer):
         return TenantQuotaSerializer(quota).data
 
     def get_usage(self, obj):
+        """
+        Return usage stats. Safe when tenant tables are not in the current schema
+        (e.g. platform academy create runs in public schema where MediaFile may not exist).
+        """
         from saas_platform.quotas.models import TenantUsage
         from saas_platform.analytics.services import StatsService
-        from tenant.media.models import MediaFile
 
-        storage_used = MediaFile.objects.filter(
-            academy=obj,
-            is_active=True
-        ).aggregate(total=Sum('file_size'))['total'] or 0
-        db_size_bytes = StatsService.get_academy_db_size_bytes(obj.id)
+        try:
+            from tenant.media.models import MediaFile
+            storage_used = MediaFile.objects.filter(
+                academy=obj,
+                is_active=True
+            ).aggregate(total=Sum('file_size'))['total'] or 0
+        except Exception:
+            storage_used = 0
+
+        try:
+            db_size_bytes = StatsService.get_academy_db_size_bytes(obj.id)
+        except Exception:
+            db_size_bytes = 0
 
         usage = getattr(obj, 'usage', None)
         if not usage:
-            usage, _ = TenantUsage.objects.get_or_create(
-                academy=obj,
-                defaults={
+            try:
+                usage, _ = TenantUsage.objects.get_or_create(
+                    academy=obj,
+                    defaults={
+                        'storage_used_bytes': storage_used,
+                        'students_count': 0,
+                        'coaches_count': 0,
+                        'admins_count': 0,
+                        'classes_count': 0,
+                    }
+                )
+            except Exception:
+                return {
                     'storage_used_bytes': storage_used,
+                    'storage_used_gb': round(storage_used / (1024 ** 3), 2),
+                    'db_size_bytes': db_size_bytes,
+                    'db_size_gb': round(db_size_bytes / (1024 ** 3), 2),
+                    'total_used_bytes': storage_used + db_size_bytes,
+                    'total_used_gb': round((storage_used + db_size_bytes) / (1024 ** 3), 2),
                     'students_count': 0,
                     'coaches_count': 0,
                     'admins_count': 0,
                     'classes_count': 0,
+                    'counts_computed_at': None,
                 }
-            )
 
         if usage.storage_used_bytes != storage_used:
-            TenantUsage.objects.filter(pk=usage.pk).update(
-                storage_used_bytes=storage_used,
-                counts_computed_at=timezone.now()
-            )
+            try:
+                TenantUsage.objects.filter(pk=usage.pk).update(
+                    storage_used_bytes=storage_used,
+                    counts_computed_at=timezone.now()
+                )
+            except Exception:
+                pass
 
         return {
             'storage_used_bytes': storage_used,
@@ -85,6 +118,7 @@ class AcademyCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating academies (excludes id, timestamps)."""
     
     owner_email = serializers.EmailField(required=False, allow_blank=True, write_only=True)
+    plan_id = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     slug = serializers.SlugField(required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
     
@@ -93,7 +127,8 @@ class AcademyCreateSerializer(serializers.ModelSerializer):
         fields = [
             'name', 'slug', 'email', 'phone', 'website',
             'address_line1', 'address_line2', 'city', 'state',
-            'postal_code', 'country', 'timezone', 'currency', 'owner_email'
+            'postal_code', 'country', 'timezone', 'currency',
+            'owner_email', 'plan_id'
         ]
     
     def validate(self, attrs):
@@ -118,7 +153,22 @@ class AcademyCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'email': 'Email is required. Provide either email or owner_email.'
             })
-        
+
+        # Require address line 1
+        addr1 = attrs.get('address_line1')
+        if not addr1 or not str(addr1).strip():
+            raise serializers.ValidationError({
+                'address_line1': 'Address line 1 is required.'
+            })
+        attrs['address_line1'] = str(addr1).strip()
+
+        # Require phone
+        phone = attrs.get('phone')
+        if not phone or not str(phone).strip():
+            raise serializers.ValidationError({
+                'phone': 'Phone is required.'
+            })
+
         return attrs
     
     def validate_slug(self, value):
@@ -133,18 +183,114 @@ class AcademyCreateSerializer(serializers.ModelSerializer):
             value = value.lower().strip()
         return value
 
+    def validate_country(self, value):
+        """Validate that country, when provided, matches an active Country master (ISO alpha-3 code)."""
+        if not value:
+            return value
+        code = str(value).strip().upper()
+        if len(code) != 3:
+            raise serializers.ValidationError("Country must be a 3-letter ISO alpha-3 code.")
+        if not Country.objects.filter(code=code, is_active=True).exists():
+            raise serializers.ValidationError("Unsupported country code.")
+        return code
+
+    def validate_timezone(self, value):
+        """Validate timezone against Timezone master when provided."""
+        if not value:
+            return value
+        value = str(value).strip()
+        if len(value) > 50:
+            raise serializers.ValidationError("Invalid timezone identifier.")
+        if not Timezone.objects.filter(code=value, is_active=True).exists():
+            raise serializers.ValidationError("Unsupported timezone.")
+        return value
+
+    def validate_currency(self, value):
+        """Validate currency against Currency master when provided."""
+        if not value:
+            return value
+        if len(str(value).strip()) != 3:
+            raise serializers.ValidationError("Currency must be a 3-letter code.")
+        code = str(value).strip().upper()
+        if not Currency.objects.filter(code=code, is_active=True).exists():
+            raise serializers.ValidationError("Unsupported currency code.")
+        return code
+
+    def validate_phone(self, value):
+        """Validate phone syntax (digits, +, spaces, hyphens, parentheses; 8-20 chars, min 8 digits)."""
+        if not value or not str(value).strip():
+            return value  # validate() already requires it
+        value = str(value).strip()
+        if len(value) > 20:
+            raise serializers.ValidationError("Phone must be 20 characters or less.")
+        import re
+        if not re.match(r'^[\d+\s\-()]+$', value):
+            raise serializers.ValidationError(
+                "Phone may only contain digits, spaces, and + - ( ). Example: +1 555 123 4567"
+            )
+        digit_count = sum(1 for c in value if c.isdigit())
+        if digit_count < 8:
+            raise serializers.ValidationError(
+                "Phone must contain at least 8 digits (include country code if needed)."
+            )
+        return value
+
+    def validate_plan_id(self, value):
+        """Ensure plan exists and is active if provided."""
+        if value is None:
+            return value
+        from saas_platform.subscriptions.models import Plan
+        try:
+            Plan.objects.get(id=value, is_active=True)
+        except Plan.DoesNotExist:
+            raise serializers.ValidationError("Plan not found or inactive.")
+        return value
+
 
 class AcademyListSerializer(serializers.ModelSerializer):
     """Serializer for list view (excludes detailed fields)."""
-    
+    primary_admin = serializers.SerializerMethodField()
+
     class Meta:
         model = Academy
         fields = [
             'id', 'name', 'slug', 'email', 'phone',
             'onboarding_completed', 'is_active',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at',
+            'primary_admin',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_primary_admin(self, obj):
+        """
+        Return primary admin user info for this academy (email and active status).
+
+        Uses tenant schema if available; safe to return None on any error.
+        """
+        # Only attempt schema-based lookup when using Postgres and schema_name is set
+        if connection.vendor != 'postgresql' or not getattr(obj, 'schema_name', None):
+            return None
+
+        try:
+            User = get_user_model()
+            with schema_context(obj.schema_name) as active:
+                if not active:
+                    return None
+                admin = (
+                    User.objects
+                    .filter(academy=obj, role=getattr(User, 'Role', None).ADMIN if hasattr(User, 'Role') else 'ADMIN')
+                    .order_by('created_at')
+                    .first()
+                )
+                if not admin:
+                    return None
+                return {
+                    'email': admin.email,
+                    'is_active': getattr(admin, 'is_active', False),
+                    'is_verified': getattr(admin, 'is_verified', False),
+                }
+        except Exception:
+            return None
 
 
 class PlanUpdateSerializer(serializers.Serializer):

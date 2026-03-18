@@ -118,6 +118,15 @@ class OverviewViewTest(TestCase):
         self.assertIn('attendance_summary', response.data)
         self.assertIn('finance_summary', response.data)
         self.assertIn('alerts', response.data)
+        self.assertIn('counts', response.data)
+        self.assertEqual(response.data['counts']['students'], 1)
+        self.assertEqual(response.data['counts']['coaches'], 1)
+        self.assertEqual(response.data['counts']['admins'], 1)
+        self.assertEqual(response.data['counts']['classes'], 1)
+        self.assertIn('collected_last_30_days', response.data['finance_summary'])
+        self.assertIn('activity', response.data)
+        self.assertIn('new_students_30d', response.data['activity'])
+        self.assertIn('new_enrollments_30d', response.data['activity'])
     
     def test_get_overview_coach(self):
         """Test getting overview as coach."""

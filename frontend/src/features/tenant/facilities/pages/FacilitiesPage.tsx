@@ -217,6 +217,11 @@ export const FacilitiesPage = () => {
     status: billStatus === 'ALL' ? undefined : billStatus,
     search: billSearch || undefined,
   });
+  const { data: paidBillsData, isLoading: paidBillsLoading } = useBills({
+    status: 'PAID',
+    page_size: 200,
+  });
+  const paidBills = paidBillsData?.results ?? [];
   const {
     data: inventoryData,
     isLoading: inventoryLoading,
@@ -1216,6 +1221,45 @@ export const FacilitiesPage = () => {
                 </div>
               ) : (
                 <EmptyState title="No bills" description="Create a bill and add line items for academy costs." />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Paid bills (receipts)</CardTitle>
+              <CardDescription>Bills marked as paid. Use &quot;Paid date&quot; as when the bill was marked paid.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {paidBillsLoading ? (
+                <LoadingState message="Loading paid bills..." />
+              ) : paidBills.length > 0 ? (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Bill #</TableHead>
+                        <TableHead>Vendor</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Paid date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paidBills.map((bill) => (
+                        <TableRow key={bill.id}>
+                          <TableCell className="font-medium">
+                            {bill.bill_number && String(bill.bill_number).trim() ? bill.bill_number : `Bill #${bill.id}`}
+                          </TableCell>
+                          <TableCell>{bill.vendor_name}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(bill.total_amount, bill.currency)}</TableCell>
+                          <TableCell>{formatDateTime(bill.updated_at)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <EmptyState title="No paid bills" description="Paid bills appear here when you mark a bill as paid." />
               )}
             </CardContent>
           </Card>

@@ -65,47 +65,6 @@ class ClassViewSet(viewsets.ModelViewSet):
             return ClassListSerializer
         return ClassSerializer
     
-    def list(self, request, *args, **kwargs):
-        """Override list to add error handling and instrumentation."""
-        import json
-        import os
-        log_path = r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log'
-        try:
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"classes/views.py:72","message":"Starting list action","data":{"action":self.action},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"U"}) + '\n')
-            # #endregion
-            queryset = self.filter_queryset(self.get_queryset())
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"classes/views.py:76","message":"After filter_queryset","data":{"querysetCount":queryset.count() if hasattr(queryset, 'count') else 'N/A'},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"U"}) + '\n')
-            # #endregion
-            page = self.paginate_queryset(queryset)
-            if page is not None:
-                # #region agent log
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"location":"classes/views.py:80","message":"Paginating queryset","data":{"pageSize":len(page) if page else 0},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"U"}) + '\n')
-                # #endregion
-                serializer = self.get_serializer(page, many=True)
-                # #region agent log
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"location":"classes/views.py:84","message":"Serializing page","data":{"serializedCount":len(serializer.data)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"U"}) + '\n')
-                # #endregion
-                return self.get_paginated_response(serializer.data)
-            
-            serializer = self.get_serializer(queryset, many=True)
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"classes/views.py:92","message":"Serializing queryset","data":{"serializedCount":len(serializer.data)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"U"}) + '\n')
-            # #endregion
-            return Response(serializer.data)
-        except Exception as e:
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"classes/views.py:98","message":"Error in list action","data":{"errorType":type(e).__name__,"errorMessage":str(e),"errorArgs":str(e.args) if hasattr(e, 'args') else None},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"V"}) + '\n')
-            # #endregion
-            raise
-    
     @check_quota('classes')
     def create(self, request, *args, **kwargs):
         """Create class with quota check."""

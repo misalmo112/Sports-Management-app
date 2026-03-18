@@ -1,6 +1,7 @@
 """
 Views for user management and invite operations.
 """
+import logging
 from rest_framework import viewsets, status
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.decorators import action
@@ -9,10 +10,18 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model
+from django.db import connection
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 from tenant.users.models import User, InviteToken
+from shared.tenancy.schema import schema_context
+from tenant.users.auth_helpers import (
+    _find_invite_token_across_schemas,
+    _find_reset_token_across_schemas,
+    _find_user_by_email_across_schemas,
+)
+from saas_platform.tenants.models import Academy
 from tenant.users.serializers import (
     UserSerializer,
     UserListSerializer,
@@ -25,6 +34,8 @@ from tenant.users.serializers import (
     LoginSerializer,
     CurrentAccountSerializer,
     ChangePasswordSerializer,
+    ForgotPasswordSerializer,
+    ResetPasswordSerializer,
 )
 from tenant.users.services import UserService
 from tenant.users.permissions import CanCreateUsers
@@ -376,6 +387,9 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
 
+logger = logging.getLogger(__name__)
+
+
 class LoginView(APIView):
     """
     Public endpoint for user login with email and password.
@@ -386,55 +400,82 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
-        """Authenticate user and return JWT tokens."""
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        email = serializer.validated_data['email']
-        password = serializer.validated_data['password']
-        
-        # Check if user exists and is active before authenticating
-        # Django's authenticate() returns None for inactive users
+        """Authenticate user and return JWT tokens.
+        Auth routes are exempt from tenant schema routing, so we resolve the user
+        by email across all tenant schemas (same as forgot-password/reset flow).
+        """
         try:
-            user = User.objects.get(email=email)
+            serializer = LoginSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['password']
+
+            # Resolve user across tenant schemas (auth runs without schema set)
+            user, schema_name = _find_user_by_email_across_schemas(email)
+            # Fallback: user in public/current schema (e.g. tests or no tenant schemas)
+            if not user:
+                user = User.objects.filter(email=email, is_active=True).first()
+                schema_name = None
+            if not user:
+                return Response(
+                    {'detail': 'Invalid email or password.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
             if not user.is_active:
                 return Response(
                     {'detail': 'User account is disabled.'},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
-        except User.DoesNotExist:
-            # User doesn't exist, authenticate will fail anyway
-            pass
-        
-        # Authenticate user
-        user = authenticate(request, username=email, password=password)
-        
-        if user is None:
+            if not user.check_password(password):
+                return Response(
+                    {'detail': 'Invalid email or password.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Update last_login in the tenant schema
+            if schema_name and connection.vendor == 'postgresql':
+                with schema_context(schema_name):
+                    user.last_login = timezone.now()
+                    user.save(update_fields=['last_login'])
+            else:
+                user.last_login = timezone.now()
+                user.save(update_fields=['last_login'])
+
+            # Resolve academy_id for response so frontend can send X-Academy-ID on tenant API calls
+            academy_id = None
+            if schema_name and connection.vendor == 'postgresql':
+                with schema_context(schema_name):
+                    if hasattr(user, 'academy_id') and user.academy_id:
+                        academy_id = str(user.academy_id)
+                if not academy_id:
+                    academy = Academy.objects.filter(schema_name=schema_name).first()
+                    if academy:
+                        academy_id = str(academy.id)
+            if academy_id is None and hasattr(user, 'academy_id') and user.academy_id:
+                academy_id = str(user.academy_id)
+
+            refresh = RefreshToken.for_user(user)
             return Response(
-                {'detail': 'Invalid email or password.'},
-                status=status.HTTP_401_UNAUTHORIZED
+                {
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                    'user': {
+                        'id': user.id,
+                        'email': user.email,
+                        'role': user.role,
+                        'academy_id': academy_id,
+                    }
+                },
+                status=status.HTTP_200_OK
             )
-        
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
-        
-        # Update last_login
-        user.last_login = timezone.now()
-        user.save(update_fields=['last_login'])
-        
-        return Response(
-            {
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'role': user.role,
-                    'academy_id': str(user.academy_id) if hasattr(user, 'academy_id') and user.academy_id else None,
-                }
-            },
-            status=status.HTTP_200_OK
-        )
+        except Exception as exc:
+            logger.exception(
+                "Login failed for request to /api/v1/auth/token/: %s",
+                exc,
+                exc_info=True,
+            )
+            raise
 
 
 class ValidateInviteView(APIView):
@@ -455,16 +496,7 @@ class ValidateInviteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        active_tokens = InviteToken.objects.filter(
-            used_at__isnull=True,
-            expires_at__gt=timezone.now()
-        ).select_related('user', 'academy')
-
-        invite_token = None
-        for candidate in active_tokens:
-            if InviteToken.verify_token(candidate.token_hash, token):
-                invite_token = candidate
-                break
+        invite_token, _schema = _find_invite_token_across_schemas(token)
 
         if not invite_token:
             return Response(
@@ -500,13 +532,39 @@ class AcceptInviteView(APIView):
         serializer = AcceptInviteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
+        plain_token = serializer.validated_data['token']
+        password = serializer.validated_data['password']
+
         try:
-            user = UserService.accept_invite(
-                token=serializer.validated_data['token'],
-                password=serializer.validated_data['password']
-            )
+            invite_token, schema_name = _find_invite_token_across_schemas(plain_token)
+
+            if not invite_token:
+                return Response(
+                    {'detail': 'Invalid or expired invite token.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if schema_name and connection.vendor == 'postgresql':
+                with schema_context(schema_name) as active:
+                    if not active:
+                        return Response(
+                            {'detail': 'Tenant schema unavailable.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    invite_token.mark_as_used()
+                    user = invite_token.user
+                    user.set_password(password)
+                    user.is_active = True
+                    user.is_verified = True
+                    user.save(update_fields=['password', 'is_active', 'is_verified', 'updated_at'])
+            else:
+                invite_token.mark_as_used()
+                user = invite_token.user
+                user.set_password(password)
+                user.is_active = True
+                user.is_verified = True
+                user.save(update_fields=['password', 'is_active', 'is_verified', 'updated_at'])
             
-            # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             
             return Response(
@@ -526,4 +584,48 @@ class AcceptInviteView(APIView):
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class ForgotPasswordView(APIView):
+    """
+    Public endpoint for requesting a password reset email.
+    POST /api/v1/auth/forgot-password/
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        UserService.request_password_reset(serializer.validated_data['email'])
+        return Response(
+            {'detail': 'If an account with that email exists, a reset link has been sent.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ResetPasswordView(APIView):
+    """
+    Public endpoint for resetting password with token.
+    POST /api/v1/auth/reset-password/
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            UserService.reset_password(
+                token=serializer.validated_data['token'],
+                new_password=serializer.validated_data['password'],
+            )
+            return Response(
+                {'detail': 'Password has been reset successfully.'},
+                status=status.HTTP_200_OK,
+            )
+        except DjangoValidationError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
             )

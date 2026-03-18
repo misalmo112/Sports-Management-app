@@ -1,5 +1,7 @@
 # Multi-Tenant Schema Migration Plan
 
+Status: Proposal document. This file describes a future schema-migration direction and is not a description of the currently deployed data model.
+
 ## Goal
 Move from shared tables (single schema) to one schema per academy in Postgres, plus a shared "public" schema for platform-wide data. This enables accurate per-academy DB sizing, stronger isolation, and simpler per-tenant backup/restore.
 

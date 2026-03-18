@@ -33,6 +33,7 @@ class StatsViewTest(TestCase):
         self.superadmin = User.objects.create_superuser(
             email='superadmin-stats@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
         
@@ -105,6 +106,7 @@ class ErrorsViewTest(TestCase):
         self.superadmin = User.objects.create_superuser(
             email='superadmin-errors@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
         
@@ -123,9 +125,10 @@ class ErrorsViewTest(TestCase):
         response = self.client.get('/api/v1/platform/errors/')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('error_counts', response.data)
-        self.assertIn('recent_errors', response.data)
-        self.assertIn('total_errors', response.data)
+        self.assertIn('results', response.data)
+        self.assertIn('count', response.data)
+        self.assertGreaterEqual(response.data['count'], 1)
+        self.assertGreaterEqual(len(response.data['results']), 1)
     
     def test_get_errors_with_date_filter(self):
         """Test getting errors with date filter."""

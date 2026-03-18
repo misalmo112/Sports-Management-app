@@ -11,6 +11,7 @@ import {
   updateAcademyQuota,
   generateAcademyInviteLink,
   deleteAcademy,
+  exportAcademy,
 } from '../services/api';
 import type {
   AcademiesListResponse,
@@ -143,6 +144,15 @@ export const useDeleteAcademy = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academies', 'list'] });
     },
+  });
+};
+
+/**
+ * Hook for exporting academy data as ZIP (triggers download)
+ */
+export const useExportAcademy = () => {
+  return useMutation<void, Error, string>({
+    mutationFn: exportAcademy,
   });
 };
 

@@ -4,12 +4,10 @@ A multi-tenant SaaS platform for managing sports academies and training centers.
 
 ## Prerequisites
 
-Before starting, ensure you have the following installed:
+- Docker 20.10+
+- Docker Compose 2.0+
 
-- **Docker** (version 20.10 or higher)
-- **Docker Compose** (version 2.0 or higher)
-
-To verify your installation:
+Verify installation:
 
 ```bash
 docker --version
@@ -18,303 +16,207 @@ docker-compose --version
 
 ## Quick Start
 
-### 1. Clone the Repository
+### 1. Clone the repository
 
 ```bash
 git clone <repository-url>
-cd "The Sports App"
+cd Sports-Management-app
 ```
 
-### 2. Set Up Environment Variables
-
-Copy the example environment file and configure it:
+### 2. Set up environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and update the following critical variables:
+Update the critical values in `.env`:
 
-- `SECRET_KEY` - Generate a secure Django secret key
-- `JWT_SECRET_KEY` - Generate a secure JWT secret key
-- `DB_PASSWORD` - Set a secure database password
-- `MINIO_ROOT_PASSWORD` - Set a secure MinIO password
+- `SECRET_KEY`
+- `JWT_SECRET_KEY`
+- `DB_PASSWORD`
+- `MINIO_ROOT_PASSWORD`
+- `COMPOSE_PROJECT_NAME` (keep stable to avoid Docker volume warnings)
 
-**Important:** Never commit the `.env` file to version control.
-
-### 3. Start All Services
-
-Start all services with a single command:
+### 3. Start the stack
 
 ```bash
 docker-compose up
 ```
 
-To run in detached mode (background):
+Detached mode:
 
 ```bash
 docker-compose up -d
 ```
 
-### 4. Run Database Migrations
+### 4. Database schemas (migrations) vs data
 
-After the services are running, apply database migrations:
+- **Schemas**: Your teammate *will* get the same Postgres schema **as long as your Django migrations are committed to GitHub**. The backend container runs `python manage.py migrate --noinput` automatically on startup.
+- **Data**: Your teammate will **not** get your local Postgres rows (your existing dev data) unless you export/import it explicitly.
+
+Manual migration (rarely needed):
 
 ```bash
 docker-compose exec backend python manage.py migrate
 ```
 
-### 5. Create a Superuser
-
-Create the initial superadmin user:
+### 5. Create the initial superuser
 
 ```bash
 docker-compose exec backend python manage.py createsuperuser
 ```
 
-Follow the prompts to create your superadmin account.
-
 ## Service URLs
 
-Once all services are running, you can access:
-
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/api/docs/ (when implemented)
-- **MinIO Console**: http://localhost:9001
-  - Credentials: set `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` in `.env` (MinIO image default for local dev only: minioadmin/minioadmin)
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- MinIO Console: http://localhost:9001
 
 ## Common Commands
 
-### Starting and Stopping Services
+### Start and stop
 
 ```bash
-# Start all services
 docker-compose up
-
-# Start in detached mode
 docker-compose up -d
-
-# Stop all services
 docker-compose down
-
-# Stop and remove volumes (WARNING: deletes data)
 docker-compose down -v
-
-# View logs
 docker-compose logs
-
-# View logs for specific service
 docker-compose logs backend
 docker-compose logs frontend
 docker-compose logs celery-worker
 ```
 
-### Database Operations
+### Database and shell access
 
 ```bash
-# Run migrations
 docker-compose exec backend python manage.py migrate
-
-# Create migrations
 docker-compose exec backend python manage.py makemigrations
-
-# Access Django shell
 docker-compose exec backend python manage.py shell
-
-# Access PostgreSQL shell
 docker-compose exec postgres psql -U postgres -d sports_academy_dev
 ```
 
-### User Management
+### Masters data sync (currencies, timezones, exchange rates)
+
+Platform masters are synced from [Frankfurter](https://www.frankfurter.app/) (currencies + exchange rates) and [WorldTimeAPI](https://worldtimeapi.org/) (timezones). No API keys required. Sync runs automatically via Celery Beat (daily for Frankfurter, weekly for WorldTimeAPI), or run manually:
 
 ```bash
-# Create superuser
-docker-compose exec backend python manage.py createsuperuser
-
-# List users (via Django shell)
-docker-compose exec backend python manage.py shell
+docker-compose exec backend python manage.py sync_frankfurter
+docker-compose exec backend python manage.py sync_worldtimeapi
 ```
 
-### Static Files and Media
+Optional env vars: `FRANKFURTER_BASE_URL`, `FRANKFURTER_RATE_BASES` (e.g. `EUR,USD`), `WORLDTIMEAPI_BASE_URL`. See `docs/ENV_CONTRACT.md`.
+
+### Service management
 
 ```bash
-# Collect static files
-docker-compose exec backend python manage.py collectstatic
-
-# Clear media files (if needed)
-docker-compose exec backend python manage.py shell
-```
-
-### Service Management
-
-```bash
-# Restart a specific service
 docker-compose restart backend
-
-# Rebuild a service after code changes
 docker-compose up --build backend
-
-# View service status
 docker-compose ps
-
-# Execute command in running container
 docker-compose exec backend <command>
 docker-compose exec frontend <command>
 ```
 
-## Development Workflow
+## Architecture
 
-### Backend Development
+This project enforces a strict split between:
 
-1. Make changes to Django code in `backend/` directory
-2. Changes are automatically reflected (volume mounted)
-3. For new dependencies, update `backend/requirements.txt` and rebuild:
-   ```bash
-   docker-compose up --build backend
-   ```
+- Platform layer: SUPERADMIN operations, academy management, subscriptions, finance, analytics, and audit
+- Tenant layer: academy-scoped modules such as onboarding, students, classes, attendance, billing, media, reports, facilities, and staff
 
-### Frontend Development
+Implemented platform finance capabilities include:
 
-1. Make changes to React code in `frontend/` directory
-2. Vite hot-reload automatically reflects changes
-3. For new dependencies, update `frontend/package.json` and rebuild:
-   ```bash
-   docker-compose up --build frontend
-   ```
-
-## For AI Agents
-
-### Running the System
-
-All agents must follow these rules:
-
-1. **System Must Boot Successfully**: No agent may write code unless `docker-compose up` runs successfully
-2. **Single Command Start**: All services must start with one command: `docker-compose up`
-3. **Environment Variables Only**: All configuration must use environment variables (no hardcoded values)
-4. **No Local Storage**: Never use local filesystem storage for uploads - always use MinIO/S3
-5. **Docker File Restrictions**: No agent may modify Docker files outside Phase 0 or Phase 6
-
-### Agent Workflow
-
-1. **Before Starting Work**:
-   ```bash
-   docker-compose up -d
-   docker-compose ps  # Verify all services are running
-   ```
-
-2. **During Development**:
-   - Make code changes in respective directories
-   - Changes are automatically reflected (hot-reload)
-   - Test changes via service URLs
-
-3. **After Completing Work**:
-   ```bash
-   docker-compose down  # Stop services
-   ```
-
-### Testing Agent Changes
-
-1. Start services: `docker-compose up -d`
-2. Verify services are healthy: `docker-compose ps`
-3. Check logs if issues: `docker-compose logs <service>`
-4. Test your changes via the service URLs
-5. Stop services when done: `docker-compose down`
-
-## Troubleshooting
-
-### Services Won't Start
-
-1. **Check Docker is running**: `docker ps`
-2. **Check port conflicts**: Ensure ports 8000, 5173, 5432, 6379, 9000, 9001 are available
-3. **Check environment variables**: Verify `.env` file exists and has required values
-4. **View logs**: `docker-compose logs` to see error messages
-
-### Database Connection Issues
-
-1. **Wait for postgres to be healthy**: `docker-compose ps` should show postgres as healthy
-2. **Check DATABASE_URL**: Verify it matches docker-compose service name (`postgres`)
-3. **Reset database** (WARNING: deletes data):
-   ```bash
-   docker-compose down -v
-   docker-compose up -d postgres
-   # Wait for postgres to be healthy
-   docker-compose up -d
-   ```
-
-### Frontend Can't Connect to Backend
-
-1. **Check VITE_API_BASE_URL**: Should be `http://localhost:8000/api/v1`
-2. **Check CORS settings**: Verify `CORS_ALLOWED_ORIGINS` includes frontend URL
-3. **Check backend is running**: `docker-compose ps backend`
-
-### MinIO Connection Issues
-
-1. **Check MinIO is running**: `docker-compose ps minio`
-2. **Access MinIO console**: http://localhost:9001
-3. **Create bucket manually** if needed: Use MinIO console
-4. **Verify credentials**: Check `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` in `.env`
-
-### Celery Worker Issues
-
-1. **Check Redis is running**: `docker-compose ps redis`
-2. **Check Celery logs**: `docker-compose logs celery-worker`
-3. **Verify CELERY_BROKER_URL**: Should point to Redis service
-
-### Permission Errors
-
-1. **Check file permissions**: Ensure Docker has access to project directories
-2. **Rebuild containers**: `docker-compose up --build`
-3. **Clear Docker cache**: `docker system prune -a` (use with caution)
+- academy subscription payment ledger management
+- operational expense tracking
+- finance summary metrics including MRR, ARR, revenue, expenses, churn, and P&L
+- monthly payment CSV export
+- Xero sync task scaffolding for future automation
 
 ## Project Structure
 
-```
+```text
 .
-├── backend/              # Django backend application
-│   ├── config/          # Django project settings
-│   ├── platform/       # Platform layer apps
-│   ├── tenant/          # Tenant layer apps
-│   ├── shared/          # Shared utilities
-│   └── Dockerfile       # Backend container definition
-├── frontend/            # React/Vite frontend application
-│   ├── src/            # Source code
-│   └── Dockerfile      # Frontend container definition
-├── docs/                # Architecture and API documentation
-├── docker-compose.yml   # Development environment configuration
-├── .env.example         # Environment variables template
-└── README.md           # This file
+|-- backend/
+|   |-- config/           # Django settings and root URLs
+|   |-- saas_platform/    # Platform apps: tenants, subscriptions, finance, analytics, audit
+|   |-- tenant/           # Academy-scoped apps
+|   |-- shared/           # Shared middleware, permissions, utilities
+|   `-- Dockerfile
+|-- frontend/
+|   |-- src/
+|   `-- Dockerfile
+|-- docs/
+|-- docker-compose.yml
+|-- .env.example
+`-- README.md
 ```
 
-## Architecture
+## Troubleshooting
 
-This is a multi-tenant SaaS platform with strict separation between:
+### Running backend tests
 
-- **Platform Layer**: Superadmin operations, tenant management, subscriptions, quotas
-- **Tenant Layer**: Academy-specific operations (students, classes, coaches, etc.)
+- Install backend dependencies (including Celery) locally:
 
-See `docs/ARCHITECTURE.md` for detailed architecture documentation.
+```bash
+cd backend
+pip install -r requirements.txt
+```
 
-## Environment Variables
+- Preferred: use the Django test runner via the helper script:
 
-All configuration is done via environment variables. See `.env.example` for all available variables and `docs/ENV_CONTRACT.md` for detailed documentation.
+```bash
+cd backend
+python run_tests.py  # or: python run_tests.py tests.tenants tests.subscriptions
+```
 
-## Additional Resources
+- Alternatively, run tests directly with `manage.py` and the testing settings:
 
-- **Architecture**: `docs/ARCHITECTURE.md`
-- **API Conventions**: `docs/API_CONVENTIONS.md`
-- **Permissions**: `docs/PERMISSIONS.md`
-- **Environment Variables**: `docs/ENV_CONTRACT.md`
-- **Agent Context**: `AGENT_CONTEXT.md`
+```bash
+cd backend
+DJANGO_SETTINGS_MODULE=config.settings.testing python manage.py test
+```
 
-## Support
+Running `pytest` from the `backend/` directory also works, because `backend/conftest.py`
+configures `DJANGO_SETTINGS_MODULE` and calls `django.setup()` before tests are collected.
 
-For issues or questions:
+### Services will not start
 
-1. Check the troubleshooting section above
-2. Review service logs: `docker-compose logs <service>`
-3. Verify environment variables match `.env.example`
-4. Check that all services are healthy: `docker-compose ps`
+1. Check Docker is running: `docker ps`
+2. Check port conflicts on `8000`, `5173`, `5432`, `6379`, `9000`, and `9001`
+3. Verify `.env` exists and contains required values
+4. Inspect logs with `docker-compose logs`
+
+### Database connection issues
+
+1. Ensure Postgres is healthy: `docker-compose ps`
+2. Confirm `DATABASE_URL` points to the `postgres` service inside Docker
+3. If running Django on the host instead of inside Docker, use `localhost` instead of `postgres`
+
+### Frontend cannot reach backend
+
+1. Check `VITE_API_BASE_URL`
+2. Confirm backend is running
+3. Verify CORS settings
+
+### Celery worker issues
+
+1. Check Redis status
+2. Inspect `docker-compose logs celery-worker`
+3. Verify the configured broker URL
+
+## Additional Documentation
+
+- `docs/ARCHITECTURE.md`
+- `docs/PROJECT_DOCUMENTATION.md`
+- `docs/MODELS.md`
+- `docs/ROLE_ROUTE_MAP.md`
+- `docs/NAVIGATION_MAP.md`
+- `docs/NAVIGATION_COVERAGE.md`
+- `docs/API_CONVENTIONS.md`
+- `docs/PERMISSIONS.md`
+- `docs/DOCUMENTATION_MAINTENANCE.md`
+- `docs/ENV_CONTRACT.md`
+- `docs/XERO_SYNC.md`
 
 ## License
 

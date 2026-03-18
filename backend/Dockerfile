@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user for runtime containers
+RUN groupadd --system app && useradd --system --gid app --create-home app
+
 # Set work directory
 WORKDIR /app
 
@@ -42,6 +45,12 @@ COPY . /app/
 # Create directories for static and media files
 RUN mkdir -p /app/staticfiles /app/media
 
+# Entrypoint (runs migrations, then execs CMD)
+RUN chmod +x /app/entrypoint.sh
+
+# Ensure runtime user can access app directory
+RUN chown -R app:app /app
+
 # Collect static files (can be overridden in docker-compose)
 RUN python manage.py collectstatic --noinput || true
 
@@ -50,6 +59,8 @@ FROM application as production
 
 # Expose port
 EXPOSE 8000
+
+USER app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
@@ -66,6 +77,8 @@ FROM application as development
 
 # Expose port
 EXPOSE 8000
+
+USER app
 
 # Run development server (can be overridden in docker-compose)
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

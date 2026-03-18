@@ -8,12 +8,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
+import { usePlatformCurrencies } from '@/features/platform/masters/hooks/usePlatformCurrencies';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Switch } from '@/shared/components/ui/switch';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useCreatePlan } from '../hooks/useCreatePlan';
+import { PlanLimitsFields } from '../components/PlanLimitsFields';
 import type { CreatePlanRequest } from '../types';
+import { limitsFromJson, limitsToJson, type PlanLimits } from '../types';
 
 export const PlanCreatePage = () => {
   const navigate = useNavigate();
@@ -31,9 +41,13 @@ export const PlanCreatePage = () => {
     is_public: false,
   });
   const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const [limitsJson, setLimitsJson] = useState('{}');
+  const [limits, setLimits] = useState<PlanLimits>(() => limitsFromJson(formData.limits_json));
 
   const createPlan = useCreatePlan();
+  const { data: currenciesData, isLoading: isLoadingCurrencies } = usePlatformCurrencies({
+    is_active: true,
+  });
+  const currencies = currenciesData?.results ?? [];
 
   const handleChange = (field: keyof CreatePlanRequest, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -46,33 +60,14 @@ export const PlanCreatePage = () => {
     }
   };
 
-  const handleLimitsJsonChange = (value: string) => {
-    setLimitsJson(value);
-    try {
-      const parsed = JSON.parse(value);
-      handleChange('limits_json', parsed);
-    } catch {
-      // Invalid JSON, will be caught on submit
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
-    // Parse limits_json
-    let limitsParsed = {};
-    try {
-      limitsParsed = JSON.parse(limitsJson);
-    } catch {
-      setErrors({ limits_json: ['Invalid JSON format'] });
-      return;
-    }
-
     try {
       const plan = await createPlan.mutateAsync({
         ...formData,
-        limits_json: limitsParsed,
+        limits_json: limitsToJson(limits),
       });
       navigate(`/dashboard/platform/plans/${plan.id}`);
     } catch (error: any) {
@@ -195,18 +190,38 @@ export const PlanCreatePage = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
-                <Input
-                  id="currency"
-                  value={formData.currency || 'USD'}
-                  onChange={(e) => handleChange('currency', e.target.value)}
-                />
+                <Select
+                  value={formData.currency || ''}
+                  onValueChange={(value) => handleChange('currency', value)}
+                >
+                  <SelectTrigger id="currency">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingCurrencies ? (
+                      <SelectItem value="__loading__" disabled>
+                        Loading currencies...
+                      </SelectItem>
+                    ) : currencies.length === 0 ? (
+                      <SelectItem value="__empty__" disabled>
+                        No currencies configured
+                      </SelectItem>
+                    ) : (
+                      currencies.map((c) => (
+                        <SelectItem key={c.id} value={c.code}>
+                          {c.name || c.code}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
                 {errors.currency && (
                   <p className="text-sm text-destructive">{errors.currency[0]}</p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="trial_days">Trial Days</Label>
                 <Input
@@ -221,18 +236,9 @@ export const PlanCreatePage = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="limits_json">Limits JSON</Label>
-                <Textarea
-                  id="limits_json"
-                  value={limitsJson}
-                  onChange={(e) => handleLimitsJsonChange(e.target.value)}
-                  rows={4}
-                  placeholder='{"max_students": 100, "storage_bytes": 10737418240}'
-                />
-                {errors.limits_json && (
-                  <p className="text-sm text-destructive">{errors.limits_json[0]}</p>
-                )}
+              <div>
+                <Label className="mb-2 block">Plan limits</Label>
+                <PlanLimitsFields value={limits} onChange={setLimits} errors={errors} />
               </div>
             </div>
 

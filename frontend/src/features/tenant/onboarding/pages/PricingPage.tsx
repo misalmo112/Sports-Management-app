@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import Step6Pricing from '../components/steps/Step6Pricing';
 import { useSavePricing } from '../hooks/useSavePricing';
-import type { Step6Pricing as Step6PricingType } from '../types';
+import type { Step5Pricing } from '../types';
 
 export const PricingPage = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export const PricingPage = () => {
   const [success, setSuccess] = useState(false);
   const savePricing = useSavePricing();
 
-  const handleSubmit = async (data: Step6PricingType) => {
+  const handleSubmit = async (data: Step5Pricing) => {
     setErrors({});
     setSuccess(false);
 
@@ -51,8 +51,8 @@ export const PricingPage = () => {
     <div className="container mx-auto py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Pricing</h1>
-          <p className="text-muted-foreground mt-2">Manage academy pricing</p>
+          <h1 className="text-3xl font-bold">Billing Items</h1>
+          <p className="text-muted-foreground mt-2">Manage academy billing items</p>
         </div>
         <Button variant="outline" onClick={() => navigate('/dashboard')}>
           Back to Dashboard
@@ -63,7 +63,7 @@ export const PricingPage = () => {
         <Alert className="mb-6 border-green-200 bg-green-50">
           <CheckCircle2 className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Pricing saved successfully!
+            Billing items saved successfully!
           </AlertDescription>
         </Alert>
       )}
@@ -81,9 +81,9 @@ export const PricingPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Pricing</CardTitle>
+          <CardTitle>Billing Items</CardTitle>
           <CardDescription>
-            Manage your academy pricing items. Add, edit, or remove pricing items as needed.
+            Manage your academy billing items. Add, edit, or remove items as needed.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,7 +109,7 @@ export const PricingPage = () => {
               onClick={() => formRef.current?.requestSubmit()}
               disabled={savePricing.isPending}
             >
-              {savePricing.isPending ? 'Saving...' : 'Save Pricing'}
+              {savePricing.isPending ? 'Saving...' : 'Save Billing Items'}
             </Button>
           </div>
         </CardContent>

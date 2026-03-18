@@ -4,7 +4,8 @@
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-import { AlertTriangle, Calendar, DollarSign, Users } from 'lucide-react';
+import { AlertTriangle, Calendar, DollarSign, Users, GraduationCap, UserCog, BookOpen } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useOverview } from '../hooks/useOverview';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
@@ -51,12 +52,65 @@ export const OwnerOverviewPage = () => {
           {data.alerts.map((alert, idx) => (
             <Alert
               key={idx}
-              variant={alert.severity === 'HIGH' ? 'destructive' : 'default'}
+              variant={alert.severity?.toLowerCase() === 'high' ? 'destructive' : 'default'}
             >
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{alert.message}</AlertDescription>
             </Alert>
           ))}
+        </div>
+      )}
+
+      {data.counts && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+          <Link to="/dashboard/students">
+            <Card className="hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Students</CardTitle>
+                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.counts.students}</div>
+                <p className="text-xs text-muted-foreground">Active students</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/dashboard/management/staff">
+            <Card className="hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Coaches</CardTitle>
+                <UserCog className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.counts.coaches}</div>
+                <p className="text-xs text-muted-foreground">Active coaches</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/dashboard/users">
+            <Card className="hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Admins</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.counts.admins}</div>
+                <p className="text-xs text-muted-foreground">Admin users</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/dashboard/classes">
+            <Card className="hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Classes</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.counts.classes}</div>
+                <p className="text-xs text-muted-foreground">Classes (current)</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       )}
 
@@ -99,20 +153,34 @@ export const OwnerOverviewPage = () => {
         )}
 
         {data.finance_summary && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Finance</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(data.finance_summary.total_due)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {data.finance_summary.unpaid_invoices} unpaid invoices
-              </p>
-            </CardContent>
-          </Card>
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Due</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(data.finance_summary.total_due)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {data.finance_summary.unpaid_invoices} unpaid invoices
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Collected (30 days)</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(data.finance_summary.collected_last_30_days ?? 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">Revenue last 30 days</p>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 

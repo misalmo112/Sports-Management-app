@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { FacilitiesPage } from '../FacilitiesPage';
 
@@ -26,6 +26,7 @@ vi.mock('@/features/tenant/settings/hooks/hooks', () => ({
 vi.mock('../../hooks/hooks', () => ({
   useRentConfigs: () => ({ data: { results: [] }, isLoading: false, error: null, refetch: vi.fn() }),
   useRentInvoices: () => ({ data: { results: [] }, isLoading: false, error: null, refetch: vi.fn() }),
+  useRentReceipts: () => ({ data: { results: [] }, isLoading: false, error: null, refetch: vi.fn() }),
   useBills: () => ({ data: { results: [] }, isLoading: false, error: null, refetch: vi.fn() }),
   useBillLineItems: () => ({ data: { results: [] }, isLoading: false, error: null, refetch: vi.fn() }),
   useInventoryItems: () => ({ data: { results: [] }, isLoading: false, error: null, refetch: vi.fn() }),

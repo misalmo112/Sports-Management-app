@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import Step5Terms from '../components/steps/Step5Terms';
 import { useSaveTerms } from '../hooks/useSaveTerms';
-import type { Step5Terms as Step5TermsType } from '../types';
+import type { Step4Terms } from '../types';
 
 export const TermsPage = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export const TermsPage = () => {
   const [success, setSuccess] = useState(false);
   const saveTerms = useSaveTerms();
 
-  const handleSubmit = async (data: Step5TermsType) => {
+  const handleSubmit = async (data: Step4Terms) => {
     setErrors({});
     setSuccess(false);
 

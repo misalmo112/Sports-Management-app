@@ -1,5 +1,7 @@
 # Error Logging and Messaging Plan
 
+Status: Proposal document. This file describes a planned design and does not represent the current implemented API/error contract unless another current-state doc says so.
+
 ## Goals
 - Provide clear, user-friendly error messages for tenant users.
 - Capture structured errors with tenant context for superadmin visibility.

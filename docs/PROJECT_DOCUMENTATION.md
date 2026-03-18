@@ -1,279 +1,200 @@
 # Sports Academy Management System - Project Documentation
 
-Version: 1.0
-Last Updated: 2026-01-18
+Version: 1.1
+Last Updated: 2026-03-17
 
 ## 1. Scope and Goals
 
-Goal: Build a multi-tenant SaaS platform that lets a Superadmin manage many academies while each academy operates in isolated tenant space for students, classes, attendance, and billing.
+Goal: provide a multi-tenant SaaS platform where a SUPERADMIN manages the platform globally while each academy operates in isolated tenant space for onboarding, operations, billing, media, and reporting.
 
-In scope:
+In scope today:
+
 - Multi-tenant backend with strict academy isolation.
-- Role-based access control for Superadmin, Owner, Admin, Coach, Parent.
-- Onboarding wizard that must be completed before tenant APIs are usable.
-- Subscription plans, quota enforcement, and usage tracking.
-- Media storage via S3-compatible storage (MinIO in dev).
-- React frontend with role-based routing and shared UI foundation.
+- Role-based access control for SUPERADMIN, OWNER, ADMIN, COACH, and PARENT.
+- Platform management for academies, plans, analytics, audit, and finance.
+- Tenant modules for onboarding, users, students, classes, attendance, billing, settings, media, reports, facilities, staff, and feedback.
+- Platform finance ledgering, expense logging, summary metrics, monthly export, and Xero sync stub.
+- React frontend with role-based routing and shared component foundation.
 
-Out of scope (current phase):
-- Mobile-first experience.
-- External payment gateways (Stripe, etc.)
-- Multi-academy billing orgs (optional, planned).
+Out of scope today:
+
+- External payment gateway automation for academy subscription collection.
+- Real Xero OAuth2 and invoice push implementation.
+- Native mobile clients.
 
 ## 2. Core Principles
 
-- Platform and tenant logic must never mix.
-- Every tenant model must include academy FK and be filtered by request.academy.
-- Onboarding is a hard gate: tenant APIs blocked until Academy.onboarding_completed is true.
-- Quotas are hard blocks at 100 percent usage.
-- No local file storage; always use S3 compatible storage.
-- All configuration via environment variables.
+- Platform and tenant logic must not mix.
+- Tenant APIs require academy context and role checks.
+- UI role guards complement backend permissions; they do not replace them.
+- Onboarding remains a gate for tenant operations.
+- Platform finance numbers are derived from platform payments and operational expenses, not hardcoded values.
+- Environment variables remain the configuration contract.
 
 ## 3. Roles and Authority
 
-Roles:
-- SUPERADMIN: platform owner, global control.
-- OWNER: owns one or more academies.
-- ADMIN: manages a single academy.
-- COACH: assigned classes only.
-- PARENT: own children only.
+- `SUPERADMIN`: global platform operator.
+- `OWNER`: multi-academy business owner with academy switching.
+- `ADMIN`: single-academy operator.
+- `COACH`: assigned-class operations.
+- `PARENT`: own-children visibility and self-service flows.
 
 Authority rules:
-- Only SUPERADMIN can create academies.
-- Role checks are mandatory at API level.
-- UI restrictions are not sufficient.
 
-## 4. Architecture Summary
+- Only `SUPERADMIN` accesses `/api/v1/platform/*` and `/dashboard/platform/*`.
+- Tenant routes are guarded by auth, onboarding, and role checks where applicable.
+- Platform finance APIs are `IsPlatformAdmin` only.
 
-Backend: Django + DRF, PostgreSQL, Redis, Celery
-Frontend: React + Vite, TanStack Query, Tailwind
-Storage: MinIO in dev (S3 compatible)
+## 4. Current Architecture Summary
 
-Ports (dev):
-- Frontend: 5173
-- Backend API: 8000
-- Postgres: 5432
-- Redis: 6379
-- MinIO: 9000 (API), 9001 (console)
+Backend:
 
-API base path: /api/v1/
-- Platform APIs: /api/v1/platform/*
-- Tenant APIs: /api/v1/tenant/*
+- Django + DRF
+- PostgreSQL
+- Redis
+- Celery
+- S3-compatible media storage
+
+Frontend:
+
+- React + Vite
+- TanStack Query
+- Shared route guards and sidebar navigation
+
+API base paths:
+
+- Platform APIs: `/api/v1/platform/*`
+- Tenant APIs: `/api/v1/tenant/*`
+- Legacy admin user APIs: `/api/v1/admin/*`
+- Auth APIs: `/api/v1/auth/*`
 
 ## 5. Module Logic
 
-### 5.1 Platform Layer (Global)
+### 5.1 Platform Layer
 
-#### accounts
-Purpose: Superadmin authentication and platform-level access.
-Logic:
-- Superadmin users authenticate via JWT.
-- Only Superadmin can access platform endpoints.
-Key constraints:
-- Platform accounts are separate from tenant users.
+#### `saas_platform.tenants`
 
-#### tenants
-Purpose: Academy (tenant) lifecycle management.
-Logic:
-- Academy is the root entity for all tenant data.
-- Only Superadmin can create and manage academies.
-- Academy has onboarding_completed flag.
-Key constraints:
-- One academy per tenant, unique slug.
-- Onboarding controls tenant API access.
+- Academy lifecycle management.
+- SUPERADMIN academy CRUD and academy settings management.
 
-#### subscriptions
-Purpose: Plans and subscription lifecycle.
-Logic:
-- Plan defines default quotas and pricing.
-- Subscription links Academy to Plan with status and trial periods.
-- Only one current subscription per academy.
-- Overrides_json allows per-tenant quota overrides.
-Key constraints:
-- Exactly one is_current subscription per academy.
-- Effective quotas = plan limits merged with overrides.
+#### `saas_platform.subscriptions`
 
-#### quotas
-Purpose: Quota enforcement and usage tracking.
-Logic:
-- TenantUsage stores storage usage and cached counts.
-- Quotas enforce hard blocks for students, coaches, admins, classes, storage.
-- Storage updates are atomic with select_for_update.
-Key constraints:
-- No soft warnings beyond 100 percent usage.
-- Quotas enforced at API layer, not UI.
+- Plan catalog and subscription lifecycle.
+- Platform payment ledger through `PlatformPayment`.
+- Payment validation for positive amounts, non-future dates, and academy/subscription consistency.
 
-#### audit
-Purpose: Audit logging for platform operations.
-Logic:
-- Central AuditService records create, update, plan change, quota change actions.
-- Used for compliance and troubleshooting.
+#### `saas_platform.finance`
 
-#### analytics
-Purpose: Platform-wide metrics.
-Logic:
-- Aggregates metrics across tenants (anonymized).
-- Read-only for Superadmin.
+- `OperationalExpense` tracking for platform costs.
+- `FinanceService` aggregation for MRR, ARR, churn, revenue, expenses, P&L, and category breakdown.
+- Monthly payment CSV export.
+- Xero sync task stub with `external_ref` and `synced_at` support.
 
-### 5.2 Tenant Layer (Academy Scoped)
+#### `saas_platform.analytics`
 
-#### users
-Purpose: Tenant user accounts and roles.
-Logic:
-- Users have academy context and role (OWNER, ADMIN, COACH, PARENT).
-- Role enforcement is mandatory for all endpoints.
+- Platform-wide analytics outside the finance dashboard.
 
-#### onboarding
-Purpose: Mandatory setup before operations.
-Logic:
-- 6 sequential steps: profile, location, sports, age categories, terms, pricing.
-- Steps are idempotent and upsert records.
-- Locking prevents multiple admins from running wizard simultaneously.
-- Completion sets Academy.onboarding_completed and OnboardingState.is_completed.
+#### `saas_platform.audit`
 
-#### students
-Purpose: Student lifecycle.
-Logic:
-- CRUD with academy FK.
-- Parent links to students.
-- Enrollment to classes is managed separately.
-Constraints:
-- Quota check on create.
+- Audit logs and error monitoring pages/APIs.
 
-#### coaches
-Purpose: Coach profiles and assignments.
-Logic:
-- CRUD with academy FK.
-- Coach assignment to classes is enforced.
-Constraints:
-- Quota check on create.
+### 5.2 Tenant Layer
 
-#### classes
-Purpose: Scheduling and enrollments.
-Logic:
-- Class ties sport, coach, age category, term, and location.
-- Supports capacity and enrollment management.
-Constraints:
-- Quota check on create.
+Implemented tenant domains in the repo:
 
-#### attendance
-Purpose: Attendance tracking.
-Logic:
-- Coach or Admin marks attendance per class and date.
-- Attendance reports and filters per class/term.
-
-#### billing
-Purpose: Academy billing for parents.
-Logic:
-- Pricing items and durations define fees.
-- Invoices include items, discounts, VAT, and partial payments.
-- Receipts track payments and allocation to invoices.
-
-#### media
-Purpose: Media uploads and storage tracking.
-Logic:
-- Uploads go to S3-compatible storage.
-- MediaFile records metadata and size.
-- TenantUsage.storage_used_bytes updated atomically.
-Constraints:
-- Storage quota checked before upload.
-
-#### reports
-Purpose: Tenant reporting and exports.
-Logic:
-- Aggregated reports for attendance, financials, student progress.
-- Export formats defined by report type.
+- onboarding
+- overview
+- users
+- students
+- coaches
+- classes
+- attendance
+- billing
+- facilities
+- media
+- masters
+- reports
+- communication
 
 ### 5.3 Shared Layer
 
-#### middleware
-- Tenant resolution: sets request.academy from JWT.
-- Onboarding gate: blocks tenant APIs until onboarding complete.
-- Quota enforcement (via decorator or service).
-
-#### permissions
-- Platform permissions: IsPlatformAdmin.
-- Tenant permissions: IsTenantAdmin, IsOwner, IsCoach, IsParent.
-- Object-level access required for coach/parent scopes.
-
-#### services
-- Email service for notifications and invoices.
-- Storage service for S3 integration.
-- Quota service for usage checks and limits.
+- middleware for tenant context and onboarding behavior
+- permission classes for platform and tenant access
+- shared utilities and services reused across modules
 
 ### 5.4 Frontend
 
-Structure:
-- features/ for platform and tenant modules.
-- routes/ for role-based routing.
-- layouts/ per role (platform, tenant, coach, parent).
-- shared/ for UI components, API client, hooks, and utilities.
+Platform pages implemented today:
 
-Logic:
-- Auth state drives role-based routing.
-- Tenant context is derived from JWT.
-- Onboarding wizard is the first flow for new academies.
-- API failures handled explicitly.
+- Academies
+- Plans
+- Statistics
+- Errors
+- Audit Logs
+- Finance Overview
+- Payments
+- Expenses
 
-## 6. Cross-Module Workflows
+Tenant pages implemented today cover overview, onboarding, operations, billing, settings, management, coach, and parent flows.
 
-### Academy Creation (Platform)
-1. Superadmin creates Academy.
-2. Subscription assigned to plan.
-3. TenantUsage initialized.
-4. Tenant onboarding starts.
+## 6. Finance Architecture Snapshot
 
-### Onboarding Gate
-1. Tenant user accesses onboarding endpoints only.
-2. Steps 1-6 completed sequentially.
-3. Academy.onboarding_completed set true.
-4. Tenant APIs become available.
+### Data sources
 
-### Quota Enforcement
-1. Create or upload request triggers quota check.
-2. If limit exceeded, return 403 with quota details.
-3. If allowed, operation proceeds and usage updates.
+- Revenue ledger: `PlatformPayment`
+- Expense ledger: `OperationalExpense`
+- Aggregation service: `FinanceService`
 
-### Media Upload
-1. Pre-check storage quota by total upload size.
-2. Upload to S3-compatible storage.
-3. Update TenantUsage.storage_used_bytes atomically.
+### Implemented APIs
 
-## 7. Current Stage (Based on Repository State)
+- `GET /api/v1/platform/finance/summary/`
+- `GET /api/v1/platform/finance/trends/`
+- CRUD `/api/v1/platform/finance/payments/`
+- CRUD `/api/v1/platform/finance/expenses/`
+- `GET /api/v1/platform/finance/payments/export/`
 
-Completed:
-- Platform backend implemented (tenants, subscriptions, quotas, audit, analytics) with services and serializers.
-- Platform tests authored, but not runnable due to configuration issues.
-- Tenant modules exist with models/serializers/views for core domains.
-- Onboarding, quota, permissions, and API conventions documented.
-- Frontend scaffold in place with features, layouts, routes, and shared UI foundation.
-- Docker compose and environment contract defined.
+### Implemented frontend routes
 
-Blocked / Needs Fixes:
-- Tests not running due to platform module naming conflict and missing dependencies.
-- Django INSTALLED_APPS config needs alignment for platform and shared modules.
-- User model role field must be confirmed or permissions updated to match.
+- `/dashboard/platform/finance`
+- `/dashboard/platform/finance/payments`
+- `/dashboard/platform/finance/expenses`
 
-Not Verified Yet:
-- Tenant module completeness against full feature list.
-- End-to-end onboarding and quota flows in a running environment.
-- Frontend flows for all roles.
+### Current UI behavior
 
-## 8. Open Decisions to Confirm
+- Finance overview renders summary cards and expense breakdown for a selected month.
+- Payments page supports ledger viewing, create/edit, date filtering, and CSV export.
+- Expenses page supports filtering, create/edit, and inline mark-as-paid actions.
+- The backend trend endpoint exists, but trend charts are not yet rendered on the current finance overview page.
+- The payments API supports academy filtering, but the current page UI only exposes date range filters.
 
-- Final user model shape and role storage.
-- Which billing flows are in MVP (invoices only vs receipts and partial payments).
-- Parent portal scope for MVP.
-- Multi-academy billing orgs (CustomerOrg) timeline.
+## 7. Current Repository State
+
+Implemented and documented in code:
+
+- Platform finance backend models, serializers, views, URLs, tests, and Celery stub.
+- Platform finance frontend pages, hooks, services, types, and SUPERADMIN navigation.
+- Role-based route wiring across platform and tenant sections.
+- Supporting docs for permissions, environment contract, Xero sync, and route/navigation references.
+
+Current documentation gap fixed by this pass:
+
+- older docs described a pre-finance architecture or omitted finance routes from navigation and route maps
+- some route reference docs lagged behind the current router and sidebar configuration
+
+## 8. Open Follow-Up Items
+
+- Implement a real Xero client and OAuth2 flow if accounting sync is required.
+- Surface the existing trend endpoint in the finance overview page when charting is added.
+- Add academy filter controls to the payments page if SUPERADMIN needs that workflow in the UI.
 
 ## 9. References
 
-- docs/ARCHITECTURE.md
-- docs/MODELS.md
-- docs/API_CONVENTIONS.md
-- docs/PERMISSIONS.md
-- docs/ENV_CONTRACT.md
-- docs/ONBOARDING_CONTRACT.md
-- docs/QUOTAS.md
-- backend/IMPLEMENTATION_SUMMARY.md
-- backend/tests/TEST_IMPLEMENTATION_STATUS.md
+- `docs/ARCHITECTURE.md`
+- `docs/MODELS.md`
+- `docs/ROLE_ROUTE_MAP.md`
+- `docs/NAVIGATION_MAP.md`
+- `docs/NAVIGATION_COVERAGE.md`
+- `docs/PERMISSIONS.md`
+- `docs/DOCUMENTATION_MAINTENANCE.md`
+- `docs/ENV_CONTRACT.md`
+- `docs/XERO_SYNC.md`

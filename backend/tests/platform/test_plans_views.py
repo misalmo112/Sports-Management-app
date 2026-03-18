@@ -22,6 +22,7 @@ class PlanViewSetTest(TestCase):
         self.superadmin = User.objects.create_superuser(
             email='superadmin-plans@example.com',
             password='testpass123',
+            role=User.Role.ADMIN,
             is_active=True
         )
         

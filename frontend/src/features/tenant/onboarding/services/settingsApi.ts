@@ -6,9 +6,9 @@ import { API_ENDPOINTS } from '@/shared/constants/api';
 import type {
   Step2Locations,
   Step3Sports,
-  Step4AgeCategories,
-  Step5Terms,
-  Step6Pricing,
+  AgeCategoriesPayload,
+  Step4Terms,
+  Step5Pricing,
 } from '../types';
 
 /**
@@ -34,9 +34,20 @@ export const saveSports = async (data: Step3Sports) => {
 };
 
 /**
- * Save age categories (uses onboarding step 4 endpoint)
+ * Save age categories (uses tenant settings endpoint; not part of activation wizard)
  */
-export const saveAgeCategories = async (data: Step4AgeCategories) => {
+export const saveAgeCategories = async (data: AgeCategoriesPayload) => {
+  const response = await apiClient.post(
+    API_ENDPOINTS.TENANT.SETTINGS.AGE_CATEGORIES.CREATE,
+    data
+  );
+  return response.data;
+};
+
+/**
+ * Save terms (uses onboarding step 4 endpoint)
+ */
+export const saveTerms = async (data: Step4Terms) => {
   const response = await apiClient.post(
     API_ENDPOINTS.ONBOARDING.STEP(4),
     data
@@ -45,22 +56,11 @@ export const saveAgeCategories = async (data: Step4AgeCategories) => {
 };
 
 /**
- * Save terms (uses onboarding step 5 endpoint)
+ * Save pricing (uses onboarding step 5 endpoint)
  */
-export const saveTerms = async (data: Step5Terms) => {
+export const savePricing = async (data: Step5Pricing) => {
   const response = await apiClient.post(
     API_ENDPOINTS.ONBOARDING.STEP(5),
-    data
-  );
-  return response.data;
-};
-
-/**
- * Save pricing (uses onboarding step 6 endpoint)
- */
-export const savePricing = async (data: Step6Pricing) => {
-  const response = await apiClient.post(
-    API_ENDPOINTS.ONBOARDING.STEP(6),
     data
   );
   return response.data;

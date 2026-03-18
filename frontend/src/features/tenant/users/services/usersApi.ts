@@ -151,3 +151,29 @@ export const login = async (data: LoginRequest): Promise<LoginResponse> => {
   );
   return response.data;
 };
+
+/**
+ * Request password reset email
+ */
+export const forgotPassword = async (email: string): Promise<{ detail: string }> => {
+  const response = await apiClient.post<{ detail: string }>(
+    API_ENDPOINTS.AUTH.FORGOT_PASSWORD,
+    { email }
+  );
+  return response.data;
+};
+
+/**
+ * Reset password with token
+ */
+export const resetPassword = async (data: {
+  token: string;
+  password: string;
+  password_confirm: string;
+}): Promise<{ detail: string }> => {
+  const response = await apiClient.post<{ detail: string }>(
+    API_ENDPOINTS.AUTH.RESET_PASSWORD,
+    data
+  );
+  return response.data;
+};

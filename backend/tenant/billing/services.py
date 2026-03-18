@@ -266,11 +266,6 @@ class InvoiceService:
             # Already paid, just update status
             invoice.update_status()
             invoice.save(update_fields=['status', 'updated_at'])
-        
-        # #region agent log
-        with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"services.py:250","message":"mark_as_paid exit","data":{"returning":None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        # #endregion
         return None
     
     @staticmethod

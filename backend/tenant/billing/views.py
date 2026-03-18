@@ -64,8 +64,9 @@ class ItemViewSet(viewsets.ModelViewSet):
         serializer.save(academy=self.request.academy)
     
     def perform_destroy(self, instance):
-        """Hard delete - actually delete the item."""
-        instance.delete()
+        """Soft delete - deactivate the item."""
+        instance.is_active = False
+        instance.save(update_fields=['is_active', 'updated_at'])
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
@@ -107,21 +108,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """Return appropriate permissions based on action."""
-        if self.action == 'create':
-            # Only admins can create invoices
+        # Admin-only actions (even though parents can read invoices)
+        if self.action in ['create', 'apply_discount', 'add_payment', 'mark_paid']:
             return [IsTenantAdmin()]
-        # Parents can read their own invoices, admins can read all
+
+        # Parents can read their own invoices; admins can read all
         return [IsTenantAdminOrParent()]
     
     def get_serializer_class(self):
         """Use appropriate serializer based on action."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"views.py:InvoiceViewSet.get_serializer_class","message":"get_serializer_class called","data":{"action":self.action if hasattr(self,'action') else None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         if self.action == 'list':
             return InvoiceListSerializer
         elif self.action == 'retrieve':
@@ -133,13 +128,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         """Add request to serializer context."""
         context = super().get_serializer_context()
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"views.py:InvoiceViewSet.get_serializer_context","message":"get_serializer_context called","data":{"has_request":"request" in context,"has_academy":hasattr(context.get("request",None),"academy") if "request" in context else False},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         return context
     
     def create(self, request, *args, **kwargs):
@@ -321,40 +309,50 @@ class ReceiptViewSet(viewsets.ModelViewSet):
     
     queryset = Receipt.objects.all()
     serializer_class = ReceiptSerializer
-    permission_classes = [IsTenantAdmin]
+    permission_classes = [IsTenantAdminOrParent]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['invoice', 'payment_method', 'payment_date']
-    search_fields = ['receipt_number', 'invoice__invoice_number']
+    search_fields = [
+        'receipt_number', 'invoice__invoice_number',
+        'invoice__parent__first_name', 'invoice__parent__last_name', 'invoice__parent__email',
+        'invoice__items__student__first_name', 'invoice__items__student__last_name',
+    ]
     ordering_fields = ['receipt_number', 'payment_date', 'amount', 'created_at']
     ordering = ['-payment_date', '-created_at']
     
     def get_queryset(self):
-        """Filter by academy."""
+        """Filter by academy; optimize list and avoid duplicates when searching."""
         queryset = super().get_queryset()
         
         # Superadmin can see all
         if hasattr(self.request.user, 'role') and self.request.user.role == 'SUPERADMIN':
-            return queryset
+            pass
+        # Parents can only see receipts for their own invoices
+        elif hasattr(self.request.user, 'role') and self.request.user.role == 'PARENT':
+            if hasattr(self.request.user, 'email'):
+                queryset = queryset.filter(invoice__parent__email=self.request.user.email)
+            else:
+                queryset = queryset.none()
+        else:
+            # Admin/Owner: filter by academy
+            queryset = filter_by_academy(
+                queryset,
+                self.request.academy,
+                self.request.user,
+                self.request
+            )
         
-        # Admin/Owner: filter by academy
-        queryset = filter_by_academy(
-            queryset,
-            self.request.academy,
-            self.request.user,
-            self.request
-        )
+        if self.action == 'list':
+            queryset = queryset.select_related(
+                'invoice', 'invoice__parent', 'sport', 'location'
+            ).prefetch_related('invoice__items__student')
+            # Avoid duplicate rows when search matches via invoice_items (multiple students)
+            queryset = queryset.distinct()
         
         return queryset
     
     def get_serializer_class(self):
         """Use appropriate serializer based on action."""
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"views.py:ReceiptViewSet.get_serializer_class","message":"get_serializer_class called","data":{"action":self.action if hasattr(self,'action') else None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         if self.action == 'list':
             return ReceiptListSerializer
         elif self.action == 'create':
@@ -364,13 +362,6 @@ class ReceiptViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         """Add request to serializer context."""
         context = super().get_serializer_context()
-        # #region agent log
-        import json, os
-        try:
-            with open(r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"views.py:ReceiptViewSet.get_serializer_context","message":"get_serializer_context called","data":{"has_request":"request" in context,"has_academy":hasattr(context.get("request",None),"academy") if "request" in context else False},"timestamp":int(__import__('time').time()*1000)}) + '\n')
-        except: pass
-        # #endregion
         return context
     
     def create(self, request, *args, **kwargs):

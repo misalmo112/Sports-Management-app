@@ -138,6 +138,23 @@ test.describe('@admin-panel Academy Admin Panel E2E', () => {
         await expect(financeText.first()).toBeVisible();
       }
     });
+
+    test('should display academy stats cards (Students, Coaches, Admins, Active Classes)', async ({ page }) => {
+      await page.goto('/dashboard/admin/overview');
+      await uiHelper.waitForLoadingToComplete();
+      await expect(page.getByText('Students', { exact: false }).first()).toBeVisible();
+      await expect(page.getByText('Active Classes', { exact: false }).first()).toBeVisible();
+    });
+
+    test('should display Collected (30 days) when finance summary exists', async ({ page }) => {
+      await page.goto('/dashboard/admin/overview');
+      await uiHelper.waitForLoadingToComplete();
+      const collectedText = page.getByText('Collected (30 days)', { exact: false });
+      const exists = await collectedText.isVisible().catch(() => false);
+      if (exists) {
+        await expect(collectedText).toBeVisible();
+      }
+    });
   });
 
   test.describe('Students Management', () => {

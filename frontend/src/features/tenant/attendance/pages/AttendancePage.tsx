@@ -228,7 +228,7 @@ export const AttendancePage = () => {
 
             <TabsContent value="coach" className="space-y-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-                <Button variant="outline" onClick={() => navigate('/dashboard/attendance/coach')}>
+                <Button variant="outline" onClick={() => navigate('/dashboard/attendance/coach/mark')}>
                   Mark coach attendance
                 </Button>
               </div>
@@ -357,7 +357,7 @@ export const AttendancePage = () => {
                   }
                   actionLabel={hasActiveCoachFilters ? undefined : 'Mark coach attendance'}
                   onAction={
-                    hasActiveCoachFilters ? undefined : () => navigate('/dashboard/attendance/coach')
+                    hasActiveCoachFilters ? undefined : () => navigate('/dashboard/attendance/coach/mark')
                   }
                 />
               )}

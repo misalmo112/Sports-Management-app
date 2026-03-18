@@ -9,7 +9,7 @@ from saas_platform.subscriptions.serializers import SubscriptionSerializer
 from saas_platform.quotas.models import TenantUsage
 from saas_platform.quotas.serializers import TenantQuotaSerializer
 from saas_platform.subscriptions.models import Subscription
-from tenant.masters.constants import CURRENCIES
+from saas_platform.masters.models import Currency, Timezone
 
 
 class AcademySettingsSerializer(serializers.ModelSerializer):
@@ -37,6 +37,8 @@ class AcademySettingsSerializer(serializers.ModelSerializer):
     def validate_timezone(self, value):
         if not value or len(value) > 50:
             raise serializers.ValidationError("Invalid timezone identifier.")
+        if not Timezone.objects.filter(code=value, is_active=True).exists():
+            raise serializers.ValidationError("Unsupported timezone.")
         try:
             import pytz
             pytz.timezone(value)
@@ -47,9 +49,9 @@ class AcademySettingsSerializer(serializers.ModelSerializer):
     def validate_currency(self, value):
         if not value or len(value) != 3:
             raise serializers.ValidationError("Currency must be a 3-letter code.")
-        if value not in CURRENCIES:
+        if not Currency.objects.filter(code=value.upper(), is_active=True).exists():
             raise serializers.ValidationError("Unsupported currency code.")
-        return value
+        return value.upper()
 
 
 class PlanSummarySerializer(serializers.Serializer):

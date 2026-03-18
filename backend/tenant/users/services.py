@@ -7,15 +7,24 @@ This service handles:
 - Invite acceptance and password setting
 - Quota checking before user creation
 """
+import logging
 import secrets
 from django.db import transaction
 from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from django.db import connection
 from shared.services.quota import check_quota_before_create, QuotaExceededError
-from tenant.users.models import User, AdminProfile, CoachProfile, ParentProfile, InviteToken
+from shared.tenancy.schema import schema_context
+from tenant.users.models import User, AdminProfile, CoachProfile, ParentProfile, InviteToken, PasswordResetToken
+from tenant.users.auth_helpers import (
+    _find_user_by_email_across_schemas,
+    _find_reset_token_across_schemas,
+)
 from tenant.coaches.models import Coach
+
+logger = logging.getLogger(__name__)
 
 # Optional Celery import
 try:
@@ -311,3 +320,96 @@ class UserService:
                 recipient_list=[user.email],
                 fail_silently=False,
             )
+
+    @staticmethod
+    def request_password_reset(email):
+        """
+        Find user by email across schemas, create a password reset token, and send email.
+        Always returns without error to avoid email enumeration (no user found = silent return).
+        Any exception is logged and swallowed so the view can always return 200.
+        """
+        try:
+            user, schema_name = _find_user_by_email_across_schemas(email)
+            if not user:
+                return
+
+            def _do_reset():
+                PasswordResetToken.objects.filter(
+                    user=user,
+                    used_at__isnull=True,
+                    expires_at__gt=timezone.now(),
+                ).update(used_at=timezone.now())
+
+                plain_token = PasswordResetToken.generate_token()
+                token_hash = PasswordResetToken.hash_token(plain_token)
+                expiration_minutes = getattr(settings, 'PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES', 60)
+                expires_at = timezone.now() + timezone.timedelta(minutes=expiration_minutes)
+
+                PasswordResetToken.objects.create(
+                    user=user,
+                    token_hash=token_hash,
+                    expires_at=expires_at,
+                )
+                UserService._send_password_reset_email(user, plain_token)
+
+            if schema_name and connection.vendor == 'postgresql':
+                with schema_context(schema_name) as active:
+                    if active:
+                        _do_reset()
+            else:
+                _do_reset()
+        except Exception as exc:
+            logger.exception(
+                "Password reset request failed for email=%s: %s",
+                email,
+                exc,
+                exc_info=True,
+            )
+
+    @staticmethod
+    def _send_password_reset_email(user, token):
+        """Send password reset email with link."""
+        from django.core.mail import send_mail
+
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        reset_url = f"{frontend_url}/reset-password?token={token}"
+
+        send_mail(
+            subject='Password Reset Request',
+            message=(
+                f"Hello,\n\n"
+                f"We received a request to reset your password.\n\n"
+                f"Click the link below to set a new password:\n"
+                f"{reset_url}\n\n"
+                f"This link will expire in 1 hour.\n\n"
+                f"If you didn't request this, you can safely ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def reset_password(token, new_password):
+        """
+        Validate reset token across schemas and set new password.
+        Raises ValidationError if token invalid or expired.
+        """
+        reset_token, schema_name = _find_reset_token_across_schemas(token)
+        if not reset_token:
+            raise ValidationError('Invalid or expired reset token.')
+
+        def _do_reset():
+            reset_token.mark_as_used()
+            u = reset_token.user
+            u.set_password(new_password)
+            u.save(update_fields=['password', 'updated_at'])
+
+        if schema_name and connection.vendor == 'postgresql':
+            with schema_context(schema_name) as active:
+                if not active:
+                    raise ValidationError('Tenant schema unavailable.')
+                _do_reset()
+        else:
+            _do_reset()

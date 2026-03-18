@@ -62,6 +62,14 @@ class SubscriptionStatus(models.TextChoices):
     EXPIRED = 'EXPIRED', 'Expired'
 
 
+class PaymentMethod(models.TextChoices):
+    BANK_TRANSFER = 'BANK_TRANSFER', 'Bank Transfer'
+    CREDIT_CARD = 'CREDIT_CARD', 'Credit Card'
+    CASH = 'CASH', 'Cash'
+    CHEQUE = 'CHEQUE', 'Cheque'
+    OTHER = 'OTHER', 'Other'
+
+
 class Subscription(models.Model):
     """Academy subscription to a plan (historical)."""
     
@@ -104,6 +112,7 @@ class Subscription(models.Model):
     
     # Cancellation
     canceled_at = models.DateTimeField(null=True, blank=True)
+    suspended_at = models.DateTimeField(null=True, blank=True)
     cancel_reason = models.TextField(blank=True)
     
     # Timestamps
@@ -130,3 +139,39 @@ class Subscription(models.Model):
     
     def __str__(self):
         return f"{self.academy.name} - {self.plan.name} ({self.status})"
+
+
+class PlatformPayment(models.Model):
+    subscription = models.ForeignKey(
+        'Subscription',
+        on_delete=models.PROTECT,
+        related_name='payments',
+    )
+    academy = models.ForeignKey(
+        'tenants.Academy',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='platform_payments',
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
+    payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices)
+    payment_date = models.DateField(db_index=True)
+    invoice_ref = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    external_ref = models.CharField(max_length=255, blank=True)
+    synced_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'platform_payments'
+        indexes = [
+            models.Index(fields=['payment_date']),
+            models.Index(fields=['academy', 'payment_date']),
+        ]
+
+    def __str__(self):
+        academy_name = self.academy.name if self.academy_id else "Orphan"
+        return f"{academy_name} - {self.amount} {self.currency} on {self.payment_date}"

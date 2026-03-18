@@ -143,7 +143,7 @@ export interface Receipt {
   academy: number;
   invoice: number;
   invoice_number: string;
-  invoice_total: string; // Decimal as string
+  invoice_total?: string; // Decimal as string (detail only)
   receipt_number: string;
   amount: string; // Decimal as string
   payment_method: 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'CHECK' | 'OTHER';
@@ -160,9 +160,29 @@ export interface Receipt {
     id: number;
     name: string;
   };
+  parent_name?: string;
+  student_names?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+/** Classification for unified receipt list (filter dropdown). */
+export type ReceiptClassification = 'student_fee' | 'rent' | 'staff_salary' | 'bill';
+
+/** Single normalized receipt row for the main receipts page (all sources). */
+export interface UnifiedReceipt {
+  classification: ReceiptClassification;
+  id: string; // e.g. 'billing-1', 'rent-2', 'staff-3', 'bill-4'
+  sourceId: number;
+  ref_number: string;
+  amount: string;
+  date: string;
+  payer_or_name: string;
+  extra?: string;
+  linkTo?: string;
+  /** Original billing receipt for edit/delete (student_fee only). */
+  raw?: Receipt;
 }
 
 export interface ReceiptsListResponse {

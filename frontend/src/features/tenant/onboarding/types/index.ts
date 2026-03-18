@@ -13,12 +13,13 @@ export interface OnboardingState {
     step_3: { name: string; completed: boolean };
     step_4: { name: string; completed: boolean };
     step_5: { name: string; completed: boolean };
-    step_6: { name: string; completed: boolean };
   };
   locked: boolean;
   locked_by: string | null;
   locked_at: string | null;
   completed_at: string | null;
+  /** Current academy profile for Step 1 pre-fill (from GET onboarding/state/) */
+  profile?: Step1Profile;
 }
 
 // API response wrapper
@@ -31,9 +32,9 @@ export interface OnboardingStateResponse {
 export interface Step1Profile {
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
   website?: string;
-  address_line1?: string;
+  address_line1: string;
   address_line2?: string;
   city?: string;
   state?: string;
@@ -72,7 +73,7 @@ export interface Step3Sports {
   sports: Sport[];
 }
 
-// Step 4: Age Categories
+// Legacy (optional): Age Categories (not part of activation wizard)
 export interface AgeCategory {
   name: string;
   age_min: number;
@@ -80,11 +81,11 @@ export interface AgeCategory {
   description?: string;
 }
 
-export interface Step4AgeCategories {
+export interface AgeCategoriesPayload {
   age_categories: AgeCategory[];
 }
 
-// Step 5: Terms
+// Step 4: Terms
 export interface Term {
   name: string;
   start_date: string; // ISO date string YYYY-MM-DD
@@ -92,11 +93,11 @@ export interface Term {
   description?: string;
 }
 
-export interface Step5Terms {
+export interface Step4Terms {
   terms: Term[];
 }
 
-// Step 6: Pricing
+// Step 5: Pricing
 export type DurationType = 'MONTHLY' | 'WEEKLY' | 'SESSION' | 'CUSTOM';
 
 export interface PricingItem {
@@ -105,10 +106,11 @@ export interface PricingItem {
   duration_type: DurationType;
   duration_value: number;
   price: number;
-  currency: string;
+  // Currency is determined server-side from the academy profile.
+  currency?: string;
 }
 
-export interface Step6Pricing {
+export interface Step5Pricing {
   pricing_items: PricingItem[];
 }
 
@@ -117,9 +119,34 @@ export type StepData =
   | Step1Profile 
   | Step2Locations 
   | Step3Sports 
-  | Step4AgeCategories 
-  | Step5Terms 
-  | Step6Pricing;
+  | Step4Terms 
+  | Step5Pricing;
+
+export interface OnboardingChecklistState {
+  academy_id: string;
+  members_imported: boolean;
+  staff_invited: boolean;
+  first_program_created: boolean;
+  age_categories_configured: boolean;
+  attendance_defaults_configured: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OnboardingChecklistResponse {
+  status: 'success' | 'error';
+  data: OnboardingChecklistState;
+}
+
+export interface OnboardingTemplatesResponse {
+  status: 'success' | 'error';
+  data: {
+    timezone: string;
+    currency: string;
+    suggested_term: Term;
+    suggested_pricing_items: PricingItem[];
+  };
+}
 
 // Step response from API
 export interface StepResponse {

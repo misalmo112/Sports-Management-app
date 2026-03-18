@@ -76,6 +76,57 @@ class ItemViewSetTest(TestCase):
         response = self.client.post('/api/v1/tenant/items/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Item.objects.count(), 1)
+
+    def test_create_item_currency_mismatch_returns_400(self):
+        """Reject create when payload currency differs from academy currency."""
+        self.academy.currency = 'AED'
+        self.academy.save(update_fields=['currency'])
+
+        data = {
+            'name': 'Equipment Fee',
+            'description': 'Equipment rental fee',
+            'price': '50.00',
+            'currency': 'USD',
+        }
+
+        response = self.client.post('/api/v1/tenant/items/', data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_item_currency_mismatch_returns_400(self):
+        """Reject update when payload currency differs from academy currency."""
+        item = Item.objects.create(
+            academy=self.academy,
+            name='Monthly Fee',
+            price=Decimal('100.00'),
+            currency='AED',
+        )
+        self.academy.currency = 'AED'
+        self.academy.save(update_fields=['currency'])
+
+        response = self.client.patch(
+            f'/api/v1/tenant/items/{item.id}/',
+            {'currency': 'USD'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_items_returns_academy_currency(self):
+        """Always return academy currency even if DB row differs."""
+        self.academy.currency = 'AED'
+        self.academy.save(update_fields=['currency'])
+
+        # Create an inconsistent row directly (bypassing serializer enforcement).
+        Item.objects.create(
+            academy=self.academy,
+            name='Monthly Fee',
+            price=Decimal('100.00'),
+            currency='USD',
+        )
+
+        response = self.client.get('/api/v1/tenant/items/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['currency'], 'AED')
     
     def test_update_item(self):
         """Test updating an item."""

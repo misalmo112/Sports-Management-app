@@ -5,6 +5,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 from datetime import datetime, date
 
 from tenant.attendance.models import Attendance, CoachAttendance
@@ -25,6 +26,8 @@ from shared.permissions.tenant import (
     IsTenantAdminOrCoach, IsTenantAdminOrParentOrCoach
 )
 from shared.utils.queryset_filtering import filter_by_academy
+
+User = get_user_model()
 
 
 class AttendanceViewSet(viewsets.ModelViewSet):
@@ -89,47 +92,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return AttendanceListSerializer
         return AttendanceSerializer
-    
-    def list(self, request, *args, **kwargs):
-        """Override list to add error handling and instrumentation."""
-        import json
-        import os
-        log_path = r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log'
-        try:
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"attendance/views.py:100","message":"Starting list action","data":{"action":self.action},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"W"}) + '\n')
-            # #endregion
-            queryset = self.filter_queryset(self.get_queryset())
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"attendance/views.py:104","message":"After filter_queryset","data":{"querysetCount":queryset.count() if hasattr(queryset, 'count') else 'N/A'},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"W"}) + '\n')
-            # #endregion
-            page = self.paginate_queryset(queryset)
-            if page is not None:
-                # #region agent log
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"location":"attendance/views.py:108","message":"Paginating queryset","data":{"pageSize":len(page) if page else 0},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"W"}) + '\n')
-                # #endregion
-                serializer = self.get_serializer(page, many=True)
-                # #region agent log
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"location":"attendance/views.py:112","message":"Serializing page","data":{"serializedCount":len(serializer.data)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"W"}) + '\n')
-                # #endregion
-                return self.get_paginated_response(serializer.data)
-            
-            serializer = self.get_serializer(queryset, many=True)
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"attendance/views.py:120","message":"Serializing queryset","data":{"serializedCount":len(serializer.data)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"W"}) + '\n')
-            # #endregion
-            return Response(serializer.data)
-        except Exception as e:
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"attendance/views.py:126","message":"Error in list action","data":{"errorType":type(e).__name__,"errorMessage":str(e),"errorArgs":str(e.args) if hasattr(e, 'args') else None},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"X"}) + '\n')
-            # #endregion
-            raise
     
     def get_permissions(self):
         """
@@ -236,11 +198,18 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             })
         
         try:
+            # `request.user` comes from tenant-aware JWT. In some misrouting cases the
+            # user object may have a PK that doesn't exist in the current schema.
+            # Attendance.marked_by is nullable, so we only set it if it exists.
+            marked_by = None
+            if request.user.is_authenticated:
+                marked_by = request.user if User.objects.filter(pk=request.user.pk).exists() else None
+
             created_or_updated = AttendanceService.mark_attendance(
                 class_obj=class_obj,
                 date=date,
                 attendance_records=records,
-                marked_by=request.user if request.user.is_authenticated else None
+                marked_by=marked_by
             )
             
             # Serialize response
@@ -522,13 +491,16 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                 )
         
         try:
+            marked_by = None
+            if request.user.is_authenticated:
+                marked_by = request.user if User.objects.filter(pk=request.user.pk).exists() else None
             attendance = AttendanceService.mark_coach_attendance(
                 class_obj=class_obj,
                 date=attendance_date,
                 coach_id=coach_id,
                 status=attendance_status,
                 notes=notes,
-                marked_by=request.user if request.user.is_authenticated else None
+                marked_by=marked_by
             )
             
             response_serializer = CoachAttendanceSerializer(

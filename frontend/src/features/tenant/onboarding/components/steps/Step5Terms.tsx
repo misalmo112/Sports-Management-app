@@ -7,11 +7,12 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Plus, Trash2 } from 'lucide-react';
-import { validateStep5 } from '../../utils/validation';
-import type { Step5Terms, Term } from '../../types';
+import { validateStep4 } from '../../utils/validation';
+import { useOnboardingTemplates } from '../../hooks/useOnboardingTemplates';
+import type { Step4Terms, Term } from '../../types';
 
 interface Step5TermsProps {
-  onSubmit: (data: Step5Terms) => Promise<void>;
+  onSubmit: (data: Step4Terms) => Promise<void>;
   errors?: Record<string, string[]>;
   isLoading?: boolean;
   formRef?: (form: HTMLFormElement | null) => void;
@@ -23,18 +24,32 @@ export default function Step5Terms({ onSubmit, errors, isLoading: _isLoading, fo
   ]);
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+  const { templates } = useOnboardingTemplates();
 
   useEffect(() => {
-    const saved = localStorage.getItem('onboarding_step_5');
+    const saved = localStorage.getItem('onboarding_step_4');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.terms && parsed.terms.length > 0) {
           setTerms(parsed.terms);
+          return;
         }
       } catch (e) {
         console.error('Error loading saved step 5 data:', e);
       }
+    }
+
+    // Prefill from templates if no saved data
+    if (templates?.suggested_term) {
+      setTerms([
+        {
+          name: templates.suggested_term.name,
+          start_date: templates.suggested_term.start_date,
+          end_date: templates.suggested_term.end_date,
+          description: templates.suggested_term.description || '',
+        },
+      ]);
     }
   }, []);
 
@@ -57,8 +72,8 @@ export default function Step5Terms({ onSubmit, errors, isLoading: _isLoading, fo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const data: Step5Terms = { terms };
-    const clientErrors = validateStep5(data);
+    const data: Step4Terms = { terms };
+    const clientErrors = validateStep4(data);
     if (clientErrors.length > 0) {
       const errorMap: Record<string, string[]> = {};
       clientErrors.forEach((err) => {

@@ -2,7 +2,7 @@
 # Node 18+ with Vite dev and production build support
 
 # Development stage
-FROM node:18-alpine as development
+FROM node:20-alpine as development
 
 # Set work directory
 WORKDIR /app
@@ -28,7 +28,7 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # Builder stage for production
-FROM node:18-alpine as builder
+FROM node:20-alpine as builder
 
 # Set work directory
 WORKDIR /app

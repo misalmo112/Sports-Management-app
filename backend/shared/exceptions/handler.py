@@ -1,5 +1,6 @@
 import traceback
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework import status
@@ -73,9 +74,26 @@ def _log_error(exc, request, code, message, response):
         return
     
     status_code = response.status_code if response else status.HTTP_500_INTERNAL_SERVER_ERROR
-    user = getattr(request, 'user', None) if request else None
+    # Accessing `request.user` can trigger authentication and may raise if the
+    # auth header is missing (e.g. token obtain endpoints). Never let logging
+    # crash the original error path.
+    try:
+        user = getattr(request, 'user', None) if request else None
+    except Exception:
+        user = None
     academy = getattr(request, 'academy', None) if request else None
     stacktrace = traceback.format_exc() if getattr(settings, 'ERROR_LOG_STACKTRACE_ENABLED', False) else None
+    role = ''
+    log_user = None
+    if getattr(user, 'is_authenticated', False):
+        role = getattr(user, 'role', None) or ''
+        try:
+            # In tenant schema requests, request.user can point to a user PK
+            # that does not exist in the active schema's tenant_users table.
+            UserModel = get_user_model()
+            log_user = UserModel.objects.filter(pk=getattr(user, "pk", None)).first()
+        except Exception:
+            log_user = None
     
     try:
         ErrorLog.objects.create(
@@ -87,8 +105,8 @@ def _log_error(exc, request, code, message, response):
             message=str(message),
             stacktrace=stacktrace,
             academy=academy,
-            user=user if getattr(user, 'is_authenticated', False) else None,
-            role=getattr(user, 'role', None) if getattr(user, 'is_authenticated', False) else None,
+            user=log_user,
+            role=role,
             service='backend',
             environment=getattr(settings, 'ERROR_LOG_ENVIRONMENT', 'local'),
         )

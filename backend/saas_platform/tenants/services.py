@@ -73,15 +73,11 @@ class AcademyService:
             call_command(
                 'tenant_migrate',
                 schema=schema_name,
-                database='default',
-                interactive=False,
                 verbosity=0,
             )
             call_command(
                 'tenant_sync_sequences',
                 schema=schema_name,
-                database='default',
-                interactive=False,
                 verbosity=0,
             )
         except Exception:

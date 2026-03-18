@@ -101,43 +101,15 @@ class AttendanceListSerializer(serializers.ModelSerializer):
     
     def get_student_name(self, obj):
         """Safely get student name, handling NULL or inactive student."""
-        import json
-        import os
-        log_path = r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log'
-        try:
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"attendance/serializers.py:105","message":"get_student_name called","data":{"attendanceId":obj.id if hasattr(obj, 'id') else None,"hasStudent":hasattr(obj, 'student'),"studentIsNone":obj.student is None if hasattr(obj, 'student') else 'N/A'},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"S"}) + '\n')
-            # #endregion
-            if obj.student:
-                return obj.student.full_name
-            return None
-        except Exception as e:
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"attendance/serializers.py:113","message":"Error in get_student_name","data":{"errorType":type(e).__name__,"errorMessage":str(e),"attendanceId":obj.id if hasattr(obj, 'id') else None},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"T"}) + '\n')
-            # #endregion
-            return None
+        if obj.student:
+            return obj.student.full_name
+        return None
     
     def get_class_name(self, obj):
         """Safely get class name, handling NULL class."""
-        import json
-        import os
-        log_path = r'c:\Users\misal\OneDrive\Belgeler\Projects\Github\The Sports App\.cursor\debug.log'
-        try:
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"attendance/serializers.py:123","message":"get_class_name called","data":{"attendanceId":obj.id if hasattr(obj, 'id') else None,"hasClass":hasattr(obj, 'class_obj'),"classIsNone":obj.class_obj is None if hasattr(obj, 'class_obj') else 'N/A'},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"S"}) + '\n')
-            # #endregion
-            if obj.class_obj:
-                return obj.class_obj.name
-            return None
-        except Exception as e:
-            # #region agent log
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"attendance/serializers.py:131","message":"Error in get_class_name","data":{"errorType":type(e).__name__,"errorMessage":str(e),"attendanceId":obj.id if hasattr(obj, 'id') else None},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run4","hypothesisId":"T"}) + '\n')
-            # #endregion
-            return None
+        if obj.class_obj:
+            return obj.class_obj.name
+        return None
 
 
 class AttendanceRecordSerializer(serializers.Serializer):

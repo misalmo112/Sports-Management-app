@@ -145,6 +145,25 @@ This document defines the complete environment variable contract for the Sports 
 | `CELERY_TASK_TIME_LIMIT` | No | `300` | Task time limit (seconds) | `300` |
 | `CELERY_TASK_SOFT_TIME_LIMIT` | No | `240` | Task soft time limit (seconds) | `240` |
 
+#### Xero Integration
+
+| Variable | Required | Default | Description | Example |
+|----------|----------|---------|-------------|---------|
+| `XERO_CLIENT_ID` | Yes (future Xero sync) | - | OAuth2 client ID for Xero | `your-xero-client-id` |
+| `XERO_CLIENT_SECRET` | Yes (future Xero sync) | - | OAuth2 client secret for Xero | `your-xero-client-secret` |
+
+#### Masters sync (Frankfurter and WorldTimeAPI)
+
+Platform masters (currencies, timezones, exchange rates) can be synced from public APIs. No API keys required.
+
+| Variable | Required | Default | Description | Example |
+|----------|----------|---------|-------------|---------|
+| `FRANKFURTER_BASE_URL` | No | `https://api.frankfurter.dev` | Frankfurter API base URL (currencies + exchange rates) | `https://api.frankfurter.dev` |
+| `FRANKFURTER_RATE_BASES` | No | `EUR` | Comma-separated base currencies for latest rates | `EUR` or `EUR,USD` |
+| `WORLDTIMEAPI_BASE_URL` | No | `http://worldtimeapi.org/api` | WorldTimeAPI base URL (timezone list) | `http://worldtimeapi.org/api` |
+
+Sync runs via Celery Beat (daily for Frankfurter, weekly for WorldTimeAPI) or manually: `python manage.py sync_frankfurter`, `python manage.py sync_worldtimeapi`.
+
 ### 8. Email Configuration
 
 #### SMTP Settings

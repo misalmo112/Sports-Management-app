@@ -20,6 +20,11 @@ export interface Academy {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  primary_admin?: {
+    email: string;
+    is_active: boolean;
+    is_verified?: boolean;
+  } | null;
   current_subscription?: AcademySubscription | null;
   quota?: AcademyQuota | null;
   usage?: {
@@ -79,16 +84,19 @@ export interface CreateAcademyRequest {
   name: string;
   slug: string;
   email: string;
-  phone?: string;
+  phone: string;
   website?: string;
-  address_line1?: string;
+  address_line1: string;
   address_line2?: string;
   city?: string;
   state?: string;
   postal_code?: string;
   country?: string;
   timezone?: string;
+  currency?: string;
   owner_email: string;
+  /** Subscription plan ID (optional; backend defaults to first active plan if omitted). */
+  plan_id?: number | null;
 }
 
 export interface UpdateAcademyRequest {

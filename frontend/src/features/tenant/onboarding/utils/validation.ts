@@ -28,14 +28,42 @@ export const validateURL = (url: string): boolean => {
   }
 };
 
+/** Phone: digits, +, spaces, hyphens, parentheses; 8-20 chars; at least 8 digits */
+const PHONE_REGEX = /^[\d+\s\-()]+$/;
+export const validatePhone = (phone: string): { valid: boolean; message?: string } => {
+  const trimmed = phone?.trim() ?? '';
+  if (trimmed.length === 0) {
+    return { valid: false, message: 'Phone is required' };
+  }
+  if (trimmed.length > 20) {
+    return { valid: false, message: 'Phone must be 20 characters or less' };
+  }
+  if (!PHONE_REGEX.test(trimmed)) {
+    return {
+      valid: false,
+      message: 'Phone may only contain digits, spaces, and + - ( ). Example: +1 555 123 4567',
+    };
+  }
+  const digitCount = (trimmed.match(/\d/g) || []).length;
+  if (digitCount < 8) {
+    return {
+      valid: false,
+      message: 'Phone must contain at least 8 digits (include country code if needed)',
+    };
+  }
+  return { valid: true };
+};
+
 /**
  * Validate Step 1: Academy Profile
  */
 export const validateStep1 = (data: {
   name?: string;
   email?: string;
+  phone?: string;
   timezone?: string;
   currency?: string;
+  address_line1?: string;
 }): ValidationError[] => {
   const errors: ValidationError[] = [];
 
@@ -51,6 +79,11 @@ export const validateStep1 = (data: {
     errors.push({ field: 'email', message: 'Enter a valid email address' });
   }
 
+  const phoneResult = validatePhone(data.phone ?? '');
+  if (!phoneResult.valid && phoneResult.message) {
+    errors.push({ field: 'phone', message: phoneResult.message });
+  }
+
   if (!data.timezone || data.timezone.trim().length === 0) {
     errors.push({ field: 'timezone', message: 'Timezone is required' });
   }
@@ -61,6 +94,12 @@ export const validateStep1 = (data: {
     errors.push({ field: 'currency', message: 'Currency must be a 3-character code (e.g., USD)' });
   }
 
+  if (!data.address_line1 || data.address_line1.trim().length === 0) {
+    errors.push({ field: 'address_line1', message: 'Address line 1 is required' });
+  } else if (data.address_line1.length > 255) {
+    errors.push({ field: 'address_line1', message: 'Address line 1 must be 255 characters or less' });
+  }
+
   if (data.email && data.email.length > 255) {
     errors.push({ field: 'email', message: 'Email must be 255 characters or less' });
   }
@@ -69,7 +108,7 @@ export const validateStep1 = (data: {
 };
 
 /**
- * Validate Step 2: Locations
+ * Validate Step 2: Branches
  */
 export const validateStep2 = (data: {
   locations?: Array<{ name?: string }>;
@@ -77,18 +116,18 @@ export const validateStep2 = (data: {
   const errors: ValidationError[] = [];
 
   if (!data.locations || data.locations.length === 0) {
-    errors.push({ field: 'locations', message: 'At least one location is required' });
+    errors.push({ field: 'locations', message: 'At least one branch is required' });
     return errors;
   }
 
   const names = new Set<string>();
   data.locations.forEach((location, index) => {
     if (!location.name || location.name.trim().length === 0) {
-      errors.push({ field: `locations[${index}].name`, message: 'Location name is required' });
+      errors.push({ field: `locations[${index}].name`, message: 'Branch name is required' });
     } else if (location.name.length > 255) {
-      errors.push({ field: `locations[${index}].name`, message: 'Location name must be 255 characters or less' });
+      errors.push({ field: `locations[${index}].name`, message: 'Branch name must be 255 characters or less' });
     } else if (names.has(location.name)) {
-      errors.push({ field: `locations[${index}].name`, message: 'Location names must be unique' });
+      errors.push({ field: `locations[${index}].name`, message: 'Branch names must be unique' });
     } else {
       names.add(location.name);
     }
@@ -135,9 +174,9 @@ export const validateStep3 = (data: {
 };
 
 /**
- * Validate Step 4: Age Categories
+ * Legacy (optional): Validate age categories payload
  */
-export const validateStep4 = (data: {
+export const validateAgeCategories = (data: {
   age_categories?: Array<{ name?: string; age_min?: number; age_max?: number }>;
 }): ValidationError[] => {
   const errors: ValidationError[] = [];
@@ -174,9 +213,9 @@ export const validateStep4 = (data: {
 };
 
 /**
- * Validate Step 5: Terms
+ * Validate Step 4: Terms
  */
-export const validateStep5 = (data: {
+export const validateStep4 = (data: {
   terms?: Array<{ name?: string; start_date?: string; end_date?: string }>;
 }): ValidationError[] => {
   const errors: ValidationError[] = [];
@@ -212,9 +251,9 @@ export const validateStep5 = (data: {
 };
 
 /**
- * Validate Step 6: Pricing
+ * Validate Step 5: Pricing
  */
-export const validateStep6 = (data: {
+export const validateStep5 = (data: {
   pricing_items?: Array<{
     name?: string;
     duration_type?: string;
@@ -251,12 +290,6 @@ export const validateStep6 = (data: {
 
     if (item.price === undefined || item.price < 0) {
       errors.push({ field: `pricing_items[${index}].price`, message: 'Price is required and must be 0 or greater' });
-    }
-
-    if (!item.currency || item.currency.trim().length === 0) {
-      errors.push({ field: `pricing_items[${index}].currency`, message: 'Currency is required' });
-    } else if (item.currency.length !== 3) {
-      errors.push({ field: `pricing_items[${index}].currency`, message: 'Currency must be a 3-character code (e.g., USD)' });
     }
   });
 

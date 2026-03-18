@@ -1,192 +1,155 @@
 # Navigation Map
 
-Complete navigation structure organized by user role. This document shows all menu items available to each role in the sidebar navigation.
+Complete sidebar navigation structure based on the current `frontend/src/shared/nav/navigation.ts` configuration.
 
 ## Overview
 
-The navigation system is role-based, with each role having access to specific menu groups and items. Navigation items are organized into collapsible groups for better UX.
+- Navigation is role-based.
+- All dashboard routes require authentication.
+- OWNER navigation merges OWNER-only items with ADMIN items.
+- Detail, create, and nested action routes usually do not have dedicated sidebar items.
 
 ## SUPERADMIN
 
-Platform-level management access.
+Platform-wide management access.
 
 ### Platform Management
+
 - **Academies** (`/dashboard/platform/academies`)
-  - Manage all academies in the platform
 - **Plans** (`/dashboard/platform/plans`)
-  - Manage subscription plans
 
 ### Analytics & Audit
-- **Statistics** (`/dashboard/platform/stats`)
-  - Platform-wide analytics
-- **Errors** (`/dashboard/platform/errors`)
-  - System error tracking
-- **Audit Logs** (`/dashboard/platform/audit-logs`)
-  - System audit trail
 
----
+- **Statistics** (`/dashboard/platform/stats`)
+- **Errors** (`/dashboard/platform/errors`)
+- **Audit Logs** (`/dashboard/platform/audit-logs`)
+
+### Finance
+
+- **Finance** (`/dashboard/platform/finance`)
+- **Payments** (`/dashboard/platform/finance/payments`)
+- **Expenses** (`/dashboard/platform/finance/expenses`)
+
+### Masters
+
+- **Currencies** (`/dashboard/platform/masters/currencies`)
+- **Time zones** (`/dashboard/platform/masters/timezones`)
 
 ## OWNER
 
-Multi-academy management access. OWNER role has access to both OWNER-specific routes and all ADMIN routes.
+OWNER has OWNER-specific routes plus the full ADMIN navigation set.
 
 ### Overview
+
 - **Overview** (`/dashboard/owner/overview`)
-  - Owner dashboard overview
 - **Select Academy** (`/dashboard/select-academy`)
-  - Switch between owned academies
 
-### Operations (from ADMIN)
-- **Students** (`/dashboard/students`)
-- **Classes** (`/dashboard/classes`)
-- **Attendance** (`/dashboard/attendance`)
+### Inherited from ADMIN
 
-### Finance (from ADMIN)
-- **Items** (`/dashboard/finance/items`)
-- **Invoices** (`/dashboard/finance/invoices`)
-- **Receipts** (`/dashboard/finance/receipts`)
-
-### Management (from ADMIN)
-- **Users** (`/dashboard/users`)
-- **Media** (`/dashboard/media`)
-- **Reports** (`/dashboard/reports`)
-
-### Settings (from ADMIN)
-- **Locations** (`/dashboard/settings/locations`)
-- **Sports** (`/dashboard/settings/sports`)
-- **Age Categories** (`/dashboard/settings/age-categories`)
-- **Terms** (`/dashboard/settings/terms`)
-- **Pricing** (`/dashboard/settings/pricing`)
-
----
+- Operations: Students, Classes, Attendance
+- Finance: Items, Invoices, Receipts
+- Management: Users, Media, Reports, Finance Overview, Facilities, Staff, Feedback
+- Settings: Settings Home, My Account, Organization, Subscription, Usage & Limits, Locations, Sports, Age Categories, Terms, Currencies, Time zones, Pricing, Bulk Actions
 
 ## ADMIN
 
-Full tenant operations access for a single academy.
+Single-academy operations and management.
 
 ### Overview
+
 - **Overview** (`/dashboard/admin/overview`)
-  - Admin dashboard overview
 
 ### Operations
+
 - **Students** (`/dashboard/students`)
-  - Manage students
 - **Classes** (`/dashboard/classes`)
-  - Manage classes and enrollments
 - **Attendance** (`/dashboard/attendance`)
-  - Track and manage attendance
 
 ### Finance
+
 - **Items** (`/dashboard/finance/items`)
-  - Manage billing items
 - **Invoices** (`/dashboard/finance/invoices`)
-  - Create and manage invoices
 - **Receipts** (`/dashboard/finance/receipts`)
-  - Record and manage receipts
 
 ### Management
+
 - **Users** (`/dashboard/users`)
-  - Manage academy users (invite, edit)
 - **Media** (`/dashboard/media`)
-  - Manage media files
 - **Reports** (`/dashboard/reports`)
-  - View academy reports
+- **Finance Overview** (`/dashboard/management/finance`)
+- **Facilities** (`/dashboard/management/facilities`)
+- **Staff** (`/dashboard/management/staff`)
+- **Feedback** (`/dashboard/feedback`)
 
 ### Settings
-- **Locations** (`/dashboard/settings/locations`)
-  - Manage academy locations
-- **Sports** (`/dashboard/settings/sports`)
-  - Manage sports/activities
-- **Age Categories** (`/dashboard/settings/age-categories`)
-  - Manage age categories
-- **Terms** (`/dashboard/settings/terms`)
-  - Manage academic terms
-- **Pricing** (`/dashboard/settings/pricing`)
-  - Manage pricing items
 
----
+- **Settings Home** (`/dashboard/settings`)
+- **My Account** (`/dashboard/settings/account`)
+- **Organization** (`/dashboard/settings/organization`)
+- **Subscription** (`/dashboard/settings/subscription`)
+- **Usage & Limits** (`/dashboard/settings/usage`)
+- **Locations** (`/dashboard/settings/locations`)
+- **Sports** (`/dashboard/settings/sports`)
+- **Age Categories** (`/dashboard/settings/age-categories`)
+- **Terms** (`/dashboard/settings/terms`)
+- **Currencies** (`/dashboard/settings/currencies`)
+- **Time zones** (`/dashboard/settings/timezones`)
+- **Pricing** (`/dashboard/settings/pricing`)
+- **Bulk Actions** (`/dashboard/settings/bulk-actions`)
 
 ## COACH
 
-Limited tenant access for assigned classes only.
+Assigned-class operations only.
 
 ### Overview
+
 - **Overview** (`/dashboard/coach/overview`)
-  - Coach dashboard overview
 
 ### Operations
-- **Classes** (`/dashboard/coach/classes`)
-  - View assigned classes
-- **Attendance** (`/dashboard/coach/attendance`)
-  - Mark attendance for assigned classes
-- **Media** (`/dashboard/coach/media`)
-  - Access media for assigned classes
 
----
+- **Classes** (`/dashboard/coach/classes`)
+- **Attendance** (`/dashboard/coach/attendance`)
+- **Media** (`/dashboard/coach/media`)
 
 ## PARENT
 
-Parent-specific access to own children's information.
+Parent self-service access to own-family data.
 
 ### Overview
+
 - **Overview** (`/dashboard/parent/overview`)
-  - Parent dashboard overview
 
 ### My Information
+
 - **Children** (`/dashboard/parent/children`)
-  - View own children's information
 - **Attendance** (`/dashboard/parent/attendance`)
-  - View children's attendance records
 - **Invoices** (`/dashboard/parent/invoices`)
-  - View and manage invoices for own children
 - **Media** (`/dashboard/parent/media`)
-  - Access media related to own children
-- **Complaints** (`/dashboard/parent/complaints`)
-  - Submit and view complaints
+- **Feedback** (`/dashboard/parent/feedback`)
 
----
+## Navigation Behavior
 
-## Navigation Structure
+### Group organization
 
-### Group Organization
-Navigation items are organized into collapsible groups:
-- Groups can be expanded/collapsed
-- Groups with active items are highlighted
-- Empty groups are hidden
+- Sidebar items are grouped into labeled sections.
+- Groups with no visible items are hidden.
+- OWNER navigation is merged from OWNER and ADMIN definitions.
 
-### Active Route Highlighting
-- Current route is highlighted in the sidebar
-- Parent routes are highlighted when on child routes (e.g., `/dashboard/students/123` highlights "Students")
-- Uses prefix matching for nested routes
+### Active route highlighting
 
-### Role Filtering
-- Navigation items are filtered based on current user role
-- Items not accessible to the current role are hidden
-- Entire groups are hidden if no items are visible
+- Exact matching is used for items that explicitly declare `exact: true`.
+- Prefix matching is used for nested routes, so parent items remain highlighted on detail pages.
 
----
+### Intentionally absent sidebar items
 
-## Implementation Details
+The following route types are expected to exist without dedicated navigation items:
 
-### File Structure
-- Navigation configuration: `frontend/src/shared/nav/navigation.ts`
-- Sidebar component: `frontend/src/shared/components/layout/Sidebar.tsx`
-- Dashboard layout: `frontend/src/shared/components/layout/DashboardLayout.tsx`
+- create pages
+- detail pages
+- edit pages
+- nested action pages such as enrollment or mark-attendance flows
 
-### Key Functions
-- `getNavigationForRole(role)`: Get navigation groups for a specific role
-- `isRouteActive(pathname, item)`: Check if a route is currently active
-- `validateNavigationLinks(routerPaths, navItems)`: Validate navigation links against router
+## Source of Truth
 
-### Role Merging
-- OWNER role automatically merges OWNER-specific navigation with ADMIN navigation
-- This is handled by `getNavigationForRole()` function
-
----
-
-## Notes
-
-- All navigation paths must start with `/dashboard`
-- Dynamic routes (e.g., `/dashboard/students/:id`) are supported via prefix matching
-- Navigation respects the same role guards as routes
-- Navigation items are filtered client-side based on `getCurrentUserRole()`
+- Navigation config: `frontend/src/shared/nav/navigation.ts`
+- Router config: `frontend/src/routes/index.tsx`

@@ -1,5 +1,12 @@
+from datetime import date
+
 from rest_framework import serializers
-from saas_platform.subscriptions.models import Plan, Subscription, SubscriptionStatus
+from saas_platform.subscriptions.models import (
+    Plan,
+    PlatformPayment,
+    Subscription,
+    SubscriptionStatus,
+)
 
 
 class PlanSerializer(serializers.ModelSerializer):
@@ -98,7 +105,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'academy', 'academy_name', 'plan', 'plan_name',
             'status', 'is_current', 'start_at', 'end_at', 'trial_ends_at',
-            'overrides_json', 'canceled_at', 'cancel_reason',
+            'overrides_json', 'canceled_at', 'suspended_at', 'cancel_reason',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -128,3 +135,53 @@ class SubscriptionCreateSerializer(serializers.ModelSerializer):
             pass
         
         return attrs
+
+
+class PlatformPaymentSerializer(serializers.ModelSerializer):
+    """Platform payment representation with validation."""
+
+    academy_name = serializers.SerializerMethodField(read_only=True)
+    plan_name = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = PlatformPayment
+        fields = [
+            'id', 'subscription', 'academy', 'academy_name',
+            'amount', 'currency', 'payment_method', 'payment_date',
+            'invoice_ref', 'notes', 'external_ref', 'synced_at',
+            'plan_name', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'academy_name', 'plan_name',
+            'external_ref', 'synced_at', 'created_at', 'updated_at',
+        ]
+
+    def validate_amount(self, value):
+        """Require positive payment amounts."""
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than 0.")
+        return value
+
+    def validate_payment_date(self, value):
+        """Reject future-dated payments."""
+        if value > date.today():
+            raise serializers.ValidationError("Payment date cannot be in the future.")
+        return value
+
+    def validate(self, attrs):
+        """Ensure academy and subscription remain consistent."""
+        academy = attrs.get('academy', getattr(self.instance, 'academy', None))
+        subscription = attrs.get('subscription', getattr(self.instance, 'subscription', None))
+
+        if academy and subscription and subscription.academy_id != academy.id:
+            raise serializers.ValidationError({
+                'academy': ["Academy must match the subscription academy."]
+            })
+
+        return attrs
+
+    def get_academy_name(self, instance):
+        return instance.academy.name if instance.academy_id else ''
+
+    def get_plan_name(self, instance):
+        return instance.subscription.plan.name

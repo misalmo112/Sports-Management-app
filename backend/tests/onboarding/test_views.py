@@ -7,9 +7,11 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from datetime import date, timedelta
 from saas_platform.tenants.models import Academy, OnboardingState
+from saas_platform.masters.models import Currency, Timezone
 from tenant.onboarding.models import (
-    Location, Sport, AgeCategory, Term, PricingItem
+    Location, Sport, AgeCategory, Term
 )
+from tenant.billing.models import Item as BillingItem
 
 User = get_user_model()
 
@@ -19,7 +21,11 @@ class OnboardingViewsTest(TestCase):
     
     def setUp(self):
         self.client = APIClient()
-        
+        # Ensure master data for step 1 validation (timezone/currency from global master)
+        if not Currency.objects.filter(code='USD', is_active=True).exists():
+            Currency.objects.create(code='USD', is_active=True, sort_order=0)
+        if not Timezone.objects.filter(code='UTC', is_active=True).exists():
+            Timezone.objects.create(code='UTC', is_active=True, sort_order=0)
         # Create academy
         self.academy = Academy.objects.create(
             name='Test Academy',
@@ -51,6 +57,52 @@ class OnboardingViewsTest(TestCase):
         self.assertIn('data', response.data)
         self.assertEqual(response.data['data']['current_step'], 1)
         self.assertFalse(response.data['data']['is_completed'])
+        # Pre-fill: response includes current academy profile for Step 1
+        self.assertIn('profile', response.data['data'])
+        profile = response.data['data']['profile']
+        self.assertEqual(profile['name'], self.academy.name)
+        self.assertEqual(profile['email'], self.academy.email)
+
+    def test_get_onboarding_checklist_default(self):
+        """Test GET /api/v1/tenant/onboarding/checklist/ returns defaults."""
+        response = self.client.get('/api/v1/tenant/onboarding/checklist/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'success')
+        data = response.data['data']
+        self.assertFalse(data['members_imported'])
+        self.assertFalse(data['staff_invited'])
+        self.assertFalse(data['first_program_created'])
+        self.assertFalse(data['age_categories_configured'])
+        self.assertFalse(data['attendance_defaults_configured'])
+
+    def test_patch_onboarding_checklist(self):
+        """Test PATCH /api/v1/tenant/onboarding/checklist/ updates flags."""
+        payload = {
+            'members_imported': True,
+            'staff_invited': True,
+        }
+        response = self.client.patch('/api/v1/tenant/onboarding/checklist/', payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'success')
+        data = response.data['data']
+        self.assertTrue(data['members_imported'])
+        self.assertTrue(data['staff_invited'])
+        self.assertIsNotNone(data.get('members_imported_at'))
+        self.assertIsNotNone(data.get('staff_invited_at'))
+
+    def test_get_onboarding_templates(self):
+        """Test GET /api/v1/tenant/onboarding/templates/ returns suggestions."""
+        # Ensure academy has currency for response normalization
+        self.academy.currency = 'USD'
+        self.academy.save(update_fields=['currency'])
+
+        response = self.client.get('/api/v1/tenant/onboarding/templates/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'success')
+        data = response.data['data']
+        self.assertIn('suggested_term', data)
+        self.assertIn('suggested_pricing_items', data)
+        self.assertTrue(len(data['suggested_pricing_items']) >= 1)
     
     def test_step_1_academy_profile(self):
         """Test POST /api/v1/tenant/onboarding/step/1/"""
@@ -63,8 +115,7 @@ class OnboardingViewsTest(TestCase):
             'city': 'New York',
             'state': 'NY',
             'postal_code': '10001',
-            'country': 'USA',
-            'timezone': 'America/New_York',
+            'timezone': 'UTC',
             'currency': 'USD'
         }
         response = self.client.post('/api/v1/tenant/onboarding/step/1/', data, format='json')
@@ -82,6 +133,7 @@ class OnboardingViewsTest(TestCase):
         state = OnboardingState.objects.get(academy=self.academy)
         self.assertTrue(state.step_1_completed)
         self.assertEqual(state.current_step, 2)
+        self.assertIsNotNone(state.step_1_completed_at)
     
     def test_step_2_locations(self):
         """Test POST /api/v1/tenant/onboarding/step/2/"""
@@ -89,6 +141,8 @@ class OnboardingViewsTest(TestCase):
         self.client.post('/api/v1/tenant/onboarding/step/1/', {
             'name': 'Test Academy',
             'email': 'test@example.com',
+            'phone': '+1 555 012 3456',
+            'address_line1': '123 Main St',
             'timezone': 'UTC',
             'currency': 'USD'
         }, format='json')
@@ -131,13 +185,15 @@ class OnboardingViewsTest(TestCase):
         self.client.post('/api/v1/tenant/onboarding/step/1/', {
             'name': 'Test Academy',
             'email': 'test@example.com',
+            'phone': '+1 555 012 3456',
+            'address_line1': '123 Main St',
             'timezone': 'UTC',
             'currency': 'USD'
         }, format='json')
         self.client.post('/api/v1/tenant/onboarding/step/2/', {
             'locations': [{'name': 'Main Facility'}]
         }, format='json')
-        
+
         data = {
             'sports': [
                 {
@@ -163,40 +219,11 @@ class OnboardingViewsTest(TestCase):
         sports = Sport.objects.filter(academy=self.academy)
         self.assertEqual(sports.count(), 2)
     
-    def test_step_4_age_categories(self):
-        """Test POST /api/v1/tenant/onboarding/step/4/"""
+    def test_step_4_terms(self):
+        """Test POST /api/v1/tenant/onboarding/step/4/ (Age Categories removed; step 4 is Terms)."""
         # Complete previous steps
         self._complete_steps_1_3()
-        
-        data = {
-            'age_categories': [
-                {
-                    'name': 'U8 (Under 8)',
-                    'age_min': 5,
-                    'age_max': 7,
-                    'description': 'Ages 5-7'
-                },
-                {
-                    'name': 'U10 (Under 10)',
-                    'age_min': 8,
-                    'age_max': 9,
-                    'description': 'Ages 8-9'
-                }
-            ]
-        }
-        response = self.client.post('/api/v1/tenant/onboarding/step/4/', data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'success')
-        
-        # Verify age categories were created
-        categories = AgeCategory.objects.filter(academy=self.academy)
-        self.assertEqual(categories.count(), 2)
-    
-    def test_step_5_terms(self):
-        """Test POST /api/v1/tenant/onboarding/step/5/"""
-        # Complete previous steps
-        self._complete_steps_1_4()
-        
+
         data = {
             'terms': [
                 {
@@ -213,19 +240,19 @@ class OnboardingViewsTest(TestCase):
                 }
             ]
         }
-        response = self.client.post('/api/v1/tenant/onboarding/step/5/', data, format='json')
+        response = self.client.post('/api/v1/tenant/onboarding/step/4/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'success')
-        
+
         # Verify terms were created
         terms = Term.objects.filter(academy=self.academy)
         self.assertEqual(terms.count(), 2)
     
-    def test_step_6_pricing(self):
-        """Test POST /api/v1/tenant/onboarding/step/6/"""
+    def test_step_5_pricing(self):
+        """Test POST /api/v1/tenant/onboarding/step/5/ (pricing shifted up)."""
         # Complete previous steps
-        self._complete_steps_1_5()
-        
+        self._complete_steps_1_4()
+
         data = {
             'pricing_items': [
                 {
@@ -246,13 +273,75 @@ class OnboardingViewsTest(TestCase):
                 }
             ]
         }
-        response = self.client.post('/api/v1/tenant/onboarding/step/6/', data, format='json')
+        response = self.client.post('/api/v1/tenant/onboarding/step/5/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'success')
-        
-        # Verify pricing items were created
-        items = PricingItem.objects.filter(academy=self.academy)
+
+        # Verify billing items were created
+        items = BillingItem.objects.filter(academy=self.academy)
         self.assertEqual(items.count(), 2)
+
+    def test_step_5_pricing_currency_missing_defaults_to_academy(self):
+        """If pricing items omit currency, it should default to academy.currency."""
+        # Complete previous steps
+        self._complete_steps_1_4()
+
+        # Pick a non-USD currency to prove backend derivation
+        self.academy.currency = 'AED'
+        self.academy.save(update_fields=['currency'])
+
+        data = {
+            'pricing_items': [
+                {
+                    'name': 'Monthly Membership',
+                    'description': 'Monthly unlimited classes',
+                    'duration_type': 'MONTHLY',
+                    'duration_value': 1,
+                    'price': '99.99',
+                    # currency intentionally omitted
+                },
+            ],
+        }
+
+        response = self.client.post('/api/v1/tenant/onboarding/step/5/', data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        items = BillingItem.objects.filter(academy=self.academy)
+        self.assertEqual(items.count(), 1)
+        self.assertEqual(items.first().currency, 'AED')
+
+    def test_step_5_pricing_currency_mismatch_returns_400(self):
+        """Reject when pricing item currency differs from academy currency."""
+        # Complete previous steps
+        self._complete_steps_1_4()
+
+        # Flip academy currency after step 1 (step 5 should enforce academy.currency).
+        self.academy.currency = 'AED'
+        self.academy.save(update_fields=['currency'])
+
+        data = {
+            'pricing_items': [
+                {
+                    'name': 'Monthly Membership',
+                    'description': 'Monthly unlimited classes',
+                    'duration_type': 'MONTHLY',
+                    'duration_value': 1,
+                    'price': '99.99',
+                    'currency': 'USD',  # Mismatch
+                },
+            ],
+        }
+
+        response = self.client.post('/api/v1/tenant/onboarding/step/5/', data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_step_6_pricing_removed(self):
+        """Step 6 no longer exists (Age Categories removed, onboarding is 5 steps)."""
+        # Complete previous steps
+        self._complete_steps_1_5()
+
+        response = self.client.post('/api/v1/tenant/onboarding/step/6/', {'pricing_items': []}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
     def test_complete_onboarding(self):
         """Test POST /api/v1/tenant/onboarding/complete/"""
@@ -278,10 +367,12 @@ class OnboardingViewsTest(TestCase):
         self.client.post('/api/v1/tenant/onboarding/step/1/', {
             'name': 'Test Academy',
             'email': 'test@example.com',
+            'phone': '+1 555 012 3456',
+            'address_line1': '123 Main St',
             'timezone': 'UTC',
             'currency': 'USD'
         }, format='json')
-        
+
         response = self.client.post('/api/v1/tenant/onboarding/complete/')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertTrue(response.data.get('error'))
@@ -313,12 +404,14 @@ class OnboardingViewsTest(TestCase):
         data = {
             'name': 'Test Academy',
             'email': 'test@example.com',
+            'phone': '+1 555 012 3456',
+            'address_line1': '123 Main St',
             'timezone': 'UTC',
             'currency': 'USD'
         }
         response1 = self.client.post('/api/v1/tenant/onboarding/step/1/', data, format='json')
         self.assertEqual(response1.status_code, status.HTTP_200_OK)
-        
+
         # Submit same data again
         response2 = self.client.post('/api/v1/tenant/onboarding/step/1/', data, format='json')
         self.assertEqual(response2.status_code, status.HTTP_200_OK)
@@ -332,6 +425,8 @@ class OnboardingViewsTest(TestCase):
         self.client.post('/api/v1/tenant/onboarding/step/1/', {
             'name': 'Test Academy',
             'email': 'test@example.com',
+            'phone': '+1 555 012 3456',
+            'address_line1': '123 Main St',
             'timezone': 'UTC',
             'currency': 'USD'
         }, format='json')
@@ -346,24 +441,13 @@ class OnboardingViewsTest(TestCase):
         """Helper to complete steps 1-4."""
         self._complete_steps_1_3()
         self.client.post('/api/v1/tenant/onboarding/step/4/', {
-            'age_categories': [{'name': 'U8', 'age_min': 5, 'age_max': 7}]
+            'terms': [{'name': 'Fall 2024', 'start_date': '2024-09-01', 'end_date': '2024-12-15'}]
         }, format='json')
     
     def _complete_steps_1_5(self):
         """Helper to complete steps 1-5."""
         self._complete_steps_1_4()
         self.client.post('/api/v1/tenant/onboarding/step/5/', {
-            'terms': [{
-                'name': 'Fall 2024',
-                'start_date': '2024-09-01',
-                'end_date': '2024-12-15'
-            }]
-        }, format='json')
-    
-    def _complete_all_steps(self):
-        """Helper to complete all steps."""
-        self._complete_steps_1_5()
-        self.client.post('/api/v1/tenant/onboarding/step/6/', {
             'pricing_items': [{
                 'name': 'Monthly Membership',
                 'duration_type': 'MONTHLY',
@@ -372,3 +456,8 @@ class OnboardingViewsTest(TestCase):
                 'currency': 'USD'
             }]
         }, format='json')
+    
+    def _complete_all_steps(self):
+        """Helper to complete all steps."""
+        self._complete_steps_1_5()
+        # No step 6 (pricing shifted to step 5)

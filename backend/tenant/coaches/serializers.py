@@ -1,6 +1,17 @@
+from datetime import datetime, time, timedelta
+
+from django.utils import timezone
 from rest_framework import serializers
 from tenant.billing.models import Receipt
-from tenant.coaches.models import Coach, CoachPayScheme, CoachPayment, StaffInvoice, StaffReceipt
+from tenant.coaches.models import (
+    Coach,
+    CoachPayScheme,
+    CoachPayment,
+    StaffInvoice,
+    StaffPaySchedule,
+    StaffPayScheduleRun,
+    StaffReceipt,
+)
 
 
 class CoachSerializer(serializers.ModelSerializer):
@@ -308,3 +319,154 @@ class StaffReceiptSerializer(serializers.ModelSerializer):
             return None
         inv = obj.staff_invoice
         return {'id': inv.id, 'invoice_number': inv.invoice_number, 'coach_name': inv.coach.full_name}
+
+
+class StaffPayScheduleSerializer(serializers.ModelSerializer):
+    """Serializer for StaffPaySchedule with computed next_run_at."""
+
+    next_run_at = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = StaffPaySchedule
+        fields = [
+            'id',
+            'academy',
+            'coach',
+            'billing_type',
+            'amount',
+            'sessions_per_cycle',
+            'class_scope',
+            'billing_day',
+            'billing_day_of_week',
+            'cycle_start_date',
+            'is_active',
+            'last_run_at',
+            'next_run_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'academy', 'last_run_at', 'created_at', 'updated_at', 'next_run_at']
+
+    def get_next_run_at(self, obj):
+        today = timezone.localdate()
+        if obj.billing_type == StaffPaySchedule.BillingType.SESSION:
+            return None
+        if obj.billing_type == StaffPaySchedule.BillingType.MONTHLY and obj.billing_day:
+            if today.day <= obj.billing_day:
+                next_date = today.replace(day=obj.billing_day)
+            else:
+                first_next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+                next_date = first_next_month.replace(day=obj.billing_day)
+            return timezone.make_aware(datetime.combine(next_date, time.min))
+        if obj.billing_type == StaffPaySchedule.BillingType.WEEKLY and obj.billing_day_of_week is not None:
+            days_ahead = (obj.billing_day_of_week - today.weekday()) % 7
+            next_date = today + timedelta(days=days_ahead)
+            return timezone.make_aware(datetime.combine(next_date, time.min))
+        return None
+
+    def validate_coach(self, value):
+        request = self.context.get('request')
+        if request and getattr(request, 'academy', None) and value.academy_id != request.academy.id:
+            raise serializers.ValidationError('Coach must belong to the current academy.')
+        return value
+
+    def validate(self, attrs):
+        instance = getattr(self, 'instance', None)
+        billing_type = attrs.get('billing_type', instance.billing_type if instance else None)
+        sessions_per_cycle = attrs.get('sessions_per_cycle', instance.sessions_per_cycle if instance else None)
+        class_scope = attrs.get('class_scope', instance.class_scope if instance else None)
+        billing_day = attrs.get('billing_day', instance.billing_day if instance else None)
+        billing_day_of_week = attrs.get(
+            'billing_day_of_week',
+            instance.billing_day_of_week if instance else None,
+        )
+
+        if billing_type == StaffPaySchedule.BillingType.SESSION:
+            if not sessions_per_cycle:
+                raise serializers.ValidationError(
+                    {'sessions_per_cycle': 'sessions_per_cycle must be set for SESSION schedules.'}
+                )
+            if billing_day is not None or billing_day_of_week is not None:
+                raise serializers.ValidationError(
+                    'billing_day and billing_day_of_week must be null for SESSION schedules.'
+                )
+        elif billing_type == StaffPaySchedule.BillingType.MONTHLY:
+            if billing_day is None:
+                raise serializers.ValidationError({'billing_day': 'billing_day must be set for MONTHLY schedules.'})
+            if sessions_per_cycle is not None or class_scope is not None or billing_day_of_week is not None:
+                raise serializers.ValidationError(
+                    'sessions_per_cycle, class_scope, and billing_day_of_week must be null for MONTHLY schedules.'
+                )
+        elif billing_type == StaffPaySchedule.BillingType.WEEKLY:
+            if billing_day_of_week is None:
+                raise serializers.ValidationError(
+                    {'billing_day_of_week': 'billing_day_of_week must be set for WEEKLY schedules.'}
+                )
+            if billing_day_of_week < 0 or billing_day_of_week > 6:
+                raise serializers.ValidationError({'billing_day_of_week': 'billing_day_of_week must be between 0 and 6.'})
+            if sessions_per_cycle is not None or class_scope is not None or billing_day is not None:
+                raise serializers.ValidationError(
+                    'sessions_per_cycle, class_scope, and billing_day must be null for WEEKLY schedules.'
+                )
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and getattr(request, 'academy', None):
+            validated_data['academy'] = request.academy
+        return super().create(validated_data)
+
+
+class StaffPayScheduleRunSerializer(serializers.ModelSerializer):
+    """Read-only serializer for schedule run history."""
+
+    class Meta:
+        model = StaffPayScheduleRun
+        fields = ['id', 'schedule', 'run_at', 'invoices_created', 'status', 'triggered_by', 'error_detail']
+        read_only_fields = fields
+
+
+class PendingCoachSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Coach
+        fields = ['id', 'full_name']
+        read_only_fields = fields
+
+
+class PendingScheduleSerializer(serializers.ModelSerializer):
+    next_run_at = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = StaffPaySchedule
+        fields = ['id', 'billing_type', 'next_run_at']
+        read_only_fields = fields
+
+    def get_next_run_at(self, obj):
+        return StaffPayScheduleSerializer(context=self.context).get_next_run_at(obj)
+
+
+class PendingStaffInvoiceSerializer(serializers.ModelSerializer):
+    coach = PendingCoachSerializer(read_only=True)
+    schedule = PendingScheduleSerializer(read_only=True)
+
+    class Meta:
+        model = StaffInvoice
+        fields = [
+            'id',
+            'academy',
+            'coach',
+            'schedule',
+            'invoice_number',
+            'amount',
+            'currency',
+            'period_description',
+            'period_type',
+            'period_start',
+            'status',
+            'issued_date',
+            'due_date',
+            'notes',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields

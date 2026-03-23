@@ -260,14 +260,6 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'operations',
         },
-        {
-          id: 'staff-pay-schedules',
-          label: 'Staff Pay Schedules',
-          path: '/dashboard/operations/staff-pay-schedules',
-          icon: CalendarDays,
-          roles: ['ADMIN', 'OWNER', 'STAFF'],
-          group: 'operations',
-        },
       ],
     },
     {
@@ -349,6 +341,15 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Staff',
           path: '/dashboard/management/staff',
           icon: Users,
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
+          group: 'management',
+          exact: true,
+        },
+        {
+          id: 'staff-pay-schedules',
+          label: 'Staff Pay Schedules',
+          path: '/dashboard/management/staff/pay-schedules',
+          icon: CalendarDays,
           roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
@@ -586,12 +587,18 @@ export function filterAdminNavByModules(
   modules: string[],
 ): NavigationGroup[] {
   const allow = new Set(modules);
+  const itemAllowed = (item: (typeof groups)[number]['items'][number]): boolean => {
+    if (item.id === 'my-account') return true;
+    if (item.id === 'staff-pay-schedules') {
+      // Part of Staff module: show when Staff list is granted (or explicit key if added later).
+      return allow.has('staff-pay-schedules') || allow.has('staff');
+    }
+    return allow.has(item.id);
+  };
   return groups
     .map((group) => ({
       ...group,
-      items: group.items.filter(
-        (item) => item.id === 'my-account' || allow.has(item.id),
-      ),
+      items: group.items.filter(itemAllowed),
     }))
     .filter((group) => group.items.length > 0);
 }

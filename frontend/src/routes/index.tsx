@@ -360,15 +360,15 @@ export const router = createBrowserRouter([
         element: createProtectedRoute(<InvoiceScheduleEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoice-schedules'),
       },
       {
-        path: 'operations/staff-pay-schedules',
+        path: 'management/staff/pay-schedules',
         element: createProtectedRoute(<StaffPaySchedulesPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
       },
       {
-        path: 'operations/staff-pay-schedules/create',
+        path: 'management/staff/pay-schedules/create',
         element: createProtectedRoute(<StaffPayScheduleCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
       },
       {
-        path: 'operations/staff-pay-schedules/:id/edit',
+        path: 'management/staff/pay-schedules/:id/edit',
         element: createProtectedRoute(<StaffPayScheduleEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
       },
 

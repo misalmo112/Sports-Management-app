@@ -43,6 +43,19 @@ describe('filterAdminNavByModules', () => {
     expect(ids).toContain('students');
     expect(ids).not.toContain('users');
   });
+
+  it('shows staff-pay-schedules when staff module is granted (bundled under Staff)', () => {
+    const filtered = filterAdminNavByModules(navigationConfig.ADMIN, ['staff']);
+    const ids = filtered.flatMap((g) => g.items.map((i) => i.id));
+    expect(ids).toContain('staff');
+    expect(ids).toContain('staff-pay-schedules');
+  });
+
+  it('hides staff-pay-schedules when neither staff nor staff-pay-schedules is granted', () => {
+    const filtered = filterAdminNavByModules(navigationConfig.ADMIN, ['students']);
+    const ids = filtered.flatMap((g) => g.items.map((i) => i.id));
+    expect(ids).not.toContain('staff-pay-schedules');
+  });
 });
 
 describe('getNavigationForRole (STAFF)', () => {

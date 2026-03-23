@@ -51,13 +51,16 @@ docker-compose up -d
 
 ### 4. Database schemas (migrations) vs data
 
-- **Schemas**: Your teammate *will* get the same Postgres schema **as long as your Django migrations are committed to GitHub**. The backend container runs `python manage.py migrate --noinput` automatically on startup.
+- **Schemas**: Your teammate *will* get the same Postgres schema **as long as your Django migrations are committed to GitHub**. On every start, **`backend`** and **`celery-worker`** use `backend/entrypoint.sh`, which runs:
+  - `python manage.py migrate --noinput` (public schema)
+  - `python manage.py tenant_migrate_all` (per-academy Postgres tenant schemas; no-op on SQLite)
 - **Data**: Your teammate will **not** get your local Postgres rows (your existing dev data) unless you export/import it explicitly.
 
 Manual migration (rarely needed):
 
 ```bash
 docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py tenant_migrate_all
 ```
 
 ### 5. Create the initial superuser

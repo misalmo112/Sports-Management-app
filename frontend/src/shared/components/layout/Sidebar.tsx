@@ -27,7 +27,7 @@ export function Sidebar({ className }: SidebarProps) {
     g.items.some((i) => i.id === 'invoice-schedules')
   );
   const hasStaffPaySchedulesNav = navigationGroups.some((g) =>
-    g.items.some((i) => i.path === '/dashboard/operations/staff-pay-schedules')
+    g.items.some((i) => i.id === 'staff-pay-schedules')
   );
 
   const { data: pendingApprovalsCount } = useQuery<number, Error>({
@@ -156,7 +156,7 @@ export function Sidebar({ className }: SidebarProps) {
                             {pendingApprovalsCount! > 99 ? '99+' : pendingApprovalsCount}
                           </Badge>
                         ) : null}
-                        {item.path === '/dashboard/operations/staff-pay-schedules' && (staffPendingApprovalsCount ?? 0) > 0 ? (
+                        {item.id === 'staff-pay-schedules' && (staffPendingApprovalsCount ?? 0) > 0 ? (
                           <Badge variant="destructive" className="ml-auto">
                             {staffPendingApprovalsCount! > 99 ? '99+' : staffPendingApprovalsCount}
                           </Badge>

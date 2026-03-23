@@ -95,7 +95,7 @@ export function StaffPaySchedulesPage() {
           <h1 className="text-3xl font-bold">Staff Pay Schedules</h1>
           <p className="text-muted-foreground mt-2">Manage coach pay schedules and issue generated staff invoices.</p>
         </div>
-        <Button onClick={() => navigate('/dashboard/operations/staff-pay-schedules/create')} disabled={isLoading}>
+        <Button onClick={() => navigate('/dashboard/management/staff/pay-schedules/create')} disabled={isLoading}>
           Create Schedule
         </Button>
       </div>
@@ -135,7 +135,7 @@ export function StaffPaySchedulesPage() {
                   title="No schedules found"
                   description="Create your first staff pay schedule."
                   actionLabel="Create Schedule"
-                  onAction={() => navigate('/dashboard/operations/staff-pay-schedules/create')}
+                  onAction={() => navigate('/dashboard/management/staff/pay-schedules/create')}
                 />
               ) : (
                 <>
@@ -168,7 +168,7 @@ export function StaffPaySchedulesPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => navigate(`/dashboard/operations/staff-pay-schedules/${s.id}/edit`)}
+                                  onClick={() => navigate(`/dashboard/management/staff/pay-schedules/${s.id}/edit`)}
                                 >
                                   <Edit className="h-4 w-4 mr-1" />
                                   Edit

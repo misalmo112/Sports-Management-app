@@ -43,7 +43,7 @@ export function StaffPayScheduleCreatePage() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <Button variant="ghost" onClick={() => navigate('/dashboard/operations/staff-pay-schedules')}>
+      <Button variant="ghost" onClick={() => navigate('/dashboard/management/staff/pay-schedules')}>
         ← Back to Staff Pay Schedules
       </Button>
 
@@ -78,7 +78,7 @@ export function StaffPayScheduleCreatePage() {
 
               try {
                 const created = await createMutation.mutateAsync(payload);
-                navigate(`/dashboard/operations/staff-pay-schedules/${created.id}/edit`);
+                navigate(`/dashboard/management/staff/pay-schedules/${created.id}/edit`);
               } catch (err) {
                 const validation = extractValidationErrors(err);
                 if (validation) setErrors(validation);
@@ -104,7 +104,7 @@ export function StaffPayScheduleCreatePage() {
             />
 
             <div className="flex justify-end gap-4">
-              <Button type="button" variant="outline" onClick={() => navigate('/dashboard/operations/staff-pay-schedules')} disabled={createMutation.isPending}>
+              <Button type="button" variant="outline" onClick={() => navigate('/dashboard/management/staff/pay-schedules')} disabled={createMutation.isPending}>
                 Cancel
               </Button>
               <Button type="submit" disabled={createMutation.isPending}>

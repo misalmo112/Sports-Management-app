@@ -288,6 +288,11 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = os.getenv('CELERY_TIMEZONE', 'UTC')
 CELERY_ENABLE_UTC = os.getenv('CELERY_ENABLE_UTC', 'True') == 'True'
 
+# Modules imported at worker startup so task names match beat/API (tenant.* can be missed by autodiscover).
+CELERY_IMPORTS = [
+    'tenant.coaches.tasks',
+]
+
 # Beat schedule utilities (keep import safe for test environments)
 try:  # pragma: no cover
     from celery.schedules import crontab

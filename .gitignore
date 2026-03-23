@@ -92,6 +92,7 @@ tests/e2e/test-results.json/
 # Celery
 celerybeat-schedule
 celerybeat.pid
+backend/gunicorn.ctl
 
 # Jupyter Notebook
 .ipynb_checkpoints

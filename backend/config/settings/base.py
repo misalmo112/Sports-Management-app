@@ -288,6 +288,24 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = os.getenv('CELERY_TIMEZONE', 'UTC')
 CELERY_ENABLE_UTC = os.getenv('CELERY_ENABLE_UTC', 'True') == 'True'
 
+# Beat schedule utilities (keep import safe for test environments)
+try:  # pragma: no cover
+    from celery.schedules import crontab
+except ImportError:  # pragma: no cover
+    # Provide a minimal placeholder so settings import stays stable even when Celery
+    # is not installed in the current environment. When Celery is available, the real
+    # `crontab` is used.
+    class _CrontabPlaceholder:
+        def __init__(self, **kwargs):
+            self.hour = kwargs.get("hour", None)
+            self.minute = kwargs.get("minute", None)
+
+        def __repr__(self) -> str:
+            return f"crontab(hour={self.hour}, minute={self.minute})"
+
+    def crontab(*_args, **kwargs):  # type: ignore[no-redef]
+        return _CrontabPlaceholder(**kwargs)
+
 # Celery Beat schedule (masters sync from Frankfurter and WorldTimeAPI)
 CELERY_BEAT_SCHEDULE = {
     'sync-frankfurter-daily': {
@@ -300,6 +318,10 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60 * 60 * 24 * 7,  # every 7 days
         'options': {'expires': 60 * 60},
     },
+    'run-invoice-schedules': {
+      'task': 'tenant.billing.tasks.run_invoice_schedules',
+      'schedule': crontab(hour=0, minute=0),
+  }
 }
 
 # Frankfurter API (currencies + exchange rates)

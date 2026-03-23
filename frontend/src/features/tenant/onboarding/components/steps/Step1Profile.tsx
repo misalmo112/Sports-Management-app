@@ -73,7 +73,7 @@ export default function Step1Profile({ onSubmit, errors, isLoading: _isLoading, 
       }
     }
     const fromApi = initialData ?? {};
-    setFormData((prev) => ({ ...DEFAULT_STEP1, ...fromApi, ...parsed }));
+    setFormData(() => ({ ...DEFAULT_STEP1, ...fromApi, ...parsed }));
   }, [initialData]);
 
   const handleChange = (field: keyof Step1Profile, value: string) => {

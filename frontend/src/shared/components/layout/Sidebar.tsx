@@ -5,11 +5,14 @@
  */
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/shared/utils/cn';
 import { getNavigationForRole, isRouteActive } from '@/shared/nav/navigation';
 import { getCurrentUserRole } from '@/shared/utils/roleAccess';
+import apiClient from '@/shared/services/api';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Badge } from '@/shared/components/ui/badge';
 
 interface SidebarProps {
   className?: string;
@@ -19,6 +22,27 @@ export function Sidebar({ className }: SidebarProps) {
   const location = useLocation();
   const userRole = getCurrentUserRole();
   const navigationGroups = getNavigationForRole(userRole);
+
+  const hasInvoiceSchedulesNav = navigationGroups.some((g) =>
+    g.items.some((i) => i.id === 'invoice-schedules')
+  );
+
+  const { data: pendingApprovalsCount } = useQuery<number, Error>({
+    queryKey: ['pending-approvals', 'count'],
+    enabled: hasInvoiceSchedulesNav,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/tenant/pending-approvals/?page_size=1');
+      const payload = res.data;
+
+      if (Array.isArray(payload)) return payload.length;
+      if (typeof payload?.count === 'number') return payload.count;
+      if (Array.isArray(payload?.results)) return payload.results.length;
+      return 0;
+    },
+  });
+
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(navigationGroups.map(g => g.id)) // All groups expanded by default
   );
@@ -105,6 +129,14 @@ export function Sidebar({ className }: SidebarProps) {
                       >
                         {Icon && <Icon className="h-4 w-4" />}
                         <span>{item.label}</span>
+                        {item.id === 'invoice-schedules' && (pendingApprovalsCount ?? 0) > 0 ? (
+                          <Badge
+                            variant="destructive"
+                            className="ml-auto"
+                          >
+                            {pendingApprovalsCount! > 99 ? '99+' : pendingApprovalsCount}
+                          </Badge>
+                        ) : null}
                       </Link>
                     );
                   })}

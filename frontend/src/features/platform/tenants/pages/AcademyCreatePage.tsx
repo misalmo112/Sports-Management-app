@@ -70,9 +70,10 @@ export const AcademyCreatePage = () => {
   const timezones = timezonesData?.results ?? [];
   const currencies = currenciesData?.results ?? [];
   // Prefer platform countries; fallback to tenant masters when platform fails or is empty
+  const platformCountries = countriesData?.results ?? [];
   const countries =
-    countriesData?.results?.length > 0
-      ? countriesData.results
+    platformCountries.length > 0
+      ? platformCountries
       : (tenantCountriesData?.countries ?? []).map((c) => ({
           id: 0,
           code: c.code,
@@ -202,9 +203,9 @@ export const AcademyCreatePage = () => {
         email: formData.email.trim().toLowerCase(),
         owner_email: formData.owner_email.trim().toLowerCase(),
         address_line1: formData.address_line1.trim(),
+        phone: formData.phone.trim(),
       };
 
-      submitData.phone = formData.phone.trim();
       if (formData.website?.trim()) {
         submitData.website = formData.website.trim();
       }

@@ -7,6 +7,7 @@ export const TENANT_MODULE_KEYS = [
   'students',
   'classes',
   'attendance',
+  'invoice-schedules',
   'finance-items',
   'invoices',
   'receipts',

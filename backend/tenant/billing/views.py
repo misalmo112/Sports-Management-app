@@ -1,14 +1,31 @@
 """
 Views for billing models.
 """
+
+from datetime import date
+
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
+from rest_framework.generics import ListAPIView
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from tenant.billing.models import Item, Invoice, InvoiceItem, Receipt
+from django.shortcuts import get_object_or_404
+
+from tenant.billing.models import (
+    BillingType,
+    Invoice,
+    InvoiceItem,
+    InvoiceSchedule,
+    InvoiceScheduleRun,
+    Item,
+    Receipt,
+    StudentScheduleOverride,
+    TriggerSource,
+)
 from tenant.billing.serializers import (
     ItemSerializer,
     ItemListSerializer,
@@ -21,8 +38,13 @@ from tenant.billing.serializers import (
     ReceiptSerializer,
     ReceiptListSerializer,
     CreateReceiptSerializer,
+    InvoiceScheduleSerializer,
+    StudentScheduleOverrideSerializer,
+    InvoiceScheduleRunSerializer,
+    PendingApprovalInvoiceSerializer,
 )
 from tenant.billing.services import InvoiceService
+from tenant.billing.tasks import evaluate_session_schedules, evaluate_monthly_schedules
 from tenant.students.models import Parent
 from shared.permissions.tenant import (
     IsTenantAdmin, IsParent,
@@ -426,3 +448,188 @@ class ReceiptViewSet(viewsets.ModelViewSet):
     def get_object(self):
         """Get object with permission check."""
         return super().get_object()
+
+
+class InvoiceScheduleViewSet(viewsets.ModelViewSet):
+    """CRUD + execution actions for invoice schedules (IS.4)."""
+
+    required_tenant_module = "invoices"
+
+    queryset = InvoiceSchedule.objects.all()
+    serializer_class = InvoiceScheduleSerializer
+    permission_classes = [IsTenantAdmin]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return filter_by_academy(
+            queryset,
+            self.request.academy,
+            self.request.user,
+            self.request,
+        )
+
+    @action(detail=True, methods=["post"], url_path="run")
+    def manual_run(self, request, pk=None):
+        schedule = self.get_object()
+
+        # Manual runs should evaluate the specific schedule only (if it matches the task type).
+        evaluate_session_schedules(schedule_id=schedule.id, triggered_by=TriggerSource.MANUAL)
+        evaluate_monthly_schedules(schedule_id=schedule.id, triggered_by=TriggerSource.MANUAL)
+
+        run = (
+            InvoiceScheduleRun.objects.filter(
+                schedule_id=schedule.id,
+                triggered_by=TriggerSource.MANUAL,
+            )
+            .order_by("-run_at")
+            .first()
+        )
+        if not run:
+            return Response(
+                {"detail": "No schedule run was created for the provided schedule."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "invoices_created": run.invoices_created,
+                "status": run.status,
+                "run_at": run.run_at,
+            }
+        )
+
+    @action(detail=True, methods=["post"], url_path="toggle-active")
+    def toggle_active(self, request, pk=None):
+        schedule = self.get_object()
+        schedule.is_active = not schedule.is_active
+        schedule.save(update_fields=["is_active", "updated_at"])
+        serializer = self.get_serializer(schedule)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="runs")
+    def runs(self, request, pk=None):
+        schedule = self.get_object()
+        run_qs = schedule.runs.all().order_by("-run_at")
+        page = self.paginate_queryset(run_qs)
+        if page is not None:
+            serializer = InvoiceScheduleRunSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = InvoiceScheduleRunSerializer(run_qs, many=True)
+        return Response(serializer.data)
+
+
+class StudentScheduleOverrideViewSet(viewsets.ModelViewSet):
+    """Nested CRUD for student schedule overrides under a schedule (IS.4)."""
+
+    required_tenant_module = "invoices"
+
+    serializer_class = StudentScheduleOverrideSerializer
+    permission_classes = [IsTenantAdmin]
+    queryset = StudentScheduleOverride.objects.all()
+
+    def get_queryset(self):
+        schedule_id = self.kwargs.get("schedule_id")
+        return self.queryset.filter(
+            schedule_id=schedule_id,
+            schedule__academy=self.request.academy,
+        )
+
+    def perform_create(self, serializer):
+        schedule_id = self.kwargs.get("schedule_id")
+        schedule = get_object_or_404(InvoiceSchedule, id=schedule_id, academy=self.request.academy)
+        serializer.save(schedule=schedule)
+
+
+class PendingApprovalsView(ListAPIView):
+    """List auto-generated DRAFT invoices awaiting approval (IS.4)."""
+
+    required_tenant_module = "invoices"
+
+    permission_classes = [IsTenantAdmin]
+    serializer_class = PendingApprovalInvoiceSerializer
+
+    def get_queryset(self):
+        qs = Invoice.objects.filter(
+            academy=self.request.academy,
+            status=Invoice.Status.DRAFT,
+            schedule__isnull=False,
+        ).select_related(
+            "parent",
+            "schedule",
+            "schedule__class_obj",
+            "schedule__class_obj__sport",
+            "schedule__class_obj__location",
+        ).prefetch_related("items__student")
+
+        schedule_id = self.request.query_params.get("schedule_id")
+        class_id = self.request.query_params.get("class_id")
+        date_from = self.request.query_params.get("date_from")
+
+        if schedule_id:
+            qs = qs.filter(schedule_id=schedule_id)
+        if class_id:
+            qs = qs.filter(schedule__class_obj_id=class_id)
+        if date_from:
+            try:
+                dt_from = date.fromisoformat(date_from)
+                qs = qs.filter(created_at__date__gte=dt_from)
+            except ValueError:
+                # Keep it strict only for invalid formats (tests cover core behavior).
+                raise serializers.ValidationError("date_from must be an ISO date (YYYY-MM-DD).")
+
+        return qs.order_by("-created_at")
+
+
+class BulkIssueView(APIView):
+    """Bulk mark DRAFT invoices as SENT and set issued_date (IS.4)."""
+
+    required_tenant_module = "invoices"
+    permission_classes = [IsTenantAdmin]
+
+    def post(self, request, *args, **kwargs):
+        invoice_ids = request.data.get("invoice_ids", None)
+        if invoice_ids is None or not isinstance(invoice_ids, list) or not invoice_ids:
+            return Response(
+                {"detail": "invoice_ids must be a non-empty list."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Normalize (and validate) ids.
+        try:
+            invoice_ids = [int(i) for i in invoice_ids]
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "invoice_ids must contain valid integer ids."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        unique_ids = list(dict.fromkeys(invoice_ids))
+        invoices_all = Invoice.objects.select_related("academy").filter(id__in=unique_ids)
+        found_ids = set(invoices_all.values_list("id", flat=True))
+        missing_ids = sorted(set(unique_ids) - found_ids)
+        if missing_ids:
+            return Response(
+                {"detail": "Some invoice_ids were not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        other_academy = invoices_all.exclude(academy=self.request.academy)
+        if other_academy.exists():
+            return Response(
+                {"detail": "Some invoice_ids belong to another academy."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Validation: only DRAFT invoices can be issued.
+        non_draft = invoices_all.exclude(status=Invoice.Status.DRAFT)
+        if non_draft.exists():
+            return Response(
+                {"detail": "Only DRAFT invoices can be issued."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        today = date.today()
+        with transaction.atomic():
+            invoices_all.update(status=Invoice.Status.SENT, issued_date=today)
+
+        return Response({"invoices_issued": invoices_all.count()})

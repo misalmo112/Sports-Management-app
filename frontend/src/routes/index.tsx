@@ -93,6 +93,11 @@ import { CoachDetailPage } from '@/features/tenant/staff/pages/CoachDetailPage';
 import { UsersPage } from '@/features/tenant/users/pages/UsersPage';
 import { UserDetailPage } from '@/features/tenant/users/pages/UserDetailPage';
 
+// Invoice schedules (IS.5)
+import { InvoiceSchedulesPage } from '@/features/tenant/billing/invoice-schedules/pages/InvoiceSchedulesPage';
+import { InvoiceScheduleCreatePage } from '@/features/tenant/billing/invoice-schedules/pages/InvoiceScheduleCreatePage';
+import { InvoiceScheduleEditPage } from '@/features/tenant/billing/invoice-schedules/pages/InvoiceScheduleEditPage';
+
 // Coach pages
 import { CoachOverviewPage } from '@/features/tenant/overview/pages/CoachOverviewPage';
 import { CoachClassesPage } from '@/features/tenant/classes/pages/CoachClassesPage';
@@ -337,6 +342,21 @@ export const router = createBrowserRouter([
         path: 'attendance/coach',
         element: createProtectedRoute(<CoachAttendancePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'attendance'),
       },
+
+      // Invoice schedules (Admin/Owner/STAFF)
+      {
+        path: 'operations/invoice-schedules',
+        element: createProtectedRoute(<InvoiceSchedulesPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoice-schedules'),
+      },
+      {
+        path: 'operations/invoice-schedules/new',
+        element: createProtectedRoute(<InvoiceScheduleCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoice-schedules'),
+      },
+      {
+        path: 'operations/invoice-schedules/:id/edit',
+        element: createProtectedRoute(<InvoiceScheduleEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoice-schedules'),
+      },
+
       // Finance routes (Admin/Owner/STAFF)
       {
         path: 'finance/items',

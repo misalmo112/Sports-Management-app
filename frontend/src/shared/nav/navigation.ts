@@ -252,6 +252,14 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'operations',
         },
+        {
+          id: 'invoice-schedules',
+          label: 'Invoice Schedules',
+          path: '/dashboard/operations/invoice-schedules',
+          icon: CalendarDays,
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
+          group: 'operations',
+        },
       ],
     },
     {

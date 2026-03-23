@@ -16,7 +16,6 @@ const mockState: OnboardingState = {
     step_3: { name: 'Sports', completed: false },
     step_4: { name: 'Terms', completed: false },
     step_5: { name: 'Pricing', completed: false },
-    step_6: { name: 'Pricing', completed: false },
   },
   locked: false,
   locked_by: null,
@@ -25,7 +24,7 @@ const mockState: OnboardingState = {
 };
 
 describe('WizardProgress', () => {
-  it('renders all 6 steps', () => {
+  it('renders all 5 steps', () => {
     render(<WizardProgress state={mockState} currentStep={2} />);
     
     expect(screen.getByText('Academy Profile')).toBeInTheDocument();

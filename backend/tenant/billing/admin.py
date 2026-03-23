@@ -2,7 +2,16 @@
 Admin configuration for billing models.
 """
 from django.contrib import admin
-from tenant.billing.models import Item, Invoice, InvoiceItem, Receipt
+from tenant.billing.models import (
+    Item,
+    Invoice,
+    InvoiceItem,
+    InvoiceSchedule,
+    InvoiceScheduleRun,
+    StudentInvoiceCycle,
+    StudentScheduleOverride,
+    Receipt,
+)
 
 
 @admin.register(Item)
@@ -73,3 +82,49 @@ class ReceiptAdmin(admin.ModelAdmin):
     list_filter = ['payment_method', 'academy', 'payment_date']
     search_fields = ['receipt_number', 'invoice__invoice_number']
     readonly_fields = ['receipt_number', 'created_at', 'updated_at']
+
+
+class StudentScheduleOverrideInline(admin.TabularInline):
+    """Inline admin for StudentScheduleOverride."""
+    model = StudentScheduleOverride
+    extra = 0
+
+
+@admin.register(StudentScheduleOverride)
+class StudentScheduleOverrideAdmin(admin.ModelAdmin):
+    """Admin for StudentScheduleOverride."""
+    list_display = ['schedule', 'student', 'discount_type', 'discount_value']
+    list_filter = ['discount_type', 'schedule__billing_type']
+    search_fields = ['student__first_name', 'student__last_name']
+    readonly_fields = []
+
+
+@admin.register(InvoiceSchedule)
+class InvoiceScheduleAdmin(admin.ModelAdmin):
+    """Admin for InvoiceSchedule."""
+    list_display = ['class_obj', 'billing_type', 'invoice_creation_timing', 'is_active', 'last_run_at']
+    list_filter = ['billing_type', 'is_active', 'class_obj__academy']
+    search_fields = ['class_obj__name']
+    inlines = [StudentScheduleOverrideInline]
+
+
+@admin.register(StudentInvoiceCycle)
+class StudentInvoiceCycleAdmin(admin.ModelAdmin):
+    """Admin for StudentInvoiceCycle."""
+    list_display = ['schedule', 'student', 'cycle_number', 'sessions_counted', 'invoice']
+    list_filter = ['schedule__billing_type', 'schedule__class_obj__academy']
+    search_fields = ['student__first_name', 'student__last_name']
+
+
+@admin.register(InvoiceScheduleRun)
+class InvoiceScheduleRunAdmin(admin.ModelAdmin):
+    """Admin for InvoiceScheduleRun (audit record)."""
+    list_display = ['schedule', 'run_at', 'status', 'invoices_created', 'triggered_by']
+    read_only_fields = ['schedule', 'run_at', 'status', 'invoices_created', 'triggered_by', 'error_detail']
+
+    def get_readonly_fields(self, request, obj=None):
+        # Keep audit intent (read-only fields) while still allowing creation
+        # via the add view by making fields editable when `obj` is None.
+        if obj is None:
+            return []
+        return self.read_only_fields

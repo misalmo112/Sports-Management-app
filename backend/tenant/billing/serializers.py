@@ -3,7 +3,22 @@ Serializers for billing models.
 """
 from rest_framework import serializers
 from decimal import Decimal
-from tenant.billing.models import Item, Invoice, InvoiceItem, Receipt
+from datetime import datetime, time, timedelta
+
+from django.utils import timezone
+
+from tenant.billing.models import (
+    BillingType,
+    InvoiceCreationTiming,
+    DiscountType,
+    Invoice,
+    InvoiceItem,
+    InvoiceSchedule,
+    InvoiceScheduleRun,
+    Item,
+    Receipt,
+    StudentScheduleOverride,
+)
 from tenant.students.models import Parent, Student
 from tenant.onboarding.serializers import SportListSerializer, LocationListSerializer
 
@@ -456,3 +471,291 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
     def get_remaining_balance(self, obj):
         """Get remaining balance."""
         return obj.get_remaining_balance()
+
+
+class ParentSummarySerializer(serializers.ModelSerializer):
+    """Small nested parent payload for pending approval invoices."""
+
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Parent
+        fields = ["id", "first_name", "last_name", "full_name", "email"]
+
+    def get_full_name(self, obj) -> str:
+        return obj.full_name
+
+
+class InvoiceScheduleSerializer(serializers.ModelSerializer):
+    """Serializer for managing invoice schedules."""
+
+    next_run_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InvoiceSchedule
+        fields = [
+            "id",
+            "academy",
+            "class_obj",
+            "billing_item",
+            "billing_type",
+            "sessions_per_cycle",
+            "bill_absent_sessions",
+            "billing_day",
+            "invoice_creation_timing",
+            "cycle_start_date",
+            "is_active",
+            "last_run_at",
+            "next_run_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "academy", "last_run_at", "next_run_at", "created_at", "updated_at"]
+
+    def get_next_run_at(self, obj: InvoiceSchedule):
+        # SESSION_BASED schedules aren't tied to a specific calendar day. For UX purposes we
+        # return a deterministic "soonest possible" datetime: last_run_at + 1 day, or now.
+        if obj.billing_type == BillingType.SESSION_BASED:
+            return obj.last_run_at + timedelta(days=1) if obj.last_run_at else timezone.now()
+
+        # MONTHLY schedules: START_OF_PERIOD runs on billing_day, ON_COMPLETION runs on month end.
+        if obj.billing_type == BillingType.MONTHLY:
+            import calendar
+
+            today = timezone.now().date()
+            start = max(obj.cycle_start_date, today)
+
+            effective_timing = obj.invoice_creation_timing
+            if effective_timing == InvoiceCreationTiming.AUTO:
+                effective_timing = (
+                    InvoiceCreationTiming.START_OF_PERIOD
+                    if obj.billing_type == BillingType.MONTHLY
+                    else InvoiceCreationTiming.ON_COMPLETION
+                )
+
+            if effective_timing == InvoiceCreationTiming.ON_COMPLETION:
+                year = start.year
+                month = start.month
+                last_day = calendar.monthrange(year, month)[1]
+                candidate = datetime(year, month, last_day, tzinfo=None).date()
+
+                # If we're already past month end (shouldn't happen), advance to next month.
+                if candidate < start:
+                    month += 1
+                    if month > 12:
+                        year += 1
+                        month = 1
+                    last_day = calendar.monthrange(year, month)[1]
+                    candidate = datetime(year, month, last_day, tzinfo=None).date()
+
+                return timezone.make_aware(datetime.combine(candidate, time.min))
+
+            # Default/START_OF_PERIOD path.
+            if obj.billing_day is None:
+                return None
+            candidate = datetime(start.year, start.month, obj.billing_day, tzinfo=None).date()
+
+            # If cycle_start_date is in the current month and billing_day is already passed, advance.
+            if candidate < start:
+                year = candidate.year
+                month = candidate.month + 1
+                if month > 12:
+                    year += 1
+                    month = 1
+                candidate = datetime(year, month, obj.billing_day, tzinfo=None).date()
+
+            return timezone.make_aware(datetime.combine(candidate, time.min))
+
+    def validate(self, attrs):
+        billing_type = attrs.get("billing_type", getattr(self.instance, "billing_type", None))
+
+        if billing_type == BillingType.SESSION_BASED:
+            sessions_per_cycle = attrs.get(
+                "sessions_per_cycle",
+                getattr(self.instance, "sessions_per_cycle", None),
+            )
+            if not sessions_per_cycle:
+                raise serializers.ValidationError(
+                    "sessions_per_cycle must be set for SESSION_BASED schedules."
+                )
+
+        if billing_type == BillingType.MONTHLY:
+            billing_day = attrs.get("billing_day", getattr(self.instance, "billing_day", None))
+            if not billing_day:
+                raise serializers.ValidationError("billing_day must be set for MONTHLY schedules.")
+
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        academy = getattr(request, "academy", None) if request else None
+        if not academy:
+            raise serializers.ValidationError("academy is required.")
+        validated_data["academy"] = academy
+        return super().create(validated_data)
+
+
+class StudentScheduleOverrideSerializer(serializers.ModelSerializer):
+    """Serializer for per-student invoice schedule discount overrides."""
+
+    class Meta:
+        model = StudentScheduleOverride
+        fields = [
+            "id",
+            "schedule",
+            "student",
+            "discount_type",
+            "discount_value",
+            "reason",
+            "is_active",
+            "valid_from",
+            "valid_until",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "schedule", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        discount_type = attrs.get("discount_type", getattr(self.instance, "discount_type", None))
+        discount_value = attrs.get(
+            "discount_value",
+            getattr(self.instance, "discount_value", None),
+        )
+
+        if discount_type == DiscountType.PERCENTAGE and discount_value is not None:
+            if discount_value > Decimal("100.00"):
+                raise serializers.ValidationError(
+                    "discount_value cannot exceed 100 for PERCENTAGE overrides."
+                )
+
+        return attrs
+
+
+class InvoiceScheduleRunSerializer(serializers.ModelSerializer):
+    """Read-only audit serializer for invoice schedule executions."""
+
+    class Meta:
+        model = InvoiceScheduleRun
+        fields = [
+            "id",
+            "schedule",
+            "run_at",
+            "invoices_created",
+            "status",
+            "triggered_by",
+            "error_detail",
+        ]
+        read_only_fields = fields
+
+
+class PendingApprovalInvoiceItemSerializer(serializers.ModelSerializer):
+    """Pending approvals payload includes student name on each invoice item."""
+
+    student_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InvoiceItem
+        fields = [
+            "id",
+            "description",
+            "quantity",
+            "unit_price",
+            "line_total",
+            "student",
+            "student_name",
+        ]
+        read_only_fields = ["id", "line_total"]
+
+    def get_student_name(self, obj: InvoiceItem):
+        if obj.student_id is None or obj.student is None:
+            return None
+        return obj.student.full_name
+
+
+class PendingApprovalInvoiceSerializer(serializers.ModelSerializer):
+    """
+    Serializer for auto-generated DRAFT invoices awaiting manual approval.
+    """
+
+    parent = ParentSummarySerializer(read_only=True)
+
+    # Schedule/class info
+    schedule_id = serializers.IntegerField(source="schedule.id", read_only=True)
+    class_id = serializers.IntegerField(source="schedule.class_obj.id", read_only=True)
+    class_name = serializers.CharField(source="schedule.class_obj.name", read_only=True)
+    billing_type = serializers.CharField(source="schedule.billing_type", read_only=True)
+
+    sport_detail = serializers.SerializerMethodField()
+    location_detail = serializers.SerializerMethodField()
+
+    items = PendingApprovalInvoiceItemSerializer(many=True, read_only=True)
+
+    # Phase IS.5 Pending Approvals table fields
+    total = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    currency = serializers.SerializerMethodField()
+    # Comma-separated distinct student full names in deterministic order
+    students = serializers.SerializerMethodField()
+    # Date-only "generated" marker (invoice created by schedule)
+    generated_date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Invoice
+        fields = [
+            "id",
+            "invoice_number",
+            "status",
+            "due_date",
+            "issued_date",
+            "parent",
+            "schedule_id",
+            "class_id",
+            "class_name",
+            "billing_type",
+            "sport_detail",
+            "location_detail",
+            "items",
+            "total",
+            "currency",
+            "students",
+            "generated_date",
+            "created_at",
+        ]
+
+    def get_sport_detail(self, obj):
+        if obj.schedule and obj.schedule.class_obj and obj.schedule.class_obj.sport:
+            return SportListSerializer(obj.schedule.class_obj.sport).data
+        return None
+
+    def get_location_detail(self, obj):
+        if obj.schedule and obj.schedule.class_obj and obj.schedule.class_obj.location:
+            return LocationListSerializer(obj.schedule.class_obj.location).data
+        return None
+
+    def get_currency(self, obj: Invoice):
+        # Pending approval invoices are always tied to a schedule, so prefer its billing item currency.
+        if obj.schedule and obj.schedule.billing_item and obj.schedule.billing_item.currency:
+            return str(obj.schedule.billing_item.currency).strip().upper()
+        if obj.academy and getattr(obj.academy, "currency", None):
+            return str(obj.academy.currency).strip().upper()
+        return None
+
+    def get_students(self, obj: Invoice):
+        # Deterministic order: sort by student_id ascending, de-dupe by student_id.
+        names_by_student_id: dict[int, str] = {}
+        # If the view prefetches items__student, DRF will avoid extra queries here.
+        for item in obj.items.select_related("student").all():
+            if not item.student_id or not item.student:
+                continue
+            if item.student_id in names_by_student_id:
+                continue
+            names_by_student_id[item.student_id] = item.student.full_name
+
+        if not names_by_student_id:
+            return None
+
+        return ", ".join(names_by_student_id[sid] for sid in sorted(names_by_student_id.keys()))
+
+    def get_generated_date(self, obj: Invoice):
+        if not getattr(obj, "created_at", None):
+            return None
+        return obj.created_at.date().isoformat()

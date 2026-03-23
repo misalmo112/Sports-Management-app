@@ -1,7 +1,11 @@
+from datetime import date
+
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from saas_platform.tenants.models import Academy
-from tenant.coaches.models import Coach
+from tenant.coaches.models import Coach, StaffPaySchedule
 
 User = get_user_model()
 
@@ -80,3 +84,68 @@ class CoachModelTest(TestCase):
         self.assertFalse(coach.is_active)
         self.assertIn(coach, Coach.objects.all())
         self.assertNotIn(coach, Coach.objects.filter(is_active=True))
+
+
+class StaffPayScheduleModelTest(TestCase):
+    def setUp(self):
+        self.academy = Academy.objects.create(
+            name="Schedule Academy",
+            slug="schedule-academy",
+            email="schedule@academy.com",
+        )
+        self.coach = Coach.objects.create(
+            academy=self.academy,
+            first_name="Sara",
+            last_name="Coach",
+            email="sara@example.com",
+        )
+
+    def test_session_without_sessions_per_cycle_raises_validation_error(self):
+        schedule = StaffPaySchedule(
+            academy=self.academy,
+            coach=self.coach,
+            billing_type=StaffPaySchedule.BillingType.SESSION,
+            cycle_start_date=date(2026, 1, 1),
+        )
+        with self.assertRaises(ValidationError):
+            schedule.full_clean()
+
+    def test_monthly_without_billing_day_raises_validation_error(self):
+        schedule = StaffPaySchedule(
+            academy=self.academy,
+            coach=self.coach,
+            billing_type=StaffPaySchedule.BillingType.MONTHLY,
+            cycle_start_date=date(2026, 1, 1),
+        )
+        with self.assertRaises(ValidationError):
+            schedule.full_clean()
+
+    def test_weekly_with_invalid_billing_day_of_week_raises_validation_error(self):
+        schedule = StaffPaySchedule(
+            academy=self.academy,
+            coach=self.coach,
+            billing_type=StaffPaySchedule.BillingType.WEEKLY,
+            billing_day_of_week=7,
+            cycle_start_date=date(2026, 1, 1),
+        )
+        with self.assertRaises(ValidationError):
+            schedule.full_clean()
+
+    def test_unique_constraint_prevents_duplicate_monthly_schedule_per_coach(self):
+        StaffPaySchedule.objects.create(
+            academy=self.academy,
+            coach=self.coach,
+            billing_type=StaffPaySchedule.BillingType.MONTHLY,
+            amount='1000.00',
+            billing_day=5,
+            cycle_start_date=date(2026, 1, 1),
+        )
+        with self.assertRaises(IntegrityError):
+            StaffPaySchedule.objects.create(
+                academy=self.academy,
+                coach=self.coach,
+                billing_type=StaffPaySchedule.BillingType.MONTHLY,
+                amount='1200.00',
+                billing_day=10,
+                cycle_start_date=date(2026, 1, 1),
+            )

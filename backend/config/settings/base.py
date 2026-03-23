@@ -321,7 +321,11 @@ CELERY_BEAT_SCHEDULE = {
     'run-invoice-schedules': {
       'task': 'tenant.billing.tasks.run_invoice_schedules',
       'schedule': crontab(hour=0, minute=0),
-  }
+  },
+    'run-staff-pay-schedules': {
+      'task': 'tenant.coaches.tasks.run_staff_pay_schedules',
+      'schedule': crontab(hour=0, minute=30),
+  },
 }
 
 # Frankfurter API (currencies + exchange rates)

@@ -40,6 +40,8 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
+        # Role is required on User; platform superusers are not stored as role SUPERADMIN on this model
+        extra_fields.setdefault('role', User.Role.ADMIN)
         
         # Academy is optional for superusers
         # If not provided, it will be None (platform-level superadmin)
@@ -56,14 +58,14 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     """
     Custom user model with email as username.
-    
-    All tenant-level users (ADMIN, COACH, PARENT) use this model.
-    Tenant users belong to exactly one academy.
-    Platform superusers can have null academy (platform-level access).
+
+    Tenant users belong to exactly one academy (except platform superusers).
     """
     
     class Role(models.TextChoices):
+        OWNER = 'OWNER', 'Owner'
         ADMIN = 'ADMIN', 'Admin'
+        STAFF = 'STAFF', 'Staff'
         COACH = 'COACH', 'Coach'
         PARENT = 'PARENT', 'Parent'
     
@@ -77,12 +79,18 @@ class User(AbstractUser):
         help_text='Email address used for authentication'
     )
     
-    # Role: ADMIN, COACH, or PARENT
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
         db_index=True,
         help_text='User role within the academy'
+    )
+
+    allowed_modules = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text='For STAFF: non-empty list of module keys. NULL = full access for ADMIN only; OWNER always bypasses modules.',
     )
     
     # Academy relationship - nullable for superusers (platform-level admins)
@@ -144,6 +152,22 @@ class User(AbstractUser):
         # Superusers can have null academy, others cannot
         if not self.is_superuser and not self.academy:
             raise ValidationError('Non-superuser users must have an academy.')
+
+        from shared.permissions.module_keys import validate_allowed_modules_for_staff
+
+        role = self.role
+        mods = self.allowed_modules
+
+        if role in (self.Role.COACH, self.Role.PARENT):
+            if mods is not None:
+                raise ValidationError({'allowed_modules': 'Must be unset for coach and parent users.'})
+        elif role == self.Role.STAFF:
+            validate_allowed_modules_for_staff(mods)
+        elif role in (self.Role.ADMIN, self.Role.OWNER):
+            if mods is not None:
+                raise ValidationError(
+                    {'allowed_modules': 'Only STAFF may have a module list; use unset (null) for OWNER/ADMIN.'}
+                )
     
     def save(self, *args, **kwargs):
         """Override save to ensure email is normalized and validate academy requirement."""

@@ -46,7 +46,6 @@ export const UserActions = ({ user, onUpdate }: UserActionsProps) => {
     try {
       await resendInvite.mutateAsync(user.id);
       onUpdate?.();
-      // Show success message (you can replace this with a toast notification if available)
       alert('Invite sent successfully!');
     } catch (error: any) {
       console.error('Failed to resend invite:', error);
@@ -56,6 +55,13 @@ export const UserActions = ({ user, onUpdate }: UserActionsProps) => {
       setIsResending(false);
     }
   };
+
+  const canResendInvite = user.status !== 'active';
+
+  const resendButtonLabel =
+    user.invite_status === 'pending' || user.invite_status === 'expired' || user.status === 'invited'
+      ? 'Resend invite'
+      : 'Send invite';
 
   return (
     <div className="flex items-center gap-2">
@@ -71,11 +77,15 @@ export const UserActions = ({ user, onUpdate }: UserActionsProps) => {
         variant="outline"
         size="sm"
         onClick={handleResendInvite}
-        disabled={isResending || resendInvite.isPending}
-        title="Generate/Resend invite link"
+        disabled={!canResendInvite || isResending || resendInvite.isPending}
+        title={
+          canResendInvite
+            ? 'Generate or resend invite email'
+            : 'User has already activated their account'
+        }
       >
         <Mail className="h-4 w-4 mr-1" />
-        {isResending || resendInvite.isPending ? 'Sending...' : 'Invite'}
+        {isResending || resendInvite.isPending ? 'Sending...' : resendButtonLabel}
       </Button>
       <Button
         variant="outline"

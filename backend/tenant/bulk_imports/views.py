@@ -15,6 +15,7 @@ def _validate_dataset_type(dataset_type):
 
 
 class BulkImportSchemaView(generics.GenericAPIView):
+    required_tenant_module = 'bulk-actions'
     permission_classes = [IsAuthenticated, IsTenantAdmin]
 
     def get(self, request, dataset_type):
@@ -23,6 +24,7 @@ class BulkImportSchemaView(generics.GenericAPIView):
 
 
 class BulkImportPreviewView(generics.GenericAPIView):
+    required_tenant_module = 'bulk-actions'
     serializer_class = BulkImportUploadSerializer
     permission_classes = [IsAuthenticated, IsTenantAdmin]
 
@@ -40,6 +42,7 @@ class BulkImportPreviewView(generics.GenericAPIView):
 
 
 class BulkImportCommitView(generics.GenericAPIView):
+    required_tenant_module = 'bulk-actions'
     serializer_class = BulkImportCommitSerializer
     permission_classes = [IsAuthenticated, IsTenantAdmin]
 

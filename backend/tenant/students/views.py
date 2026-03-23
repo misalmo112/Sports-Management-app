@@ -1,9 +1,14 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from tenant.students.models import Parent, Student
+from tenant.users.services import UserService
+from tenant.users.serializers import UserSerializer
+from tenant.users.permissions import CanCreateUsers
+from shared.services.quota import QuotaExceededError
 from tenant.students.serializers import (
     ParentSerializer,
     ParentListSerializer,
@@ -20,6 +25,8 @@ from shared.utils.queryset_filtering import filter_by_academy
 
 class ParentViewSet(viewsets.ModelViewSet):
     """ViewSet for Parent model."""
+
+    required_tenant_module = 'students'
     
     queryset = Parent.objects.all()
     serializer_class = ParentSerializer
@@ -51,9 +58,56 @@ class ParentViewSet(viewsets.ModelViewSet):
         instance.is_active = False
         instance.save()
 
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[IsTenantAdmin, CanCreateUsers],
+        url_path='invite',
+    )
+    def invite(self, request, pk=None):
+        """
+        Create a PARENT User for this guardian and send invite email.
+        POST /api/v1/tenant/parents/{id}/invite/
+        """
+        parent = self.get_object()
+        academy = getattr(request, 'academy', None)
+        if not academy or parent.academy_id != academy.id:
+            return Response(
+                {'detail': 'Parent not found or does not belong to your academy.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            user, token = UserService.create_user_with_invite_for_guardian_parent(
+                parent=parent,
+                academy=academy,
+                created_by=request.user,
+            )
+            UserService.send_invite_email_async(user, token)
+            return Response(
+                {**UserSerializer(user).data, 'invite_sent': True},
+                status=status.HTTP_201_CREATED,
+            )
+        except DjangoValidationError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except QuotaExceededError as e:
+            return Response(
+                {
+                    'detail': str(e),
+                    'quota_type': getattr(e, 'quota_type', None),
+                    'current_usage': getattr(e, 'current_usage', None),
+                    'limit': getattr(e, 'limit', None),
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
 
 class StudentViewSet(viewsets.ModelViewSet):
     """ViewSet for Student model."""
+
+    required_tenant_module = 'students'
     
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
@@ -112,5 +166,6 @@ class StudentViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
     
     def perform_destroy(self, instance):
-        """Hard delete - actually delete the student."""
-        instance.delete()
+        """Soft delete — keep record, hide from active lists."""
+        instance.is_active = False
+        instance.save(update_fields=['is_active', 'updated_at'])

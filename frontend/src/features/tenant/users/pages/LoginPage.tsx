@@ -9,6 +9,9 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { useLogin } from '../hooks/useLogin';
+import { setAllowedModulesInStorage } from '@/shared/utils/roleAccess';
+import { formatErrorMessage } from '@/shared/utils/errorUtils';
+import { canRunAcademyOnboardingWizard } from '@/shared/utils/roleAccess';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
 export const LoginPage = () => {
@@ -49,6 +52,13 @@ export const LoginPage = () => {
         localStorage.setItem('user_role', normalizedRole);
       }
 
+      const allowedMods = (user as { allowed_modules?: string[] | null })?.allowed_modules;
+      if (allowedMods != null && Array.isArray(allowedMods)) {
+        setAllowedModulesInStorage(allowedMods);
+      } else {
+        setAllowedModulesInStorage(null);
+      }
+
       // X-Academy-ID is required for tenant API calls; set whenever we have an academy
       if (academyId) {
         localStorage.setItem('selected_academy_id', academyId);
@@ -56,15 +66,15 @@ export const LoginPage = () => {
         localStorage.removeItem('selected_academy_id');
       }
 
-      // Tenant users with an academy go to onboarding first; dashboard redirects there if incomplete
-      if (academyId) {
+      // OWNER/ADMIN: wizard if academy onboarding still incomplete (handled by /onboarding guard).
+      // STAFF/COACH/PARENT: never send to the wizard; dashboard uses read-only onboarding state only.
+      if (academyId && canRunAcademyOnboardingWizard(role)) {
         navigate('/onboarding');
       } else {
         navigate('/dashboard');
       }
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Login failed. Please check your credentials.';
-      setError(errorMessage);
+    } catch (err: unknown) {
+      setError(formatErrorMessage(err) || 'Login failed. Please check your credentials.');
     }
   };
 

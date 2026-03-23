@@ -5,7 +5,7 @@
 import { Navigate } from 'react-router-dom';
 import { ReactNode } from 'react';
 import { useOnboardingState } from '@/features/tenant/onboarding/hooks/useOnboardingState';
-import { getCurrentUserRole } from '@/shared/utils/roleAccess';
+import { canRunAcademyOnboardingWizard, getCurrentUserRole } from '@/shared/utils/roleAccess';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { logout } from '@/shared/utils/auth';
@@ -18,6 +18,10 @@ export const RequireOnboardingIncomplete = ({ children }: RequireOnboardingIncom
   const role = getCurrentUserRole();
 
   if (role === 'SUPERADMIN') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (!canRunAcademyOnboardingWizard(role)) {
     return <Navigate to="/dashboard" replace />;
   }
 

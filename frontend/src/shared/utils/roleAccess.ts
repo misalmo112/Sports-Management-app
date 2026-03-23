@@ -5,22 +5,87 @@
  * the actual authentication system when available.
  */
 
-export type UserRole = 'SUPERADMIN' | 'OWNER' | 'ADMIN' | 'COACH' | 'PARENT';
+export type UserRole = 'SUPERADMIN' | 'OWNER' | 'ADMIN' | 'STAFF' | 'COACH' | 'PARENT';
+
+const ROLE_VALUES: UserRole[] = ['SUPERADMIN', 'OWNER', 'ADMIN', 'STAFF', 'COACH', 'PARENT'];
+
+const ALLOWED_MODULES_KEY = 'user_allowed_modules';
 
 /**
- * Check if user has admin access (OWNER or ADMIN)
+ * Parsed module list for STAFF; null means "all modules" (OWNER / ADMIN / SUPERADMIN).
+ */
+export const getAllowedModulesFromStorage = (): string[] | null => {
+  const raw = localStorage.getItem(ALLOWED_MODULES_KEY);
+  if (raw == null || raw === '' || raw === 'null') {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((x): x is string => typeof x === 'string');
+  } catch {
+    return null;
+  }
+};
+
+export const setAllowedModulesInStorage = (modules: string[] | null | undefined): void => {
+  if (modules == null) {
+    localStorage.removeItem(ALLOWED_MODULES_KEY);
+    return;
+  }
+  localStorage.setItem(ALLOWED_MODULES_KEY, JSON.stringify(modules));
+};
+
+/**
+ * Align localStorage with GET/PATCH current account (STAFF module grants; clear for other roles).
+ */
+export const syncAllowedModulesFromAccount = (account: {
+  role: string;
+  allowed_modules?: string[] | null;
+}): void => {
+  if (
+    account.role === 'STAFF' &&
+    Array.isArray(account.allowed_modules) &&
+    account.allowed_modules.length > 0
+  ) {
+    setAllowedModulesInStorage(account.allowed_modules);
+  } else {
+    setAllowedModulesInStorage(null);
+  }
+};
+
+/**
+ * STAFF: must have module key. OWNER / ADMIN / SUPERADMIN: always true for tenant dashboard modules.
+ */
+export const userHasTenantModule = (role: UserRole | null | undefined, moduleKey: string): boolean => {
+  if (!role) return false;
+  if (role === 'OWNER' || role === 'ADMIN' || role === 'SUPERADMIN') {
+    return true;
+  }
+  if (role === 'STAFF') {
+    const mods = getAllowedModulesFromStorage();
+    if (!mods || mods.length === 0) return false;
+    return mods.includes(moduleKey);
+  }
+  return true;
+};
+
+/**
+ * Check if user has admin dashboard access (OWNER, ADMIN, or delegated STAFF)
  */
 export const hasAdminAccess = (role?: UserRole | null): boolean => {
   if (!role) return false;
-  return role === 'OWNER' || role === 'ADMIN' || role === 'SUPERADMIN';
+  return role === 'OWNER' || role === 'ADMIN' || role === 'STAFF' || role === 'SUPERADMIN';
 };
+
+/** Only OWNER/ADMIN may use the full onboarding wizard; other tenant roles use the normal dashboard. */
+export const canRunAcademyOnboardingWizard = (role: UserRole | string | null | undefined): boolean =>
+  role === 'OWNER' || role === 'ADMIN';
 
 /**
  * Get user role from localStorage (temporary solution)
  * TODO: Replace with proper auth context/store
  */
-const ROLE_VALUES: UserRole[] = ['SUPERADMIN', 'OWNER', 'ADMIN', 'COACH', 'PARENT'];
-
 const getRoleFromToken = (token: string | null): UserRole | null => {
   if (!token) return null;
 

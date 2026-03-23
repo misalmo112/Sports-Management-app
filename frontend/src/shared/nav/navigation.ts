@@ -6,6 +6,7 @@
  */
 
 import type { UserRole } from '@/shared/utils/roleAccess';
+import { getAllowedModulesFromStorage } from '@/shared/utils/roleAccess';
 import {
   LayoutDashboard,
   Building2,
@@ -36,6 +37,7 @@ import {
   PackageOpen,
   Globe,
   CircleDollarSign,
+  ListChecks,
 } from 'lucide-react';
 
 /**
@@ -209,7 +211,15 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Overview',
           path: '/dashboard/admin/overview',
           icon: LayoutDashboard,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
+          group: 'overview',
+        },
+        {
+          id: 'setup',
+          label: 'Setup',
+          path: '/dashboard/setup',
+          icon: ListChecks,
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'overview',
         },
       ],
@@ -223,7 +233,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Students',
           path: '/dashboard/students',
           icon: GraduationCap,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'operations',
         },
         {
@@ -231,7 +241,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Classes',
           path: '/dashboard/classes',
           icon: Calendar,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'operations',
         },
         {
@@ -239,7 +249,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Attendance',
           path: '/dashboard/attendance',
           icon: ClipboardCheck,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'operations',
         },
       ],
@@ -253,7 +263,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Items',
           path: '/dashboard/finance/items',
           icon: Tag,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'finance',
         },
         {
@@ -261,7 +271,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Invoices',
           path: '/dashboard/finance/invoices',
           icon: FileText,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'finance',
         },
         {
@@ -269,7 +279,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Receipts',
           path: '/dashboard/finance/receipts',
           icon: Receipt,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'finance',
         },
       ],
@@ -283,7 +293,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Users',
           path: '/dashboard/users',
           icon: UserCog,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
         {
@@ -291,7 +301,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Media',
           path: '/dashboard/media',
           icon: Image,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
         {
@@ -299,7 +309,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Reports',
           path: '/dashboard/reports',
           icon: FileBarChart,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
         {
@@ -307,7 +317,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Finance Overview',
           path: '/dashboard/management/finance',
           icon: DollarSign,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
         {
@@ -315,7 +325,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Facilities',
           path: '/dashboard/management/facilities',
           icon: Warehouse,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
         {
@@ -323,7 +333,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Staff',
           path: '/dashboard/management/staff',
           icon: Users,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
         {
@@ -331,7 +341,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Feedback',
           path: '/dashboard/feedback',
           icon: MessageSquare,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
       ],
@@ -345,7 +355,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Settings Home',
           path: '/dashboard/settings',
           icon: Settings,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
           exact: true,
         },
@@ -354,7 +364,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'My Account',
           path: '/dashboard/settings/account',
           icon: Shield,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -362,7 +372,15 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Organization',
           path: '/dashboard/settings/organization',
           icon: Building2,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
+          group: 'settings',
+        },
+        {
+          id: 'tax-settings',
+          label: 'Tax',
+          path: '/dashboard/settings/tax',
+          icon: Tag,
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -370,7 +388,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Locations',
           path: '/dashboard/settings/locations',
           icon: MapPin,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -378,7 +396,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Subscription',
           path: '/dashboard/settings/subscription',
           icon: CreditCard,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -386,7 +404,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Usage & Limits',
           path: '/dashboard/settings/usage',
           icon: PackageOpen,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -394,7 +412,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Sports',
           path: '/dashboard/settings/sports',
           icon: Trophy,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -402,7 +420,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Terms',
           path: '/dashboard/settings/terms',
           icon: CalendarDays,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -410,7 +428,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Currencies',
           path: '/dashboard/settings/currencies',
           icon: CircleDollarSign,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -418,7 +436,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Time zones',
           path: '/dashboard/settings/timezones',
           icon: Globe,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
         {
@@ -426,7 +444,7 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           label: 'Bulk Actions',
           path: '/dashboard/settings/bulk-actions',
           icon: Upload,
-          roles: ['ADMIN', 'OWNER'],
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'settings',
         },
       ],
@@ -542,7 +560,67 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
       ],
     },
   ],
+
+  /** Populated dynamically from ADMIN nav + allowed_modules */
+  STAFF: [],
 };
+
+export function filterAdminNavByModules(
+  groups: NavigationGroup[],
+  modules: string[],
+): NavigationGroup[] {
+  const allow = new Set(modules);
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => item.id === 'my-account' || allow.has(item.id),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+const STAFF_FALLBACK_HOME = '/dashboard/settings/account';
+
+/**
+ * First allowed admin nav path for STAFF, in sidebar order (navigationConfig.ADMIN).
+ * Skips my-account (always visible without a grant). Matches Phase 5: overview before setup when both granted.
+ */
+export function getStaffLandingPathFromModules(modules: string[]): string {
+  const allow = new Set(modules);
+  for (const group of navigationConfig.ADMIN) {
+    for (const item of group.items) {
+      if (item.id === 'my-account') continue;
+      if (allow.has(item.id)) return item.path;
+    }
+  }
+  return STAFF_FALLBACK_HOME;
+}
+
+/**
+ * Default dashboard landing after login, /dashboard index, or post-onboarding (role-aware).
+ */
+export function getTenantDashboardHomePath(role: UserRole | null): string {
+  if (!role) {
+    return STAFF_FALLBACK_HOME;
+  }
+  switch (role) {
+    case 'SUPERADMIN':
+      return '/dashboard/platform/academies';
+    case 'OWNER':
+      return '/dashboard/owner/overview';
+    case 'ADMIN':
+      return '/dashboard/admin/overview';
+    case 'STAFF':
+      return getStaffLandingPathFromModules(getAllowedModulesFromStorage() ?? []);
+    case 'COACH':
+      return '/dashboard/coach/overview';
+    case 'PARENT':
+      return '/dashboard/parent/overview';
+    default:
+      return STAFF_FALLBACK_HOME;
+  }
+}
 
 /**
  * Get navigation items for a specific role
@@ -551,6 +629,11 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
 export function getNavigationForRole(role: UserRole | null): NavigationGroup[] {
   if (!role) {
     return [];
+  }
+
+  if (role === 'STAFF') {
+    const modules = getAllowedModulesFromStorage() ?? [];
+    return filterAdminNavByModules(navigationConfig.ADMIN, modules);
   }
 
   if (role === 'OWNER') {

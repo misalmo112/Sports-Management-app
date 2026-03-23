@@ -22,6 +22,8 @@ from saas_platform.quotas.models import TenantUsage
 
 class MediaFileViewSet(viewsets.ModelViewSet):
     """ViewSet for MediaFile model."""
+
+    required_tenant_module = 'media'
     
     queryset = MediaFile.objects.all()
     serializer_class = MediaFileSerializer

@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 from django.db import connection
-from shared.tenancy.context import set_current_schema, clear_tenancy_context
+from shared.tenancy.context import clear_tenancy_context, set_current_schema
 
 
 def build_schema_name(academy_id):
@@ -43,6 +43,28 @@ def schema_context(schema_name):
             f'SET search_path TO {connection.ops.quote_name(schema_name)}, public'
         )
     set_current_schema(schema_name)
+    try:
+        yield True
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute('SET search_path TO public')
+        clear_tenancy_context()
+
+
+@contextmanager
+def public_schema_context():
+    """
+    Force Postgres search_path to public for ORM queries.
+
+    When TENANT_SCHEMA_ROUTING is off, tenant rows (including invite tokens) live in
+    public; cross-schema helpers must not assume a tenant path. Also resets pooled
+    connections that may still have another schema from a prior request.
+    """
+    if connection.vendor != 'postgresql':
+        yield True
+        return
+    with connection.cursor() as cursor:
+        cursor.execute('SET search_path TO public')
     try:
         yield True
     finally:

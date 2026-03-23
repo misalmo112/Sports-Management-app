@@ -91,7 +91,7 @@ def _get_count_usage(academy, quota_type):
         if hasattr(User, 'objects'):
             return User.objects.filter(
                 academy_id=academy.id,
-                role__in=['OWNER', 'ADMIN'],
+                role__in=['OWNER', 'ADMIN', 'STAFF'],
                 is_active=True
             ).count()
         return 0

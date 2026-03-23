@@ -29,14 +29,14 @@ from tenant.onboarding.serializers import (
     TermListSerializer,
 )
 from tenant.onboarding.services import OnboardingService, OnboardingValidationService
-from tenant.onboarding.permissions import IsOnboardingUser
-from shared.permissions.tenant import IsTenantAdmin
+from tenant.onboarding.permissions import CanViewOnboardingState, IsOnboardingUser
+from shared.permissions.tenant import IsTenantAdmin, tenant_admin_module_permission
 from shared.utils.queryset_filtering import filter_by_academy
 from tenant.onboarding.models import OnboardingChecklistState
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsOnboardingUser])
+@permission_classes([IsAuthenticated, CanViewOnboardingState])
 def get_onboarding_state(request):
     """Get current onboarding status."""
     academy = request.academy
@@ -234,7 +234,7 @@ def complete_onboarding(request):
 
 
 @api_view(["GET", "PATCH"])
-@permission_classes([IsAuthenticated, IsTenantAdmin])
+@permission_classes([IsAuthenticated, tenant_admin_module_permission('setup')])
 def onboarding_checklist(request):
     """
     Post-activation checklist (soft-gated).
@@ -295,7 +295,7 @@ def onboarding_checklist(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsTenantAdmin])
+@permission_classes([IsAuthenticated, tenant_admin_module_permission('setup')])
 def onboarding_templates(request):
     """
     Template suggestions to make activation faster.
@@ -385,6 +385,8 @@ def onboarding_templates(request):
 
 class LocationViewSet(viewsets.ModelViewSet):
     """ViewSet for Location model."""
+
+    required_tenant_module = 'locations'
     
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
@@ -421,6 +423,8 @@ class LocationViewSet(viewsets.ModelViewSet):
 
 class SportViewSet(viewsets.ModelViewSet):
     """ViewSet for Sport model."""
+
+    required_tenant_module = 'sports'
     
     queryset = Sport.objects.all()
     serializer_class = SportSerializer
@@ -457,6 +461,8 @@ class SportViewSet(viewsets.ModelViewSet):
 
 class AgeCategoryViewSet(viewsets.ModelViewSet):
     """ViewSet for AgeCategory model."""
+
+    required_tenant_module = 'sports'
     
     queryset = AgeCategory.objects.all()
     serializer_class = AgeCategorySerializer
@@ -493,6 +499,8 @@ class AgeCategoryViewSet(viewsets.ModelViewSet):
 
 class TermViewSet(viewsets.ModelViewSet):
     """ViewSet for Term model."""
+
+    required_tenant_module = 'terms'
     
     queryset = Term.objects.all()
     serializer_class = TermSerializer

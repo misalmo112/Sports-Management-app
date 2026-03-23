@@ -12,6 +12,7 @@ export const clearAuthData = (): void => {
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('user_academy_id');
   localStorage.removeItem('user_role');
+  localStorage.removeItem('user_allowed_modules');
   localStorage.removeItem('selected_academy_id');
 };
 

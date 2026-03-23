@@ -127,7 +127,7 @@ class InvoiceService:
         
         # Recalculate totals
         invoice.calculate_totals()
-        invoice.save(update_fields=['subtotal', 'discount_amount', 'total', 'updated_at'])
+        invoice.save(update_fields=['subtotal', 'discount_amount', 'tax_amount', 'total', 'updated_at'])
         
         return invoice
     
@@ -179,7 +179,7 @@ class InvoiceService:
             Invoice instance
         """
         invoice.calculate_totals()
-        invoice.save(update_fields=['subtotal', 'discount_amount', 'total', 'updated_at'])
+        invoice.save(update_fields=['subtotal', 'discount_amount', 'tax_amount', 'total', 'updated_at'])
         return invoice
     
     @staticmethod

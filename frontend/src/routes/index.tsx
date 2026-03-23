@@ -1,11 +1,20 @@
 /**
  * Application routes
  */
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
+
+/** Old emails / API used /auth/invite/accept; SPA route is /accept-invite. */
+function LegacyInviteAcceptRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/accept-invite${search}`} replace />;
+}
 import { RequireAuth } from '@/shared/components/common/RequireAuth';
 import { RequireOnboardingComplete } from '@/shared/components/common/RequireOnboardingComplete';
 import { RequireOnboardingIncomplete } from '@/shared/components/common/RequireOnboardingIncomplete';
 import { RequireRole } from '@/shared/components/common/RequireRole';
+import { RequireModule } from '@/shared/components/common/RequireModule';
+import { ModuleAccessDeniedPage } from '@/shared/components/common/ModuleAccessDeniedPage';
+import { DashboardHomeRedirect } from '@/shared/components/common/DashboardHomeRedirect';
 import { DashboardLayout } from '@/shared/components/layout/DashboardLayout';
 import type { UserRole } from '@/shared/utils/roleAccess';
 
@@ -65,6 +74,7 @@ import { ReceiptsListPage } from '@/features/tenant/billing/pages/ReceiptsListPa
 import { ReceiptCreatePage } from '@/features/tenant/billing/pages/ReceiptCreatePage';
 import { SettingsHomePage } from '@/features/tenant/settings/pages/SettingsHomePage';
 import { AcademySettingsPage } from '@/features/tenant/settings/pages/AcademySettingsPage';
+import { TaxSettingsPage } from '@/features/tenant/settings/pages/TaxSettingsPage';
 import { AccountSettingsPage } from '@/features/tenant/settings/pages/AccountSettingsPage';
 import { SubscriptionSettingsPage } from '@/features/tenant/settings/pages/SubscriptionSettingsPage';
 import { UsageSettingsPage } from '@/features/tenant/settings/pages/UsageSettingsPage';
@@ -102,27 +112,32 @@ import { FeedbackPage } from '@/features/tenant/communication/pages/FeedbackPage
 const createProtectedRoute = (
   element: React.ReactElement,
   requireOnboarding: boolean = false,
-  allowedRoles?: UserRole[]
+  allowedRoles?: UserRole[],
+  requiredModule?: string | null,
 ) => {
-  let protectedElement = element;
+  let inner = element;
+
+  if (requiredModule) {
+    inner = <RequireModule moduleKey={requiredModule}>{inner}</RequireModule>;
+  }
 
   if (allowedRoles && allowedRoles.length > 0) {
-    protectedElement = (
+    inner = (
       <RequireRole allowedRoles={allowedRoles}>
-        {protectedElement}
+        {inner}
       </RequireRole>
     );
   }
 
   if (requireOnboarding) {
-    protectedElement = (
+    inner = (
       <RequireOnboardingComplete>
-        {protectedElement}
+        {inner}
       </RequireOnboardingComplete>
     );
   }
 
-  return <RequireAuth>{protectedElement}</RequireAuth>;
+  return <RequireAuth>{inner}</RequireAuth>;
 };
 
 export const router = createBrowserRouter([
@@ -138,6 +153,10 @@ export const router = createBrowserRouter([
   {
     path: '/accept-invite',
     element: <AcceptInvitePage />,
+  },
+  {
+    path: '/auth/invite/accept',
+    element: <LegacyInviteAcceptRedirect />,
   },
   {
     path: '/forgot-password',
@@ -158,14 +177,11 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: createProtectedRoute(
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
-              <p className="text-muted-foreground">Welcome to your dashboard!</p>
-            </div>
-          </div>
-        ),
+        element: createProtectedRoute(<DashboardHomeRedirect />),
+      },
+      {
+        path: 'access-denied',
+        element: createProtectedRoute(<ModuleAccessDeniedPage />),
       },
       // Platform routes (SUPERADMIN only)
       {
@@ -260,180 +276,184 @@ export const router = createBrowserRouter([
       // Admin overview
       {
         path: 'admin/overview',
-        element: createProtectedRoute(<AdminOverviewPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<AdminOverviewPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'admin-overview'),
       },
       {
         path: 'setup',
-        element: createProtectedRoute(<SetupChecklistPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<SetupChecklistPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'setup'),
       },
-      // Students routes (Admin/Owner)
+      // Students routes (Admin/Owner/STAFF)
       {
         path: 'students',
-        element: createProtectedRoute(<StudentsListPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<StudentsListPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'students'),
       },
       {
         path: 'students/new',
-        element: createProtectedRoute(<StudentCreatePage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<StudentCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'students'),
       },
       {
         path: 'students/:id',
-        element: createProtectedRoute(<StudentDetailPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<StudentDetailPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'students'),
       },
       {
         path: 'students/:id/edit',
-        element: createProtectedRoute(<StudentEditPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<StudentEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'students'),
       },
-      // Classes routes (Admin/Owner)
+      // Classes routes (Admin/Owner/STAFF)
       {
         path: 'classes',
-        element: createProtectedRoute(<ClassesListPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<ClassesListPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'classes'),
       },
       {
         path: 'classes/new',
-        element: createProtectedRoute(<ClassCreatePage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<ClassCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'classes'),
       },
       {
         path: 'classes/:id',
-        element: createProtectedRoute(<ClassDetailPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<ClassDetailPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'classes'),
       },
       {
         path: 'classes/:id/edit',
-        element: createProtectedRoute(<ClassEditPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<ClassEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'classes'),
       },
       {
         path: 'classes/:id/enrollments',
-        element: createProtectedRoute(<EnrollmentPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<EnrollmentPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'classes'),
       },
-      // Attendance routes (Admin/Owner)
+      // Attendance routes (Admin/Owner/STAFF)
       {
         path: 'attendance',
-        element: createProtectedRoute(<AttendancePage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<AttendancePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'attendance'),
       },
       {
         path: 'attendance/mark',
-        element: createProtectedRoute(<AttendanceMarkPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<AttendanceMarkPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'attendance'),
       },
       {
         path: 'attendance/coach/mark',
-        element: createProtectedRoute(<CoachAttendanceMarkStaffPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<CoachAttendanceMarkStaffPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'attendance'),
       },
       {
         path: 'attendance/coach',
-        element: createProtectedRoute(<CoachAttendancePage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<CoachAttendancePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'attendance'),
       },
-      // Finance routes (Admin/Owner)
+      // Finance routes (Admin/Owner/STAFF)
       {
         path: 'finance/items',
-        element: createProtectedRoute(<ItemsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<ItemsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'finance-items'),
       },
       {
         path: 'finance/invoices',
-        element: createProtectedRoute(<InvoicesListPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<InvoicesListPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoices'),
       },
       {
         path: 'finance/invoices/new',
-        element: createProtectedRoute(<InvoiceCreatePage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<InvoiceCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoices'),
       },
       {
         path: 'finance/invoices/:id',
-        element: createProtectedRoute(<InvoiceDetailPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<InvoiceDetailPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoices'),
       },
       {
         path: 'finance/receipts',
-        element: createProtectedRoute(<ReceiptsListPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<ReceiptsListPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'receipts'),
       },
       {
         path: 'finance/receipts/new',
-        element: createProtectedRoute(<ReceiptCreatePage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<ReceiptCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'receipts'),
       },
-      // Settings routes (Admin/Owner)
+      // Settings routes (Admin/Owner/STAFF)
       {
         path: 'settings',
-        element: createProtectedRoute(<SettingsHomePage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<SettingsHomePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'settings-home'),
       },
       {
         path: 'settings/account',
-        element: createProtectedRoute(<AccountSettingsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<AccountSettingsPage />, true, ['ADMIN', 'OWNER', 'STAFF']),
       },
       {
         path: 'settings/organization',
-        element: createProtectedRoute(<AcademySettingsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<AcademySettingsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'organization-settings'),
+      },
+      {
+        path: 'settings/tax',
+        element: createProtectedRoute(<TaxSettingsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'tax-settings'),
       },
       {
         path: 'settings/academy',
-        element: createProtectedRoute(<AcademySettingsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<AcademySettingsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'organization-settings'),
       },
       {
         path: 'settings/subscription',
-        element: createProtectedRoute(<SubscriptionSettingsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<SubscriptionSettingsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'academy-settings'),
       },
       {
         path: 'settings/usage',
-        element: createProtectedRoute(<UsageSettingsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<UsageSettingsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'usage-settings'),
       },
       {
         path: 'settings/locations',
-        element: createProtectedRoute(<LocationsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<LocationsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'locations'),
       },
       {
         path: 'settings/sports',
-        element: createProtectedRoute(<SportsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<SportsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'sports'),
       },
       {
         path: 'settings/terms',
-        element: createProtectedRoute(<TermsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<TermsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'terms'),
       },
       {
         path: 'settings/currencies',
-        element: createProtectedRoute(<CurrenciesPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<CurrenciesPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'currencies'),
       },
       {
         path: 'settings/timezones',
-        element: createProtectedRoute(<TimezonesPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<TimezonesPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'timezones'),
       },
       {
         path: 'settings/bulk-actions',
-        element: createProtectedRoute(<BulkActionsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<BulkActionsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'bulk-actions'),
       },
-      // Media route (Admin/Owner)
+      // Media route (Admin/Owner/STAFF)
       {
         path: 'media',
-        element: createProtectedRoute(<MediaPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<MediaPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'media'),
       },
-      // Reports route (Admin/Owner)
+      // Reports route (Admin/Owner/STAFF)
       {
         path: 'reports',
-        element: createProtectedRoute(<ReportsPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<ReportsPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'reports'),
       },
       {
         path: 'management/finance',
-        element: createProtectedRoute(<FinanceOverviewPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<FinanceOverviewPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'finance-overview'),
       },
       {
         path: 'management/facilities',
-        element: createProtectedRoute(<FacilitiesPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<FacilitiesPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'facilities'),
       },
       {
         path: 'management/staff',
-        element: createProtectedRoute(<StaffPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<StaffPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
       },
       {
         path: 'management/staff/:id',
-        element: createProtectedRoute(<CoachDetailPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<CoachDetailPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
       },
-      // Complaints route (Admin/Owner)
+      // Complaints route (Admin/Owner/STAFF)
       {
         path: 'feedback',
-        element: createProtectedRoute(<FeedbackPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<FeedbackPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'feedback'),
       },
-      // Users routes (Admin/Owner)
+      // Users routes (Admin/Owner/STAFF — STAFF typically lacks users module)
       {
         path: 'users',
-        element: createProtectedRoute(<UsersPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<UsersPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'users'),
       },
       {
         path: 'users/:id',
-        element: createProtectedRoute(<UserDetailPage />, true, ['ADMIN', 'OWNER']),
+        element: createProtectedRoute(<UserDetailPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'users'),
       },
       // Coach routes
       {

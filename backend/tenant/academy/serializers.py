@@ -54,6 +54,27 @@ class AcademySettingsSerializer(serializers.ModelSerializer):
         return value.upper()
 
 
+class AcademyTaxSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for tenant-editable academy tax defaults for student invoices."""
+
+    class Meta:
+        model = Academy
+        fields = [
+            'global_tax_enabled',
+            'global_tax_rate_percent',
+        ]
+        read_only_fields = []
+
+    def validate(self, attrs):
+        # Allow enabling/disabling even if rate is not provided in the PATCH body.
+        # The model-level validators (0..100) will still apply when the rate is present.
+        global_tax_enabled = attrs.get('global_tax_enabled', None)
+        if global_tax_enabled is False:
+            # If disabling, we don't require a rate in the request.
+            attrs.pop('global_tax_rate_percent', None)
+        return attrs
+
+
 class PlanSummarySerializer(serializers.Serializer):
     """Serializer for tenant-visible plan details."""
 

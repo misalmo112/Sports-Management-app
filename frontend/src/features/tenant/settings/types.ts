@@ -138,12 +138,23 @@ export interface AcademySettings {
 
 export interface UpdateAcademySettingsRequest extends Partial<Omit<AcademySettings, 'id'>> {}
 
+export interface AcademyTaxSettings {
+  global_tax_enabled: boolean;
+  global_tax_rate_percent: string; // DRF Decimal serialization
+}
+
+export interface UpdateAcademyTaxSettingsRequest {
+  global_tax_enabled?: boolean;
+  global_tax_rate_percent?: number;
+}
+
 export interface CurrentAccount {
   id: number;
   email: string;
   first_name?: string;
   last_name?: string;
   role: string;
+  allowed_modules?: string[] | null;
   is_active: boolean;
   last_login?: string | null;
 }

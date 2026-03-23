@@ -12,8 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { UserTable } from '../components/UserTable';
 import { CreateUserModal } from '../components/CreateUserModal';
-import { useUsers } from '../hooks/useUsers';
+import { useAdminAndStaffUsers } from '../hooks/useAdminAndStaffUsers';
 import { useCoachesForManagement } from '../hooks/useCoachesForManagement';
+import { useParentsForManagement } from '../hooks/useParentsForManagement';
 import { Plus } from 'lucide-react';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
@@ -24,18 +25,38 @@ export const UsersPage = () => {
   const [activeTab, setActiveTab] = useState<'ADMIN' | 'COACH' | 'PARENT'>('ADMIN');
   const [modalOpen, setModalOpen] = useState(false);
 
-  const { data, isLoading, error, refetch } = useUsers(activeTab);
   const isCoachTab = activeTab === 'COACH';
+  const isParentTab = activeTab === 'PARENT';
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+  } = useAdminAndStaffUsers(!isCoachTab && !isParentTab);
   const {
     data: coachesForManagementData,
     isLoading: coachesLoading,
     error: coachesError,
     refetch: refetchCoaches,
   } = useCoachesForManagement(isCoachTab);
+  const {
+    data: parentsForManagementData,
+    isLoading: parentsMgmtLoading,
+    error: parentsMgmtError,
+    refetch: refetchParentsMgmt,
+  } = useParentsForManagement(isParentTab);
 
-  const isLoadingPage = isCoachTab ? coachesLoading : isLoading;
-  const pageError = isCoachTab ? coachesError : error;
-  const refetchPage = isCoachTab ? refetchCoaches : refetch;
+  const isLoadingPage = isCoachTab
+    ? coachesLoading
+    : isParentTab
+      ? parentsMgmtLoading
+      : isLoading;
+  const pageError = isCoachTab ? coachesError : isParentTab ? parentsMgmtError : error;
+  const refetchPage = isCoachTab
+    ? refetchCoaches
+    : isParentTab
+      ? refetchParentsMgmt
+      : refetch;
 
   // Additional client-side check (route-level protection is primary)
   useEffect(() => {
@@ -47,11 +68,13 @@ export const UsersPage = () => {
   const handleUserUpdate = () => {
     refetch();
     if (isCoachTab) refetchCoaches();
+    if (isParentTab) refetchParentsMgmt();
   };
 
   const handleInviteSuccess = () => {
     refetch();
     if (isCoachTab) refetchCoaches();
+    if (isParentTab) refetchParentsMgmt();
   };
 
   if (isLoadingPage) {
@@ -115,7 +138,7 @@ export const UsersPage = () => {
         <CardContent>
           <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as typeof activeTab)}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="ADMIN">Admins</TabsTrigger>
+              <TabsTrigger value="ADMIN">Admins &amp; staff</TabsTrigger>
               <TabsTrigger value="COACH">Coaches</TabsTrigger>
               <TabsTrigger value="PARENT">Parents</TabsTrigger>
             </TabsList>
@@ -129,7 +152,7 @@ export const UsersPage = () => {
                 />
               ) : (
                 <EmptyState
-                  title={`No ${activeTab.toLowerCase()}s found`}
+                  title="No admins or staff found"
                   description="Get started by inviting your first user."
                   actionLabel="Invite User"
                   onAction={() => setModalOpen(true)}
@@ -155,16 +178,16 @@ export const UsersPage = () => {
             </TabsContent>
 
             <TabsContent value="PARENT" className="mt-6">
-              {data?.results && data.results.length > 0 ? (
+              {parentsForManagementData && parentsForManagementData.length > 0 ? (
                 <UserTable
-                  users={data.results}
+                  parentManagementRows={parentsForManagementData}
                   isLoading={false}
                   onUserUpdate={handleUserUpdate}
                 />
               ) : (
                 <EmptyState
-                  title={`No ${activeTab.toLowerCase()}s found`}
-                  description="Get started by inviting your first user."
+                  title="No parents found"
+                  description="Add students with guardian contact info, or invite a parent to create an account."
                   actionLabel="Invite User"
                   onAction={() => setModalOpen(true)}
                 />

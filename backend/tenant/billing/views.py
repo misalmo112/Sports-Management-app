@@ -33,6 +33,8 @@ from shared.utils.queryset_filtering import filter_by_academy
 
 class ItemViewSet(viewsets.ModelViewSet):
     """ViewSet for Item model."""
+
+    required_tenant_module = 'finance-items'
     
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
@@ -71,6 +73,8 @@ class ItemViewSet(viewsets.ModelViewSet):
 
 class InvoiceViewSet(viewsets.ModelViewSet):
     """ViewSet for Invoice model."""
+
+    required_tenant_module = 'invoices'
     
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
@@ -306,6 +310,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
 class ReceiptViewSet(viewsets.ModelViewSet):
     """ViewSet for Receipt model."""
+
+    required_tenant_module = 'receipts'
     
     queryset = Receipt.objects.all()
     serializer_class = ReceiptSerializer

@@ -100,6 +100,25 @@ class AuditServiceTest(TestCase):
         self.assertIn('before', audit_log.changes_json)
         self.assertIn('after', audit_log.changes_json)
 
+    def test_log_user_resource_tenant_module_change(self):
+        """USER resource type: tenant STAFF module updates log with user=None (public schema FK)."""
+        audit_log = AuditService.log_action(
+            user=None,
+            action=AuditAction.UPDATE,
+            resource_type=ResourceType.USER,
+            resource_id='42',
+            academy=self.academy,
+            changes_json={
+                'field': 'allowed_modules',
+                'target_user_id': 42,
+                'before': ['attendance'],
+                'after': ['attendance', 'classes'],
+            },
+        )
+        self.assertIsNone(audit_log.user)
+        self.assertEqual(audit_log.resource_type, ResourceType.USER)
+        self.assertEqual(audit_log.changes_json['field'], 'allowed_modules')
+
 
 class AuditLogModelTest(TestCase):
     """Test AuditLog model."""

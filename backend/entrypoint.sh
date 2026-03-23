@@ -15,5 +15,9 @@ done
 echo "Running migrations..."
 python manage.py migrate --noinput
 
+# Per-academy Postgres schemas (tenant_*) are not updated by `migrate` alone (no-op if not PostgreSQL).
+echo "Running tenant schema migrations..."
+python manage.py tenant_migrate_all
+
 exec "$@"
 

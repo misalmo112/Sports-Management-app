@@ -15,6 +15,7 @@ class ResourceType(models.TextChoices):
     SUBSCRIPTION = 'SUBSCRIPTION', 'Subscription'
     PLAN = 'PLAN', 'Plan'
     QUOTA = 'QUOTA', 'Quota'
+    USER = 'USER', 'User'
 
 
 class AuditLog(models.Model):

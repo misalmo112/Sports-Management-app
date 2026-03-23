@@ -21,15 +21,69 @@ logger = logging.getLogger(__name__)
 
 class TenantAwareJWTAuthentication(JWTAuthentication):
     """
-    JWT authentication that finds users in the tenant schema when the default
-    (public) lookup fails. Requires X-Academy-ID so middleware can set request.academy.
+    JWT authentication that prefers the tenant schema when the request is scoped
+    to an academy with a Postgres schema (X-Academy-ID / request.academy).
+
+    Default SimpleJWT + public search_path can return a user whose pk exists only
+    in public (e.g. id=1), while ORM writes use the tenant schema — then FKs like
+    InviteToken.created_by fail with "User instance with id … does not exist."
     """
 
     def authenticate(self, request):
-        result = self._authenticate_default(request)
-        if result is not None:
-            return result
-        return self._authenticate_in_tenant_schema(request)
+        header = self.get_header(request)
+        if header is None:
+            return None
+        raw_token = self.get_raw_token(header)
+        if raw_token is None:
+            return None
+        try:
+            validated_token = self.get_validated_token(raw_token)
+        except (InvalidToken, AuthenticationFailed):
+            return None
+
+        user_id_claim = getattr(self, 'user_id_claim', 'user_id')
+        user_id = validated_token.get(user_id_claim)
+        if not user_id:
+            return None
+
+        academy = getattr(request, 'academy', None) or self._resolve_academy_from_header(request)
+        schema_name = self._get_schema_name(academy) if academy else None
+
+        if schema_name and connection.vendor == 'postgresql':
+            entered = False
+            tenant_user = None
+            with schema_context(schema_name) as ctx_ok:
+                entered = bool(ctx_ok)
+                if ctx_ok:
+                    try:
+                        tenant_user = User.objects.get(pk=user_id)
+                    except User.DoesNotExist:
+                        tenant_user = None
+            if entered:
+                if tenant_user is not None:
+                    if (
+                        tenant_user.academy_id is not None
+                        and tenant_user.academy_id != academy.id
+                    ):
+                        return None
+                    return tenant_user, validated_token
+                try:
+                    public_user = User.objects.get(pk=user_id)
+                except User.DoesNotExist:
+                    return None
+                if public_user.is_superuser and public_user.academy_id is None:
+                    return public_user, validated_token
+                # Users may exist only in public while academy still has a tenant_* schema
+                # (e.g. TENANT_SCHEMA_ROUTING off). Allow if they belong to this academy.
+                pub_aid = getattr(public_user, 'academy_id', None)
+                if pub_aid is not None and pub_aid == academy.id:
+                    return public_user, validated_token
+                return None
+
+        try:
+            return super().authenticate(request)
+        except (InvalidToken, User.DoesNotExist, AuthenticationFailed):
+            return None
 
     def _authenticate_default(self, request):
         """Run standard JWT auth (decode token, get user by id in current schema)."""
@@ -96,7 +150,9 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
             return None
 
         try:
-            with schema_context(schema_name):
+            with schema_context(schema_name) as ctx_ok:
+                if not ctx_ok:
+                    return None
                 user = User.objects.get(pk=user_id)
                 return (user, validated_token)
         except User.DoesNotExist:

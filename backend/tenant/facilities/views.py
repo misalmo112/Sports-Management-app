@@ -34,6 +34,7 @@ from tenant.facilities.services import FacilitiesService
 
 
 class FacilityRentConfigViewSet(viewsets.ModelViewSet):
+    required_tenant_module = 'facilities'
     queryset = FacilityRentConfig.objects.all()
     serializer_class = FacilityRentConfigSerializer
     permission_classes = [IsTenantAdmin]
@@ -63,6 +64,7 @@ class FacilityRentConfigViewSet(viewsets.ModelViewSet):
 
 
 class RentInvoiceViewSet(viewsets.ModelViewSet):
+    required_tenant_module = 'facilities'
     queryset = RentInvoice.objects.all()
     serializer_class = RentInvoiceSerializer
     permission_classes = [IsTenantAdmin]
@@ -123,6 +125,8 @@ class RentInvoiceViewSet(viewsets.ModelViewSet):
 
 class RentReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only ViewSet for RentReceipt (list/retrieve)."""
+
+    required_tenant_module = 'facilities'
     queryset = RentReceipt.objects.all()
     serializer_class = RentReceiptSerializer
     permission_classes = [IsTenantAdmin]
@@ -142,6 +146,7 @@ class RentReceiptViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class BillViewSet(viewsets.ModelViewSet):
+    required_tenant_module = 'facilities'
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
     permission_classes = [IsTenantAdmin]
@@ -173,6 +178,7 @@ class BillViewSet(viewsets.ModelViewSet):
 
 
 class BillLineItemViewSet(viewsets.ModelViewSet):
+    required_tenant_module = 'facilities'
     queryset = BillLineItem.objects.all()
     serializer_class = BillLineItemSerializer
     permission_classes = [IsTenantAdmin]
@@ -224,6 +230,7 @@ class BillLineItemViewSet(viewsets.ModelViewSet):
 
 
 class InventoryItemViewSet(viewsets.ModelViewSet):
+    required_tenant_module = 'facilities'
     queryset = InventoryItem.objects.all()
     serializer_class = InventoryItemSerializer
     permission_classes = [IsTenantAdmin]

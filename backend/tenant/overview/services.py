@@ -30,7 +30,7 @@ class OverviewService:
         """
         today = date.today()
         
-        if user_role in ['ADMIN', 'OWNER']:
+        if user_role in ['ADMIN', 'OWNER', 'STAFF']:
             return OverviewService._get_admin_overview(academy, today)
         elif user_role == 'COACH':
             return OverviewService._get_coach_overview(academy, user, today)
@@ -68,7 +68,11 @@ class OverviewService:
             counts = {
                 'students': Student.objects.filter(academy=academy, is_active=True).count(),
                 'coaches': Coach.objects.filter(academy=academy, is_active=True).count(),
-                'admins': User.objects.filter(academy=academy, role=User.Role.ADMIN).count(),
+                'admins': User.objects.filter(
+                    academy=academy,
+                    role__in=[User.Role.ADMIN, User.Role.STAFF, User.Role.OWNER],
+                    is_active=True,
+                ).count(),
                 'classes': Class.objects.filter(active_class_filter).count(),
             }
         counts['enrollments'] = Enrollment.objects.filter(

@@ -278,3 +278,69 @@ class CalculationTest(TestCase):
         self.assertEqual(invoice.subtotal, Decimal('250.00'))
         self.assertEqual(invoice.discount_amount, Decimal('25.00'))
         self.assertEqual(invoice.total, Decimal('230.00'))
+
+    def test_global_tax_applied_on_create_invoice(self):
+        """Global tax should be computed on (subtotal - discount) and persisted."""
+        self.academy.global_tax_enabled = True
+        self.academy.global_tax_rate_percent = Decimal('18.00')
+        self.academy.save()
+        self.academy.refresh_from_db()
+
+        invoice = InvoiceService.create_invoice(
+            parent=self.parent,
+            items_data=[
+                {
+                    'description': 'Training session',
+                    'quantity': 2,
+                    'unit_price': Decimal('25.00'),
+                }
+            ],
+            discount_type=Invoice.DiscountType.FIXED,
+            discount_value=Decimal('4.45'),
+        )
+
+        # subtotal = 2*25 = 50.00
+        # discount = 4.45
+        # net = 45.55
+        # tax = 45.55 * 18% = 8.199 -> 8.20
+        self.assertEqual(invoice.subtotal, Decimal('50.00'))
+        self.assertEqual(invoice.discount_amount, Decimal('4.45'))
+        self.assertEqual(invoice.tax_amount, Decimal('8.20'))
+        self.assertEqual(invoice.total, Decimal('53.75'))
+
+    def test_global_tax_recomputed_after_apply_discount(self):
+        """When discount changes, tax must be recomputed on (subtotal - discount)."""
+        self.academy.global_tax_enabled = True
+        self.academy.global_tax_rate_percent = Decimal('18.00')
+        self.academy.save()
+        self.academy.refresh_from_db()
+
+        invoice = InvoiceService.create_invoice(
+            parent=self.parent,
+            items_data=[
+                {
+                    'description': 'Monthly class fee',
+                    'quantity': 1,
+                    'unit_price': Decimal('100.00'),
+                }
+            ],
+        )
+
+        self.assertEqual(invoice.subtotal, Decimal('100.00'))
+        self.assertEqual(invoice.discount_amount, Decimal('0.00'))
+        self.assertEqual(invoice.tax_amount, Decimal('18.00'))
+        self.assertEqual(invoice.total, Decimal('118.00'))
+
+        invoice = InvoiceService.apply_discount(
+            invoice=invoice,
+            discount_type=Invoice.DiscountType.PERCENTAGE,
+            discount_value=Decimal('10.00'),
+        )
+
+        # discount = 100 * 0.10 = 10.00
+        # net = 90.00
+        # tax = 90 * 18% = 16.20
+        # total = 100 - 10 + 16.20 = 106.20
+        self.assertEqual(invoice.discount_amount, Decimal('10.00'))
+        self.assertEqual(invoice.tax_amount, Decimal('16.20'))
+        self.assertEqual(invoice.total, Decimal('106.20'))

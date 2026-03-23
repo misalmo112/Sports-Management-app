@@ -1,8 +1,8 @@
-﻿/**
+/**
  * User Detail Page
  * View and edit user details
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/button';
@@ -27,6 +27,9 @@ import { extractValidationErrors, clearFieldError } from '@/shared/utils/errorUt
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';
 import type { UpdateUserRequest } from '../types';
 import { UserStatusBadge } from '../components/UserStatusBadge';
+import { StaffModuleAccessPicker } from '../components/StaffModuleAccessPicker';
+import { formatTenantModuleLabel } from '@/shared/constants/moduleKeys';
+import { getStaffModuleDisplayGroups } from '@/shared/constants/staffModulePickerGroups';
 
 export const UserDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +71,9 @@ export const UserDetailPage = () => {
     setEditFormData({
       first_name: user.first_name || '',
       last_name: user.last_name || '',
+      ...(user.role === 'STAFF'
+        ? { allowed_modules: [...(user.allowed_modules || [])] }
+        : {}),
     });
     if (user.role === 'PARENT' && user.parent_record) {
       setParentRecordForm({
@@ -93,6 +99,16 @@ export const UserDetailPage = () => {
 
     try {
       const updatePayload: UpdateUserRequest = { ...editFormData };
+      if (user.role === 'STAFF') {
+        const mods = editFormData.allowed_modules;
+        if (!mods || mods.length === 0) {
+          setEditErrors({
+            allowed_modules: ['Select at least one module for staff users.'],
+          });
+          return;
+        }
+        updatePayload.allowed_modules = [...mods];
+      }
       if (user.role === 'PARENT') {
         const phoneNumbers = parentRecordForm.phone_numbers
           .split(',')
@@ -157,6 +173,17 @@ export const UserDetailPage = () => {
   const formatRole = (role: string) => {
     return role.charAt(0) + role.slice(1).toLowerCase();
   };
+
+  const staffModuleReadOnly = useMemo(() => {
+    const assigned = user?.allowed_modules;
+    if (user?.role !== 'STAFF' || !assigned?.length) {
+      return { grouped: [] as ReturnType<typeof getStaffModuleDisplayGroups>, orphans: [] as string[] };
+    }
+    const grouped = getStaffModuleDisplayGroups(assigned);
+    const inGroups = new Set(grouped.flatMap((g) => g.modules.map((m) => m.key)));
+    const orphans = assigned.filter((k) => !inGroups.has(k));
+    return { grouped, orphans };
+  }, [user]);
 
   if (isLoading) {
     return (
@@ -229,11 +256,11 @@ export const UserDetailPage = () => {
               </div>
               <div>
                 <Label className="text-muted-foreground">First Name</Label>
-                <p className="font-medium mt-1">{user.first_name || 'â€”'}</p>
+                <p className="font-medium mt-1">{user.first_name || '—'}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Last Name</Label>
-                <p className="font-medium mt-1">{user.last_name || 'â€”'}</p>
+                <p className="font-medium mt-1">{user.last_name || '—'}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Status</Label>
@@ -249,6 +276,55 @@ export const UserDetailPage = () => {
           </CardContent>
         </Card>
 
+        {user.role === 'STAFF' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Module access</CardTitle>
+              <CardDescription>
+                Dashboard areas this staff member can use
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {user.allowed_modules && user.allowed_modules.length > 0 ? (
+                <div className="space-y-4 text-sm">
+                  {staffModuleReadOnly.grouped.map((group) => (
+                    <div key={group.groupId}>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                        {group.groupLabel}
+                      </p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {group.modules.map((mod) => (
+                          <li key={mod.key}>
+                            <span className="font-medium">{mod.label}</span>{' '}
+                            <span className="text-muted-foreground">({mod.key})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  {staffModuleReadOnly.orphans.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                        Other
+                      </p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {staffModuleReadOnly.orphans.map((key) => (
+                          <li key={key}>
+                            <span className="font-medium">{formatTenantModuleLabel(key)}</span>{' '}
+                            <span className="text-muted-foreground">({key})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No modules assigned</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {user.role === 'PARENT' && (
           <Card>
             <CardHeader>
@@ -259,18 +335,18 @@ export const UserDetailPage = () => {
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
                   <Label className="text-muted-foreground">Parent Email</Label>
-                  <p className="font-medium mt-1">{user.parent_record?.email || 'Æ’?"'}</p>
+                  <p className="font-medium mt-1">{user.parent_record?.email || '—'}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Primary Phone</Label>
-                  <p className="font-medium mt-1">{user.parent_record?.phone || 'Æ’?"'}</p>
+                  <p className="font-medium mt-1">{user.parent_record?.phone || '—'}</p>
                 </div>
                 <div className="md:col-span-2">
                   <Label className="text-muted-foreground">Phone Numbers</Label>
                   <p className="font-medium mt-1">
                     {user.parent_record?.phone_numbers?.length
                       ? user.parent_record.phone_numbers.join(', ')
-                      : 'Æ’?"'}
+                      : '—'}
                   </p>
                 </div>
                 <div className="md:col-span-2">
@@ -285,7 +361,7 @@ export const UserDetailPage = () => {
                       user.parent_record?.country,
                     ]
                       .filter(Boolean)
-                      .join(', ') || 'Æ’?"'}
+                      .join(', ') || '—'}
                   </p>
                 </div>
               </div>
@@ -353,7 +429,9 @@ export const UserDetailPage = () => {
 
       {/* Edit User Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent
+          className={user.role === 'STAFF' ? 'sm:max-w-xl max-h-[90vh] overflow-y-auto' : 'sm:max-w-[500px]'}
+        >
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
@@ -404,6 +482,28 @@ export const UserDetailPage = () => {
                   <p className="text-sm text-destructive">{editErrors.last_name[0]}</p>
                 )}
               </div>
+
+              {user.role === 'STAFF' && (
+                <div className="grid gap-2">
+                  <Label>
+                    Module access <span className="text-destructive">*</span>
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Choose which areas of the admin dashboard this staff member can access.
+                  </p>
+                  <StaffModuleAccessPicker
+                    selectedKeys={editFormData.allowed_modules || []}
+                    onChange={(keys) => {
+                      setEditFormData((prev) => ({ ...prev, allowed_modules: keys }));
+                      if (editErrors.allowed_modules) {
+                        setEditErrors((prev) => clearFieldError(prev, 'allowed_modules'));
+                      }
+                    }}
+                    disabled={updateUser.isPending}
+                    errorMessage={editErrors.allowed_modules?.[0]}
+                  />
+                </div>
+              )}
 
               {user.role === 'PARENT' && (
                 <>

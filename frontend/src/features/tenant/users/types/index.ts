@@ -6,7 +6,7 @@
 export type UserStatus = 'invited' | 'active' | 'disabled';
 
 // User role types (tenant roles only)
-export type UserRole = 'ADMIN' | 'COACH' | 'PARENT';
+export type UserRole = 'OWNER' | 'ADMIN' | 'STAFF' | 'COACH' | 'PARENT';
 
 // User object
 export interface User {
@@ -53,6 +53,8 @@ export interface User {
     gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
     is_active: boolean;
   }>;
+  /** Present for STAFF users; granted dashboard module keys. */
+  allowed_modules?: string[] | null;
 }
 
 // Unified row for User Management Coaches tab (user or staff not invited)
@@ -65,6 +67,20 @@ export type CoachManagementRow = (User & { source: 'user'; user_id: number }) | 
   full_name: string;
   invite_status: 'none';
 };
+
+// Unified row for User Management Parents tab (guardian record and/or PARENT user)
+export type ParentManagementRow =
+  | (User & { source: 'user'; user_id: number; guardian_parent_id?: number })
+  | {
+      source: 'guardian_not_invited';
+      parent_id: number;
+      email: string;
+      first_name: string;
+      last_name: string;
+      full_name: string;
+      invite_status: 'none';
+      role: 'PARENT';
+    };
 
 // API response for list of users
 export interface UsersListResponse {
@@ -87,6 +103,8 @@ export interface InviteUserRequest {
   role: UserRole;
   first_name?: string;
   last_name?: string;
+  /** Required when role is STAFF (non-empty; validated server-side). */
+  allowed_modules?: string[];
 }
 
 // Invite user response
@@ -105,6 +123,8 @@ export interface UpdateUserRequest {
   status?: UserStatus;
   first_name?: string;
   last_name?: string;
+  /** STAFF only; non-empty list validated server-side. */
+  allowed_modules?: string[];
   parent_record?: {
     phone?: string;
     phone_numbers?: string[];
@@ -134,6 +154,8 @@ export interface ValidateInviteResponse {
     role: UserRole;
     academy_name: string;
     expires_at: string;
+    first_name?: string;
+    last_name?: string;
   };
   errors?: Record<string, string[]>;
 }
@@ -148,8 +170,17 @@ export interface AcceptInviteRequest {
 
 // Accept invite response
 export interface AcceptInviteResponse {
-  status: 'success' | 'error';
-  message: string;
+  status?: 'success' | 'error';
+  message?: string;
+  access?: string;
+  refresh?: string;
+  user?: {
+    id: number;
+    email: string;
+    role: string;
+    academy_id: string;
+    allowed_modules?: string[] | null;
+  };
   data?: {
     user: User;
     token: string;
@@ -173,6 +204,7 @@ export interface LoginResponse {
     email: string;
     role: string;
     academy_id: string | null;
+    allowed_modules?: string[] | null;
   };
 }
 

@@ -16,6 +16,17 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
+    // Same-origin /api in dev avoids CORS when using localhost vs 127.0.0.1 (or LAN IP).
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/media': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

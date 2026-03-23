@@ -14,6 +14,8 @@ import Step3Sports from './steps/Step3Sports';
 import Step5Terms from './steps/Step5Terms';
 import Step6Pricing from './steps/Step6Pricing';
 import { logout } from '@/shared/utils/auth';
+import { getTenantDashboardHomePath } from '@/shared/nav/navigation';
+import { getCurrentUserRole } from '@/shared/utils/roleAccess';
 import { LogOut } from 'lucide-react';
 import type { StepData } from '../types';
 
@@ -38,7 +40,7 @@ export const OnboardingWizard = () => {
   useEffect(() => {
     if (state?.is_completed) {
       setTimeout(() => {
-        navigate('/dashboard/setup');
+        navigate(getTenantDashboardHomePath(getCurrentUserRole()));
       }, 2000);
     }
   }, [state?.is_completed, navigate]);

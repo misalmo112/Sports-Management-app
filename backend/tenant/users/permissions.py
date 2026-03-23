@@ -2,23 +2,22 @@
 Permission classes for user management.
 """
 from rest_framework import permissions
-from shared.permissions.tenant import IsTenantAdmin, IsOwner
-
-
 class CanCreateUsers(permissions.BasePermission):
     """
-    Permission to create users.
-    
-    Only ADMIN or OWNER roles can create users.
+    Permission to create or invite users.
+
+    Only OWNER or full ADMIN may invite; STAFF is never allowed (even if they had a users module).
     """
-    
+
     def has_permission(self, request, view):
         """Check if user can create users."""
         if not request.user or not request.user.is_authenticated:
             return False
-        
-        # Use IsTenantAdmin which checks for ADMIN or OWNER
-        return IsTenantAdmin().has_permission(request, view)
+
+        role = getattr(request.user, 'role', None)
+        if role not in ('OWNER', 'ADMIN'):
+            return False
+        return bool(getattr(request, 'academy', None))
     
     def has_object_permission(self, request, view, obj):
         """Check object-level permission."""

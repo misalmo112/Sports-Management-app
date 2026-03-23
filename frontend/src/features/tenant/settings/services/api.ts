@@ -22,6 +22,8 @@ import type {
   UpdateTermRequest,
   AcademySettings,
   UpdateAcademySettingsRequest,
+  AcademyTaxSettings,
+  UpdateAcademyTaxSettingsRequest,
   CurrentAccount,
   UpdateCurrentAccountRequest,
   ChangePasswordRequest,
@@ -323,6 +325,25 @@ export const updateAcademySettings = async (
 ): Promise<AcademySettings> => {
   const response = await apiClient.patch<AcademySettings>(
     API_ENDPOINTS.TENANT.ACADEMY.UPDATE,
+    data
+  );
+  return response.data;
+};
+
+// ==================== Academy Tax Settings ====================
+
+export const getAcademyTaxSettings = async (): Promise<AcademyTaxSettings> => {
+  const response = await apiClient.get<AcademyTaxSettings>(
+    API_ENDPOINTS.TENANT.ACADEMY.TAX_SETTINGS
+  );
+  return response.data;
+};
+
+export const updateAcademyTaxSettings = async (
+  data: UpdateAcademyTaxSettingsRequest
+): Promise<AcademyTaxSettings> => {
+  const response = await apiClient.patch<AcademyTaxSettings>(
+    API_ENDPOINTS.TENANT.ACADEMY.TAX_SETTINGS,
     data
   );
   return response.data;

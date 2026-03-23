@@ -84,6 +84,7 @@ class AttendanceListSerializer(serializers.ModelSerializer):
     
     student_name = serializers.SerializerMethodField()
     class_name = serializers.SerializerMethodField()
+    marked_by_name = serializers.SerializerMethodField()
     
     class Meta:
         model = Attendance
@@ -96,6 +97,8 @@ class AttendanceListSerializer(serializers.ModelSerializer):
             'date',
             'status',
             'notes',
+            'marked_by',
+            'marked_by_name',
             'created_at',
         ]
     
@@ -109,6 +112,12 @@ class AttendanceListSerializer(serializers.ModelSerializer):
         """Safely get class name, handling NULL class."""
         if obj.class_obj:
             return obj.class_obj.name
+        return None
+
+    def get_marked_by_name(self, obj):
+        """Safely get name of user who marked attendance."""
+        if obj.marked_by:
+            return obj.marked_by.get_full_name() or obj.marked_by.email
         return None
 
 

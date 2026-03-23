@@ -3,6 +3,7 @@ Views for user management and invite operations.
 """
 import logging
 from rest_framework import viewsets, status
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -15,7 +16,7 @@ from django.db import connection
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 from tenant.users.models import User, InviteToken
-from shared.tenancy.schema import schema_context
+from shared.tenancy.schema import public_schema_context, schema_context
 from tenant.users.auth_helpers import (
     _find_invite_token_across_schemas,
     _find_reset_token_across_schemas,
@@ -26,7 +27,9 @@ from tenant.users.serializers import (
     UserSerializer,
     UserListSerializer,
     StaffCoachNotInvitedSerializer,
+    GuardianParentNotInvitedSerializer,
     CreateAdminUserSerializer,
+    CreateStaffUserSerializer,
     CreateCoachUserSerializer,
     CreateParentUserSerializer,
     UpdateUserSerializer,
@@ -37,14 +40,19 @@ from tenant.users.serializers import (
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
 )
-from tenant.users.services import UserService
+from tenant.users.services import (
+    UserService,
+    actor_bypasses_last_admin_guard,
+    count_elevated_tenant_admins,
+)
 from tenant.users.permissions import CanCreateUsers
-from shared.permissions.tenant import IsTenantAdmin
+from shared.permissions.tenant import IsTenantAdmin, IsAuthenticatedAcademyUser
 from shared.permissions.base import IsSuperadmin
 from shared.utils.queryset_filtering import filter_by_academy
 from shared.services.quota import QuotaExceededError
 from rest_framework import permissions
 from tenant.coaches.models import Coach
+from tenant.students.models import Parent
 
 User = get_user_model()
 
@@ -53,7 +61,7 @@ class CurrentAccountView(RetrieveUpdateAPIView):
     """Retrieve or update the authenticated tenant admin account."""
 
     serializer_class = CurrentAccountSerializer
-    permission_classes = [IsTenantAdmin]
+    permission_classes = [IsAuthenticatedAcademyUser]
 
     def get_object(self):
         return self.request.user
@@ -62,7 +70,7 @@ class CurrentAccountView(RetrieveUpdateAPIView):
 class ChangePasswordView(APIView):
     """Change the authenticated tenant admin password."""
 
-    permission_classes = [IsTenantAdmin]
+    permission_classes = [IsAuthenticatedAcademyUser]
 
     def post(self, request):
         serializer = ChangePasswordSerializer(
@@ -89,6 +97,8 @@ class UserViewSet(viewsets.ModelViewSet):
     - Retrieve user details
     - Update user (activate/deactivate, update profile)
     """
+
+    required_tenant_module = 'users'
     
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -150,6 +160,22 @@ class UserViewSet(viewsets.ModelViewSet):
     
     def perform_destroy(self, instance):
         """Soft delete by setting is_active=False."""
+        actor = self.request.user
+        if (
+            instance.academy_id
+            and instance.role in (User.Role.OWNER, User.Role.ADMIN)
+            and instance.is_active
+            and instance.is_verified
+            and not actor_bypasses_last_admin_guard(actor)
+        ):
+            if count_elevated_tenant_admins(instance.academy_id, exclude_user_id=instance.pk) == 0:
+                raise DRFValidationError(
+                    {
+                        'detail': (
+                            'Cannot remove the last active Owner or Admin for this academy.'
+                        )
+                    }
+                )
         instance.is_active = False
         instance.save()
     
@@ -200,25 +226,85 @@ class UserViewSet(viewsets.ModelViewSet):
         result = user_rows + staff_rows
         return Response(result)
 
+    @action(detail=False, methods=['get'], url_path='parents-for-management')
+    def parents_for_management(self, request):
+        """
+        Unified list for User Management Parents tab:
+        (1) Active Parent (guardian) rows with or without a matching PARENT User,
+        (2) PARENT Users whose email is not on any Parent record for the academy.
+        GET /api/v1/tenant/users/parents-for-management/
+        """
+        academy = getattr(request, 'academy', None)
+        if not academy:
+            return Response(
+                {'detail': 'Academy context required.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        parents_qs = Parent.objects.filter(
+            academy=academy, is_active=True
+        ).order_by('last_name', 'first_name')
+
+        parent_users_qs = (
+            User.objects.filter(academy=academy, role=User.Role.PARENT)
+            .prefetch_related('invite_tokens')
+        )
+        email_to_user = {}
+        for u in parent_users_qs:
+            key = (u.email or '').lower().strip()
+            if key:
+                email_to_user[key] = u
+
+        parent_emails = set()
+        rows = []
+        for p in parents_qs:
+            email_norm = (p.email or '').lower().strip()
+            parent_emails.add(email_norm)
+            user = email_to_user.get(email_norm)
+            if user:
+                data = UserListSerializer(user).data
+                data['source'] = 'user'
+                data['user_id'] = user.id
+                data['guardian_parent_id'] = p.id
+                rows.append(data)
+            else:
+                row = dict(GuardianParentNotInvitedSerializer(p).data)
+                row['source'] = 'guardian_not_invited'
+                row['invite_status'] = 'none'
+                row['role'] = User.Role.PARENT
+                rows.append(row)
+
+        for u in parent_users_qs:
+            key = (u.email or '').lower().strip()
+            if key and key not in parent_emails:
+                data = UserListSerializer(u).data
+                data['source'] = 'user'
+                data['user_id'] = u.id
+                rows.append(data)
+
+        return Response(rows)
+
     @action(detail=False, methods=['post'], permission_classes=[CanCreateUsers], url_path='invite')
     def invite(self, request):
         """
         Generic invite endpoint that routes to role-specific endpoints.
         
         POST /api/v1/tenant/users/invite/
-        Expects: { role: 'ADMIN'|'COACH'|'PARENT', email: str, ... }
+        Expects: { role: 'ADMIN'|'STAFF'|'COACH'|'PARENT', email: str, ... }
         """
         role = request.data.get('role')
         
         if role == User.Role.ADMIN:
             return self.admins(request)
+        elif role == User.Role.STAFF:
+            return self.staff_users(request)
         elif role == User.Role.COACH:
             return self.coaches(request)
         elif role == User.Role.PARENT:
             return self.parents(request)
         else:
             return Response(
-                {'detail': f'Invalid role: {role}. Must be ADMIN, COACH, or PARENT.'},
+                {'detail': f'Invalid role: {role}. Must be ADMIN, STAFF, COACH, or PARENT.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
     
@@ -245,6 +331,55 @@ class UserViewSet(viewsets.ModelViewSet):
             UserService.send_invite_email_async(user, token)
             
             # Return user data
+            user_serializer = UserSerializer(user)
+            return Response(
+                {
+                    **user_serializer.data,
+                    'invite_sent': True
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except QuotaExceededError as e:
+            return Response(
+                {
+                    'detail': str(e),
+                    'quota_type': e.quota_type,
+                    'current_usage': e.current_usage,
+                    'limit': e.limit,
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        except Exception as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    @action(detail=False, methods=['post'], permission_classes=[CanCreateUsers], url_path='staff')
+    def staff_users(self, request):
+        """
+        Create a STAFF user with allowed_modules.
+
+        POST /api/v1/admin/users/staff/
+        """
+        serializer = CreateStaffUserSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            fn = (serializer.validated_data.get('first_name') or '').strip()
+            ln = (serializer.validated_data.get('last_name') or '').strip()
+            user, token = UserService.create_user_with_invite(
+                role=User.Role.STAFF,
+                email=serializer.validated_data['email'],
+                academy=request.academy,
+                created_by=request.user,
+                allowed_modules=serializer.validated_data['allowed_modules'],
+                first_name=fn or None,
+                last_name=ln or None,
+            )
+
+            UserService.send_invite_email_async(user, token)
+
             user_serializer = UserSerializer(user)
             return Response(
                 {
@@ -415,7 +550,7 @@ class LoginView(APIView):
             user, schema_name = _find_user_by_email_across_schemas(email)
             # Fallback: user in public/current schema (e.g. tests or no tenant schemas)
             if not user:
-                user = User.objects.filter(email=email, is_active=True).first()
+                user = User.objects.filter(email=email).first()
                 schema_name = None
             if not user:
                 return Response(
@@ -465,6 +600,7 @@ class LoginView(APIView):
                         'email': user.email,
                         'role': user.role,
                         'academy_id': academy_id,
+                        'allowed_modules': getattr(user, 'allowed_modules', None),
                     }
                 },
                 status=status.HTTP_200_OK
@@ -488,7 +624,7 @@ class ValidateInviteView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        token = request.query_params.get('token')
+        token = (request.query_params.get('token') or '').strip()
 
         if not token:
             return Response(
@@ -504,14 +640,17 @@ class ValidateInviteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        u = invite_token.user
         return Response(
             {
                 'status': 'success',
                 'data': {
-                    'email': invite_token.user.email,
-                    'role': invite_token.user.role,
+                    'email': u.email,
+                    'role': u.role,
                     'academy_name': invite_token.academy.name,
-                    'expires_at': invite_token.expires_at
+                    'expires_at': invite_token.expires_at,
+                    'first_name': u.first_name or '',
+                    'last_name': u.last_name or '',
                 }
             },
             status=status.HTTP_200_OK
@@ -558,13 +697,26 @@ class AcceptInviteView(APIView):
                     user.is_verified = True
                     user.save(update_fields=['password', 'is_active', 'is_verified', 'updated_at'])
             else:
-                invite_token.mark_as_used()
-                user = invite_token.user
-                user.set_password(password)
-                user.is_active = True
-                user.is_verified = True
-                user.save(update_fields=['password', 'is_active', 'is_verified', 'updated_at'])
-            
+                if connection.vendor == 'postgresql':
+                    with public_schema_context():
+                        invite_token.mark_as_used()
+                        user = invite_token.user
+                        user.set_password(password)
+                        user.is_active = True
+                        user.is_verified = True
+                        user.save(
+                            update_fields=['password', 'is_active', 'is_verified', 'updated_at']
+                        )
+                else:
+                    invite_token.mark_as_used()
+                    user = invite_token.user
+                    user.set_password(password)
+                    user.is_active = True
+                    user.is_verified = True
+                    user.save(
+                        update_fields=['password', 'is_active', 'is_verified', 'updated_at']
+                    )
+
             refresh = RefreshToken.for_user(user)
             
             return Response(
@@ -576,6 +728,7 @@ class AcceptInviteView(APIView):
                         'email': user.email,
                         'role': user.role,
                         'academy_id': str(user.academy_id),
+                        'allowed_modules': getattr(user, 'allowed_modules', None),
                     }
                 },
                 status=status.HTTP_200_OK

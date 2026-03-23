@@ -1,7 +1,9 @@
 /**
  * TanStack Query hooks for Tenant Settings
  */
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { syncAllowedModulesFromAccount } from '@/shared/utils/roleAccess';
 import {
   getLocations,
   getLocation,
@@ -25,6 +27,8 @@ import {
   deleteTerm,
   getAcademySettings,
   updateAcademySettings,
+  getAcademyTaxSettings,
+  updateAcademyTaxSettings,
   getCurrentAccount,
   updateCurrentAccount,
   changePassword,
@@ -51,6 +55,8 @@ import type {
   UpdateTermRequest,
   AcademySettings,
   UpdateAcademySettingsRequest,
+  AcademyTaxSettings,
+  UpdateAcademyTaxSettingsRequest,
   CurrentAccount,
   UpdateCurrentAccountRequest,
   ChangePasswordRequest,
@@ -326,13 +332,21 @@ export const useDeleteTerm = () => {
 // ==================== Academy Settings ====================
 
 export const useCurrentAccount = (options?: { enabled?: boolean }) => {
-  return useQuery<CurrentAccount, Error>({
+  const query = useQuery<CurrentAccount, Error>({
     queryKey: ['current-account'],
     queryFn: getCurrentAccount,
     enabled: options?.enabled ?? true,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (query.data) {
+      syncAllowedModulesFromAccount(query.data);
+    }
+  }, [query.data]);
+
+  return query;
 };
 
 export const useUpdateCurrentAccount = () => {
@@ -340,7 +354,8 @@ export const useUpdateCurrentAccount = () => {
 
   return useMutation<CurrentAccount, Error, UpdateCurrentAccountRequest>({
     mutationFn: updateCurrentAccount,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      syncAllowedModulesFromAccount(data);
       queryClient.invalidateQueries({ queryKey: ['current-account'] });
     },
   });
@@ -369,6 +384,31 @@ export const useUpdateAcademySettings = () => {
     mutationFn: updateAcademySettings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-settings'] });
+    },
+  });
+};
+
+export const useAcademyTaxSettings = (options?: { enabled?: boolean }) => {
+  return useQuery<AcademyTaxSettings, Error>({
+    queryKey: ['academy-tax-settings'],
+    queryFn: getAcademyTaxSettings,
+    enabled: options?.enabled ?? true,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useUpdateAcademyTaxSettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    AcademyTaxSettings,
+    Error,
+    UpdateAcademyTaxSettingsRequest
+  >({
+    mutationFn: updateAcademyTaxSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academy-tax-settings'] });
     },
   });
 };

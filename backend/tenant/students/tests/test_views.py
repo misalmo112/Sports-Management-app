@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient, APIRequestFactory
@@ -174,3 +176,82 @@ class StudentViewSetTest(TestCase):
         # Student should still exist but be inactive
         student.refresh_from_db()
         self.assertFalse(student.is_active)
+
+
+class ParentViewSetInviteTest(TestCase):
+    """Test POST /api/v1/tenant/parents/{id}/invite/."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.academy = Academy.objects.create(
+            name='Invite Academy',
+            slug='invite-academy',
+            email='invite-academy@test.com',
+            onboarding_completed=True,
+        )
+        self.plan = Plan.objects.create(
+            name='Basic Plan',
+            slug='basic-plan-invite',
+            limits_json={
+                'max_students': 100,
+                'max_coaches': 10,
+                'max_admins': 5,
+                'max_classes': 50,
+            },
+        )
+        Subscription.objects.create(
+            academy=self.academy,
+            plan=self.plan,
+            status=SubscriptionStatus.ACTIVE,
+            is_current=True,
+            start_at=timezone.now(),
+        )
+        self.admin = User.objects.create_user(
+            email='admin-invite@academy.com',
+            role=User.Role.ADMIN,
+            academy=self.academy,
+            is_active=True,
+            is_verified=True,
+        )
+        from tenant.users.models import AdminProfile
+
+        if not hasattr(self.admin, 'admin_profile'):
+            AdminProfile.objects.create(user=self.admin, academy=self.academy)
+        self.client.force_authenticate(user=self.admin)
+        self.client.credentials(HTTP_X_ACADEMY_ID=str(self.academy.id))
+        self.guardian = Parent.objects.create(
+            academy=self.academy,
+            first_name='Guard',
+            last_name='Ian',
+            email='guardian.invite@example.com',
+            phone='+10000000001',
+        )
+
+    @patch('tenant.users.services.UserService.send_invite_email_async')
+    def test_invite_guardian_creates_parent_user(self, _mock_send):
+        url = f'/api/v1/tenant/parents/{self.guardian.id}/invite/'
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data.get('invite_sent'))
+        self.assertEqual(response.data['email'], 'guardian.invite@example.com')
+        self.assertEqual(response.data['role'], 'PARENT')
+        user = User.objects.get(email='guardian.invite@example.com')
+        self.assertEqual(user.first_name, 'Guard')
+        self.assertEqual(user.last_name, 'Ian')
+        self.assertEqual(user.parent_profile.phone, '+10000000001')
+
+    @patch('tenant.users.services.UserService.send_invite_email_async')
+    def test_invite_guardian_fails_if_user_exists(self, _mock_send):
+        from tenant.users.models import ParentProfile
+
+        existing = User.objects.create_user(
+            email='guardian.invite@example.com',
+            role=User.Role.PARENT,
+            academy=self.academy,
+            is_active=False,
+            is_verified=False,
+        )
+        ParentProfile.objects.create(user=existing, academy=self.academy, phone='')
+        url = f'/api/v1/tenant/parents/{self.guardian.id}/invite/'
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

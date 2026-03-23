@@ -2,52 +2,157 @@ from rest_framework import permissions
 from shared.permissions.base import IsSuperadmin
 
 
-class IsTenantAdmin(permissions.BasePermission):
-    """Check if user is OWNER or ADMIN of the academy."""
-    
+def _is_tenant_dashboard_role(user) -> bool:
+    role = getattr(user, 'role', None)
+    return role in ('OWNER', 'ADMIN', 'STAFF')
+
+
+def has_full_tenant_dashboard_module_access(user) -> bool:
+    """
+    True for OWNER, or ADMIN with allowed_modules NULL (v1 full-academy-admin bypass).
+    STAFF and other roles: False.
+    """
+    role = getattr(user, 'role', None)
+    if role == 'OWNER':
+        return True
+    if role == 'ADMIN':
+        return getattr(user, 'allowed_modules', None) is None
+    return False
+
+
+def user_has_tenant_module(user, module_key: str) -> bool:
+    """True if user may use the tenant dashboard for this module key (STAFF: key in allowed_modules)."""
+    if not module_key:
+        return False
+    return tenant_dashboard_actor_has_module(user, module_key)
+
+
+def tenant_dashboard_actor_has_module(user, module_key: str | None) -> bool:
+    """
+    OWNER always allowed. ADMIN with allowed_modules NULL = full. STAFF needs module_key in list.
+    If module_key is None: OWNER/ADMIN pass; STAFF denied (views must set required_tenant_module).
+    """
+    role = getattr(user, 'role', None)
+    if role == 'OWNER':
+        return True
+    if role == 'ADMIN':
+        if module_key is None:
+            return True
+        mods = getattr(user, 'allowed_modules', None)
+        return mods is None
+    if role == 'STAFF':
+        if not module_key:
+            return False
+        mods = getattr(user, 'allowed_modules', None) or []
+        return module_key in mods
+    return False
+
+
+def check_tenant_admin_module(request, view, module_key: str) -> bool:
+    """Use when module depends on request (e.g. report_type query param)."""
+    return _tenant_admin_core(request, view, module_key)
+
+
+def _tenant_admin_core(request, view, module_key: str | None) -> bool:
+    if not request.user or not request.user.is_authenticated:
+        return False
+    if IsSuperadmin().has_permission(request, view):
+        return True
+    if not getattr(request, 'academy', None):
+        return False
+    user = request.user
+    if not hasattr(user, 'role'):
+        return bool(getattr(user, 'is_staff', False))
+    if not _is_tenant_dashboard_role(user):
+        return False
+    if getattr(user, 'academy_id', None) != request.academy.id:
+        return False
+    effective_key = module_key if module_key is not None else getattr(view, 'required_tenant_module', None)
+    return tenant_dashboard_actor_has_module(user, effective_key)
+
+
+class IsAuthenticatedAcademyUser(permissions.BasePermission):
+    """Authenticated user belonging to request.academy (e.g. My Account for any tenant role)."""
+
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        
-        # Superadmin can access tenant resources (read-only enforcement at viewset level)
         if IsSuperadmin().has_permission(request, view):
             return True
-        
-        if not hasattr(request, 'academy') or not request.academy:
+        academy = getattr(request, 'academy', None)
+        if not academy:
             return False
-        
-        # Check if user has role attribute
-        if hasattr(request.user, 'role'):
-            return request.user.role in ['OWNER', 'ADMIN']
-        
-        # Fallback: check if user is Django staff (for testing compatibility)
-        if hasattr(request.user, 'is_staff'):
-            return request.user.is_staff
-        
-        return False
-    
+        return getattr(request.user, 'academy_id', None) == academy.id
+
+
+class IsTenantAdmin(permissions.BasePermission):
+    """
+    OWNER, legacy ADMIN (NULL allowed_modules), or STAFF with required_tenant_module on the view.
+    """
+
+    def has_permission(self, request, view):
+        return _tenant_admin_core(request, view, None)
+
     def has_object_permission(self, request, view, obj):
         if IsSuperadmin().has_permission(request, view):
             return True
-        
-        if not hasattr(obj, 'academy'):
-            return False
-        
-        # Check if object belongs to user's academy
         if not hasattr(request, 'academy') or not request.academy:
             return False
-        
-        if obj.academy_id != request.academy.id:
+        # Academy settings views return the Academy row itself (no academy_id FK)
+        try:
+            from saas_platform.tenants.models import Academy as AcademyModel
+        except ImportError:
+            AcademyModel = tuple()
+        if isinstance(obj, AcademyModel):
+            if obj.id != request.academy.id:
+                return False
+        elif hasattr(obj, 'academy_id'):
+            if obj.academy_id != request.academy.id:
+                return False
+        else:
             return False
-        
-        # Check role
-        if hasattr(request.user, 'role'):
-            return request.user.role in ['OWNER', 'ADMIN']
-        
-        if hasattr(request.user, 'is_staff'):
-            return request.user.is_staff
-        
-        return False
+        user = request.user
+        if not hasattr(user, 'role'):
+            return bool(getattr(user, 'is_staff', False))
+        if not _is_tenant_dashboard_role(user):
+            return False
+        effective_key = getattr(view, 'required_tenant_module', None)
+        return tenant_dashboard_actor_has_module(user, effective_key)
+
+
+def tenant_admin_module_permission(module_key: str):
+    """For function-based views: permission class with fixed module key."""
+
+    class _TenantAdminModulePermission(permissions.BasePermission):
+        def has_permission(self, request, view):
+            return _tenant_admin_core(request, view, module_key)
+
+        def has_object_permission(self, request, view, obj):
+            if IsSuperadmin().has_permission(request, view):
+                return True
+            if not hasattr(request, 'academy') or not request.academy:
+                return False
+            try:
+                from saas_platform.tenants.models import Academy as AcademyModel
+            except ImportError:
+                AcademyModel = tuple()
+            if isinstance(obj, AcademyModel):
+                if obj.id != request.academy.id:
+                    return False
+            elif hasattr(obj, 'academy_id'):
+                if obj.academy_id != request.academy.id:
+                    return False
+            else:
+                return False
+            user = request.user
+            if not hasattr(user, 'role'):
+                return bool(getattr(user, 'is_staff', False))
+            if not _is_tenant_dashboard_role(user):
+                return False
+            return tenant_dashboard_actor_has_module(user, module_key)
+
+    _TenantAdminModulePermission.__name__ = f'TenantAdminModule_{module_key.replace("-", "_")}'
+    return _TenantAdminModulePermission
 
 
 class IsOwner(permissions.BasePermission):

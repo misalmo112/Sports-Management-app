@@ -11,13 +11,16 @@ The current frontend route layer recognizes these roles:
 - `SUPERADMIN`
 - `OWNER`
 - `ADMIN`
+- `STAFF` (delegated dashboard access with `allowed_modules`)
 - `COACH`
 - `PARENT`
 
 Important implementation note:
 
-- the frontend and route guards use the five-role access surface above
-- the tenant `User` model currently formalizes `ADMIN`, `COACH`, and `PARENT` in its enum
+- the tenant `User` model uses `OWNER`, `ADMIN`, `STAFF`, `COACH`, and `PARENT`
+- `STAFF`: non-empty `allowed_modules` (module keys aligned with admin nav ids); see [MODULE_ACCESS.md](./MODULE_ACCESS.md) and implementation handoff [HANDOFF_MODULE_BASED_STAFF.md](./HANDOFF_MODULE_BASED_STAFF.md)
+- `ADMIN` with `allowed_modules` unset (`NULL`): full module bypass on tenant admin APIs
+- `OWNER`: always bypasses module checks
 - platform access also relies on `SUPERADMIN` role checks and `is_superuser` fallback logic
 - `STUDENT` is not an active route or permission role in the current implementation
 
@@ -39,9 +42,14 @@ Important implementation note:
 
 #### `shared.permissions.tenant.IsTenantAdmin`
 
-- allows academy-scoped admin access
-- accepts `OWNER` or `ADMIN`
+- allows academy-scoped admin access for `OWNER`, `ADMIN`, and `STAFF`
+- `OWNER` and `ADMIN` with `allowed_modules` NULL: full access to tenant admin endpoints
+- `STAFF`: access only when the view declares `required_tenant_module` and the user’s `allowed_modules` contains that key
 - also allows superadmin access through the shared superadmin check
+
+#### `shared.permissions.tenant.IsAuthenticatedAcademyUser`
+
+- any authenticated user whose `academy_id` matches `request.academy` (e.g. **My Account** / change password), without module checks
 
 #### `shared.permissions.tenant.IsOwner`
 
@@ -125,13 +133,13 @@ Important current rules:
 
 This summary is intentionally high level and aligned to implemented route families.
 
-| Area | SUPERADMIN | OWNER | ADMIN | COACH | PARENT |
-|---|---|---|---|---|---|
-| Platform management | Yes | No | No | No | No |
-| Platform finance | Yes | No | No | No | No |
-| Tenant overview | Yes or routed equivalent | Yes | Yes | Yes | Yes |
-| Tenant operations | Read/admin bypass where allowed | Yes | Yes | Limited | Limited |
-| Tenant settings and user management | Read/admin bypass where allowed | Yes | Yes | No | No |
+| Area | SUPERADMIN | OWNER | ADMIN | STAFF | COACH | PARENT |
+|---|---|---|---|---|---|---|
+| Platform management | Yes | No | No | No | No | No |
+| Platform finance | Yes | No | No | No | No | No |
+| Tenant overview | Yes or routed equivalent | Yes | Yes | If module | Yes | Yes |
+| Tenant operations | Read/admin bypass where allowed | Yes | Yes | If module | Limited | Limited |
+| Tenant settings and user management | Read/admin bypass where allowed | Yes | Yes | If module (no users/subscription/bulk for STAFF) | No | No |
 
 Notes:
 
@@ -157,6 +165,7 @@ Current implementation paths:
 
 ## Related References
 
+- `docs/MODULE_ACCESS.md`
 - `docs/ROLE_ROUTE_MAP.md`
 - `docs/ARCHITECTURE.md`
 - `docs/API_CONVENTIONS.md`

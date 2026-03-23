@@ -74,7 +74,13 @@ export function generateCoverageReport(
 
   // Routes that have navigation items
   const routesWithNav = normalizedRoutes.filter(route => {
-    if (!route || route === '*' || route.startsWith('/onboarding') || route.startsWith('/accept-invite')) {
+    if (
+      !route ||
+      route === '*' ||
+      route.startsWith('/onboarding') ||
+      route.startsWith('/accept-invite') ||
+      route.startsWith('/auth/invite/accept')
+    ) {
       return false;
     }
     // Check if any nav item matches this route

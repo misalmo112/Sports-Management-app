@@ -15,35 +15,68 @@ import { Button } from '@/shared/components/ui/button';
 import { UserStatusBadge } from './UserStatusBadge';
 import { InviteStatusBadge } from './InviteStatusBadge';
 import { UserActions } from './UserActions';
-import type { User, CoachManagementRow } from '../types';
+import type { User, CoachManagementRow, ParentManagementRow } from '../types';
 import { Copy, Mail } from 'lucide-react';
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';
 import { useInviteStaffCoach } from '../hooks/useInviteStaffCoach';
+import { useInviteGuardianParent } from '../hooks/useInviteGuardianParent';
+import { formatTenantModuleLabel } from '@/shared/constants/moduleKeys';
+
+function formatStaffAccessCell(row: { role?: string; allowed_modules?: string[] | null }): string {
+  const role = row.role;
+  if (role === 'STAFF') {
+    const mods = row.allowed_modules;
+    if (!mods?.length) return '—';
+    if (mods.length <= 2) {
+      return mods.map((k) => formatTenantModuleLabel(k)).join(', ');
+    }
+    return `${mods.length} modules`;
+  }
+  if (role === 'ADMIN' || role === 'OWNER') {
+    return 'Full access';
+  }
+  return '—';
+}
 
 interface UserTableProps {
   users?: User[];
   coachManagementRows?: CoachManagementRow[];
+  parentManagementRows?: ParentManagementRow[];
   isLoading?: boolean;
   onUserUpdate?: () => void;
 }
 
-function isCoachManagementRow(row: User | CoachManagementRow): row is CoachManagementRow {
-  return 'source' in row;
+function isCoachManagementRow(
+  row: User | CoachManagementRow | ParentManagementRow
+): row is CoachManagementRow {
+  return (
+    'source' in row &&
+    (row.source === 'staff_not_invited' || row.source === 'user')
+  );
 }
 
 export const UserTable = ({
   users = [],
   coachManagementRows,
+  parentManagementRows,
   isLoading = false,
   onUserUpdate,
 }: UserTableProps) => {
   const [copiedUserId, setCopiedUserId] = useState<number | null>(null);
   const { formatDateTime } = useAcademyFormat();
   const inviteStaffCoach = useInviteStaffCoach();
-  const rows = coachManagementRows ?? users;
-  const isCoachManagement = Array.isArray(coachManagementRows) && coachManagementRows.length > 0;
+  const inviteGuardianParent = useInviteGuardianParent();
+  const isParentManagement =
+    Array.isArray(parentManagementRows) && parentManagementRows.length > 0;
+  const isCoachManagement =
+    !isParentManagement &&
+    Array.isArray(coachManagementRows) &&
+    coachManagementRows.length > 0;
+  const rows = isParentManagement
+    ? parentManagementRows!
+    : coachManagementRows ?? users;
 
-  const formatInviteInfo = (user: User | CoachManagementRow) => {
+  const formatInviteInfo = (user: User | CoachManagementRow | ParentManagementRow) => {
     if (!user.invite_status || user.invite_status === 'none') {
       return 'No invite';
     }
@@ -76,7 +109,7 @@ export const UserTable = ({
     return '—';
   };
 
-  const formatName = (user: User | CoachManagementRow) => {
+  const formatName = (user: User | CoachManagementRow | ParentManagementRow) => {
     if (user.full_name) return user.full_name;
     if (user.first_name || user.last_name) {
       return `${user.first_name || ''} ${user.last_name || ''}`.trim();
@@ -109,6 +142,7 @@ export const UserTable = ({
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Staff access</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Invite Status</TableHead>
               <TableHead>Invite Info</TableHead>
@@ -127,6 +161,9 @@ export const UserTable = ({
                 </TableCell>
                 <TableCell>
                   <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+                </TableCell>
+                <TableCell>
+                  <div className="h-4 w-24 animate-pulse rounded bg-muted" />
                 </TableCell>
                 <TableCell>
                   <div className="h-4 w-16 animate-pulse rounded bg-muted" />
@@ -167,11 +204,24 @@ export const UserTable = ({
         'Failed to send invite'
       : null;
 
+  const parentInviteError =
+    inviteGuardianParent.isError && inviteGuardianParent.error
+      ? (inviteGuardianParent.error as { response?: { data?: { detail?: string } }; message?: string })
+          ?.response?.data?.detail ||
+        (inviteGuardianParent.error as Error).message ||
+        'Failed to send invite'
+      : null;
+
   return (
     <div className="space-y-2">
       {inviteError && (
         <Alert variant="destructive">
           <AlertDescription>{inviteError}</AlertDescription>
+        </Alert>
+      )}
+      {parentInviteError && (
+        <Alert variant="destructive">
+          <AlertDescription>{parentInviteError}</AlertDescription>
         </Alert>
       )}
       <div className="rounded-md border">
@@ -181,6 +231,7 @@ export const UserTable = ({
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Staff access</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Invite Status</TableHead>
               <TableHead>Invite Info</TableHead>
@@ -190,6 +241,79 @@ export const UserTable = ({
         </TableHeader>
         <TableBody>
           {rows.map((row) => {
+            if (isParentManagement) {
+              const prow = row as ParentManagementRow;
+              if (prow.source === 'guardian_not_invited') {
+                return (
+                  <TableRow key={`guardian-${prow.parent_id}`}>
+                    <TableCell className="font-medium">{formatName(prow)}</TableCell>
+                    <TableCell>{prow.email}</TableCell>
+                    <TableCell>Parent</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell>
+                      <InviteStatusBadge status="none" />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">No app account yet</TableCell>
+                    <TableCell>—</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        onClick={() => inviteGuardianParent.mutate(prow.parent_id)}
+                        disabled={inviteGuardianParent.isPending}
+                      >
+                        <Mail className="mr-2 h-4 w-4" />
+                        {inviteGuardianParent.isPending ? 'Sending...' : 'Invite'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              }
+              const userRow = prow as User & { source: 'user'; user_id: number };
+              const userForActions: User = { ...userRow, id: userRow.user_id };
+              return (
+                <TableRow key={`parent-user-${userRow.user_id}`}>
+                  <TableCell className="font-medium">{formatName(userRow)}</TableCell>
+                  <TableCell>{userRow.email}</TableCell>
+                  <TableCell>{formatRole(userRow.role)}</TableCell>
+                  <TableCell className="max-w-[200px] text-sm text-muted-foreground">
+                    {formatStaffAccessCell(userRow)}
+                  </TableCell>
+                  <TableCell>
+                    <UserStatusBadge status={userRow.status} />
+                  </TableCell>
+                  <TableCell>
+                    <InviteStatusBadge status={userRow.invite_status} />
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    <div className="flex flex-col gap-2">
+                      <span>{formatInviteInfo(userRow)}</span>
+                      {userRow.invite_status === 'pending' && userRow.invite_link ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleCopyInviteLink(userRow.invite_link as string, userRow.user_id)
+                            }
+                          >
+                            <Copy className="mr-2 h-4 w-4" />
+                            {copiedUserId === userRow.user_id ? 'Copied' : 'Copy Invite Link'}
+                          </Button>
+                          <span className="break-all text-xs text-muted-foreground">
+                            {userRow.invite_link}
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>{formatDateTime(userRow.last_login)}</TableCell>
+                  <TableCell className="text-right">
+                    <UserActions user={userForActions} onUpdate={onUserUpdate} />
+                  </TableCell>
+                </TableRow>
+              );
+            }
             if (isCoachManagement && isCoachManagementRow(row)) {
               if (row.source === 'staff_not_invited') {
                 return (
@@ -197,6 +321,7 @@ export const UserTable = ({
                     <TableCell className="font-medium">{formatName(row)}</TableCell>
                     <TableCell>{row.email}</TableCell>
                     <TableCell>Coach</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell>—</TableCell>
                     <TableCell>
                       <InviteStatusBadge status="none" />
@@ -224,6 +349,9 @@ export const UserTable = ({
                   <TableCell className="font-medium">{formatName(userRow)}</TableCell>
                   <TableCell>{userRow.email}</TableCell>
                   <TableCell>{formatRole(userRow.role)}</TableCell>
+                  <TableCell className="max-w-[200px] text-sm text-muted-foreground">
+                    {formatStaffAccessCell(userRow)}
+                  </TableCell>
                   <TableCell>
                     <UserStatusBadge status={userRow.status} />
                   </TableCell>
@@ -263,6 +391,9 @@ export const UserTable = ({
                 <TableCell className="font-medium">{formatName(user)}</TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>{formatRole(user.role)}</TableCell>
+                <TableCell className="max-w-[200px] text-sm text-muted-foreground">
+                  {formatStaffAccessCell(user)}
+                </TableCell>
                 <TableCell>
                   <UserStatusBadge status={user.status} />
                 </TableCell>

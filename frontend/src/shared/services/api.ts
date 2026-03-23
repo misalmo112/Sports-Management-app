@@ -3,8 +3,13 @@
  */
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// Get API base URL from environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// In dev, default to same-origin so Vite can proxy /api (see vite.config.ts). Set VITE_API_URL to override.
+const API_BASE_URL =
+  typeof import.meta.env.VITE_API_URL === 'string' && import.meta.env.VITE_API_URL.trim() !== ''
+    ? import.meta.env.VITE_API_URL.trim()
+    : import.meta.env.DEV
+      ? ''
+      : 'http://localhost:8000';
 
 /**
  * Create axios instance with base configuration
@@ -22,9 +27,6 @@ const apiClient: AxiosInstance = axios.create({
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/4a32c0a0-4b97-4ce7-bbfd-e1102b6601f3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:23',message:'API request interceptor',data:{url:config.url,method:config.method,baseURL:config.baseURL,hasToken:!!localStorage.getItem('auth_token'),academyId:localStorage.getItem('selected_academy_id')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     // Add Authorization header
     const token = localStorage.getItem('auth_token');
     if (token && config.headers) {
@@ -39,28 +41,15 @@ apiClient.interceptors.request.use(
     
     return config;
   },
-  (error: AxiosError) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/4a32c0a0-4b97-4ce7-bbfd-e1102b6601f3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:39',message:'API request interceptor error',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    return Promise.reject(error);
-  }
+  (error: AxiosError) => Promise.reject(error)
 );
 
 /**
  * Response interceptor for error handling
  */
 apiClient.interceptors.response.use(
-  (response) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/4a32c0a0-4b97-4ce7-bbfd-e1102b6601f3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:47',message:'API response interceptor success',data:{url:response.config?.url,status:response.status,hasData:!!response.data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    return response;
-  },
+  (response) => response,
   (error: AxiosError) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/4a32c0a0-4b97-4ce7-bbfd-e1102b6601f3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:51',message:'API response interceptor error',data:{url:error.config?.url,hasResponse:!!error.response,status:error.response?.status,statusText:error.response?.statusText,hasRequest:!!error.request,errorMessage:error.message,errorCode:error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     // Handle common errors
     if (error.response) {
       // Server responded with error status

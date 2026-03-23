@@ -40,6 +40,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     - GET /api/v1/tenant/feedback/{id}/ - Get feedback details (ADMIN/OWNER only)
     - PATCH /api/v1/tenant/feedback/{id}/ - Update feedback (ADMIN/OWNER only)
     """
+
+    required_tenant_module = 'feedback'
     queryset = Feedback.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = FeedbackFilter

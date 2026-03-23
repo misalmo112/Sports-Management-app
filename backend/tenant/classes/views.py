@@ -24,6 +24,8 @@ from shared.utils.queryset_filtering import filter_by_academy
 
 class ClassViewSet(viewsets.ModelViewSet):
     """ViewSet for Class model."""
+
+    required_tenant_module = 'classes'
     
     queryset = Class.objects.all()
     serializer_class = ClassSerializer
@@ -212,6 +214,8 @@ class ClassViewSet(viewsets.ModelViewSet):
 
 class EnrollmentViewSet(viewsets.ModelViewSet):
     """ViewSet for Enrollment model."""
+
+    required_tenant_module = 'classes'
     
     queryset = Enrollment.objects.all()
     serializer_class = EnrollmentSerializer

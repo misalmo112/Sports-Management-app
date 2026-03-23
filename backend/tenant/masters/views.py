@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class TimezonesView(APIView):
+    required_tenant_module = 'timezones'
     permission_classes = [IsTenantAdmin]
 
     def get(self, request):
@@ -25,6 +26,7 @@ class TimezonesView(APIView):
 
 
 class CurrenciesView(APIView):
+    required_tenant_module = 'currencies'
     permission_classes = [IsTenantAdmin]
 
     def get(self, request):
@@ -37,6 +39,7 @@ class CurrenciesView(APIView):
 
 
 class CountriesView(APIView):
+    required_tenant_module = 'organization-settings'
     permission_classes = [IsTenantAdmin]
 
     def get(self, request):

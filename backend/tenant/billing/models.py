@@ -229,8 +229,8 @@ class Invoice(models.Model):
             # Save again to persist calculated totals, but avoid recursion
             update_fields = kwargs.get('update_fields')
             if update_fields is None:
-                super().save(update_fields=['subtotal', 'discount_amount', 'total', 'updated_at'])
-            elif any(f in update_fields for f in ['subtotal', 'discount_amount', 'total']):
+                super().save(update_fields=['subtotal', 'discount_amount', 'tax_amount', 'total', 'updated_at'])
+            elif any(f in update_fields for f in ['subtotal', 'discount_amount', 'tax_amount', 'total']):
                 # Already updating these fields, no need to save again
                 pass
     
@@ -266,6 +266,15 @@ class Invoice(models.Model):
             # Don't overwrite it - just keep the existing value
             # (This allows invoices to be created with manual discount_amount without discount_type/value)
             pass  # Preserve existing discount_amount value
+
+        # Apply academy-wide global tax (if enabled).
+        # Tax is computed on the net amount: (subtotal - discount_amount).
+        if getattr(self.academy, 'global_tax_enabled', False):
+            tax_rate = getattr(self.academy, 'global_tax_rate_percent', Decimal('0.00'))
+            net_amount = self.subtotal - self.discount_amount
+            if net_amount < Decimal('0.00'):
+                net_amount = Decimal('0.00')
+            self.tax_amount = (net_amount * (tax_rate / Decimal('100.00'))).quantize(Decimal('0.01'))
         
         # Calculate total (subtotal - discount + tax)
         self.total = (self.subtotal - self.discount_amount + self.tax_amount).quantize(Decimal('0.01'))
@@ -402,7 +411,7 @@ class InvoiceItem(models.Model):
         # Recalculate invoice totals
         if self.invoice and self.invoice.pk:
             self.invoice.calculate_totals()
-            self.invoice.save(update_fields=['subtotal', 'discount_amount', 'total', 'updated_at'])
+            self.invoice.save(update_fields=['subtotal', 'discount_amount', 'tax_amount', 'total', 'updated_at'])
 
 
 class Receipt(models.Model):

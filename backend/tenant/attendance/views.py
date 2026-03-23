@@ -32,6 +32,8 @@ User = get_user_model()
 
 class AttendanceViewSet(viewsets.ModelViewSet):
     """ViewSet for Attendance model."""
+
+    required_tenant_module = 'attendance'
     
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
@@ -376,6 +378,8 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
 class CoachAttendanceViewSet(viewsets.ModelViewSet):
     """ViewSet for CoachAttendance model."""
+
+    required_tenant_module = 'attendance'
     
     queryset = CoachAttendance.objects.all()
     serializer_class = CoachAttendanceSerializer

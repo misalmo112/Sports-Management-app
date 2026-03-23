@@ -1,18 +1,29 @@
 """
 Serializers for user models and invite operations.
 """
+import logging
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from urllib.parse import quote
+
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from tenant.users.models import User, AdminProfile, CoachProfile, ParentProfile, InviteToken
 from tenant.students.models import Parent, Student
-from tenant.students.models import Parent
 from tenant.onboarding.models import Location
 from tenant.coaches.models import Coach
+from shared.permissions.module_keys import validate_allowed_modules_for_staff
+from shared.tenancy.schema import public_schema_context
+from saas_platform.audit.services import AuditService
+from saas_platform.audit.models import AuditAction, ResourceType
+from tenant.users.services import (
+    actor_bypasses_last_admin_guard,
+    count_elevated_tenant_admins,
+)
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class AdminProfileSerializer(serializers.ModelSerializer):
@@ -146,6 +157,7 @@ class UserSerializer(serializers.ModelSerializer):
             'parent_profile',
             'parent_record',
             'parent_students',
+            'allowed_modules',
             'created_at',
             'updated_at',
             'last_login',
@@ -156,6 +168,7 @@ class UserSerializer(serializers.ModelSerializer):
             'role',
             'academy',
             'is_verified',
+            'allowed_modules',
             'created_at',
             'updated_at',
             'last_login',
@@ -241,6 +254,7 @@ class UserListSerializer(serializers.ModelSerializer):
             'invite_accepted_at',
             'has_active_invite',
             'invite_link',
+            'allowed_modules',
         ]
     
     def get_full_name(self, obj):
@@ -250,13 +264,20 @@ class UserListSerializer(serializers.ModelSerializer):
         return None
     
     def get_status(self, obj):
-        """Compute user status from is_active and is_verified."""
-        if not obj.is_active:
-            return 'disabled'
-        elif obj.is_verified:
+        """
+        Compute user status from is_active and is_verified.
+
+        Invited users are created inactive (is_active=False) until they accept;
+        they must show as 'invited', not 'disabled'. 'disabled' is for accounts
+        that were verified then deactivated (e.g. soft-delete).
+        """
+        if obj.is_active and obj.is_verified:
             return 'active'
-        else:
+        if obj.is_active and not obj.is_verified:
             return 'invited'
+        if not obj.is_active and obj.is_verified:
+            return 'disabled'
+        return 'invited'
     
     def _get_most_recent_invite_token(self, user):
         """Get the most recent invite token for a user."""
@@ -350,8 +371,36 @@ class UserListSerializer(serializers.ModelSerializer):
         if not invite_token.token_plain:
             return None
         
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-        return f"{frontend_url}/auth/invite/accept?token={invite_token.token_plain}"
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+        q = quote(invite_token.token_plain, safe='')
+        return f"{frontend_url}/accept-invite?token={q}"
+
+
+class CreateStaffUserSerializer(serializers.Serializer):
+    """Serializer for creating STAFF users with module grants."""
+
+    email = serializers.EmailField(required=True)
+    first_name = serializers.CharField(
+        required=False, allow_blank=True, default='', max_length=150
+    )
+    last_name = serializers.CharField(
+        required=False, allow_blank=True, default='', max_length=150
+    )
+    allowed_modules = serializers.ListField(
+        child=serializers.CharField(),
+        required=True,
+        allow_empty=False,
+    )
+
+    def validate_email(self, value):
+        value = value.lower().strip()
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError(f"User with email {value} already exists.")
+        return value
+
+    def validate_allowed_modules(self, value):
+        validate_allowed_modules_for_staff(list(value))
+        return list(value)
 
 
 class CreateAdminUserSerializer(serializers.Serializer):
@@ -431,6 +480,11 @@ class UpdateUserSerializer(serializers.ModelSerializer):
     coach_profile = CoachProfileSerializer(required=False)
     parent_profile = ParentProfileSerializer(required=False)
     parent_record = ParentRecordUpdateSerializer(required=False)
+    allowed_modules = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_null=True,
+    )
     
     class Meta:
         model = User
@@ -442,17 +496,96 @@ class UpdateUserSerializer(serializers.ModelSerializer):
             'coach_profile',
             'parent_profile',
             'parent_record',
+            'allowed_modules',
         ]
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        actor = getattr(request, 'user', None) if request else None
+        actor_role = getattr(actor, 'role', None)
+        if 'allowed_modules' in attrs and attrs['allowed_modules'] is not None:
+            if self.instance.role != User.Role.STAFF:
+                raise serializers.ValidationError(
+                    {'allowed_modules': 'allowed_modules can only be set for STAFF users.'}
+                )
+            if actor_role not in ('OWNER', 'ADMIN'):
+                raise serializers.ValidationError(
+                    {'allowed_modules': 'Only OWNER or ADMIN can change module access.'}
+                )
+            validate_allowed_modules_for_staff(attrs['allowed_modules'])
+        if 'is_active' in attrs and attrs['is_active'] is False:
+            inst = self.instance
+            if (
+                inst
+                and inst.academy_id
+                and inst.role in (User.Role.OWNER, User.Role.ADMIN)
+                and inst.is_active
+                and inst.is_verified
+                and not actor_bypasses_last_admin_guard(actor)
+            ):
+                if count_elevated_tenant_admins(inst.academy_id, exclude_user_id=inst.pk) == 0:
+                    raise serializers.ValidationError(
+                        {
+                            'is_active': (
+                                'Cannot deactivate the last active Owner or Admin for this academy.'
+                            )
+                        }
+                    )
+        return attrs
     
     def update(self, instance, validated_data):
         """Update user and profile."""
+        had_allowed_modules_update = 'allowed_modules' in validated_data
+        old_staff_modules = None
+        if instance.role == User.Role.STAFF:
+            old_staff_modules = (
+                None
+                if instance.allowed_modules is None
+                else list(instance.allowed_modules)
+            )
         # Update user fields
         if 'first_name' in validated_data:
             instance.first_name = validated_data.get('first_name', instance.first_name)
         if 'last_name' in validated_data:
             instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.is_active = validated_data.get('is_active', instance.is_active)
+        if 'allowed_modules' in validated_data:
+            instance.allowed_modules = validated_data.pop('allowed_modules')
         instance.save()
+        if had_allowed_modules_update and instance.role == User.Role.STAFF:
+            new_modules = (
+                list(instance.allowed_modules)
+                if instance.allowed_modules is not None
+                else []
+            )
+            if sorted(old_staff_modules or []) != sorted(new_modules):
+                request = self.context.get('request')
+                academy = getattr(request, 'academy', None) if request else None
+                if academy:
+                    try:
+                        with public_schema_context():
+                            AuditService.log_action(
+                                user=None,
+                                action=AuditAction.UPDATE,
+                                resource_type=ResourceType.USER,
+                                resource_id=str(instance.pk),
+                                academy=academy,
+                                changes_json={
+                                    'field': 'allowed_modules',
+                                    'target_user_id': instance.pk,
+                                    'actor_id': getattr(request.user, 'pk', None),
+                                    'actor_email': getattr(
+                                        request.user, 'email', None
+                                    ),
+                                    'before': old_staff_modules,
+                                    'after': new_modules,
+                                },
+                                request=request,
+                            )
+                    except Exception:
+                        logger.exception(
+                            'Failed to write audit log for allowed_modules change'
+                        )
         
         if instance.role == User.Role.PARENT and instance.academy_id:
             parent_updates = {}
@@ -533,10 +666,11 @@ class CurrentAccountSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'role',
+            'allowed_modules',
             'is_active',
             'last_login',
         ]
-        read_only_fields = ['id', 'role', 'is_active', 'last_login']
+        read_only_fields = ['id', 'role', 'allowed_modules', 'is_active', 'last_login']
 
     def validate_email(self, value):
         value = value.lower().strip()
@@ -657,6 +791,16 @@ class StaffCoachNotInvitedSerializer(serializers.Serializer):
     """Minimal serializer for a staff Coach with no linked User (for coaches-for-management list)."""
     
     coach_id = serializers.IntegerField(source='id', read_only=True)
+    email = serializers.EmailField(read_only=True)
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    full_name = serializers.CharField(read_only=True)
+
+
+class GuardianParentNotInvitedSerializer(serializers.Serializer):
+    """Minimal serializer for a Parent (guardian) with no linked PARENT User (parents-for-management list)."""
+
+    parent_id = serializers.IntegerField(source='id', read_only=True)
     email = serializers.EmailField(read_only=True)
     first_name = serializers.CharField(read_only=True)
     last_name = serializers.CharField(read_only=True)

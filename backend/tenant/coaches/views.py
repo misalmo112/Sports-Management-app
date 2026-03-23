@@ -25,6 +25,8 @@ from shared.services.quota import QuotaExceededError
 
 class CoachViewSet(viewsets.ModelViewSet):
     """ViewSet for Coach model."""
+
+    required_tenant_module = 'staff'
     
     queryset = Coach.objects.all()
     serializer_class = CoachSerializer
@@ -133,6 +135,8 @@ class CoachPaySchemeViewSet(viewsets.ModelViewSet):
 class CoachPaymentViewSet(viewsets.ModelViewSet):
     """ViewSet for CoachPayment model. Create uses CoachesService to also create a StaffReceipt."""
 
+    required_tenant_module = 'staff'
+
     queryset = CoachPayment.objects.all()
     serializer_class = CoachPaymentSerializer
     permission_classes = [IsTenantAdmin]
@@ -186,6 +190,8 @@ class CoachPaymentViewSet(viewsets.ModelViewSet):
 class StaffInvoiceViewSet(viewsets.ModelViewSet):
     """ViewSet for StaffInvoice model."""
 
+    required_tenant_module = 'staff'
+
     queryset = StaffInvoice.objects.all()
     serializer_class = StaffInvoiceSerializer
     permission_classes = [IsTenantAdmin]
@@ -214,6 +220,8 @@ class StaffInvoiceViewSet(viewsets.ModelViewSet):
 
 class StaffReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only ViewSet for StaffReceipt (list/retrieve)."""
+
+    required_tenant_module = 'staff'
 
     queryset = StaffReceipt.objects.all()
     serializer_class = StaffReceiptSerializer

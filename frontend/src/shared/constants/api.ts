@@ -15,6 +15,7 @@ export const API_ENDPOINTS = {
   USERS: {
     LIST: '/api/v1/tenant/users/',
     COACHES_FOR_MANAGEMENT: '/api/v1/tenant/users/coaches-for-management/',
+    PARENTS_FOR_MANAGEMENT: '/api/v1/tenant/users/parents-for-management/',
     INVITE: '/api/v1/tenant/users/invite/',
     DETAIL: (id: number) => `/api/v1/tenant/users/${id}/`,
     UPDATE: (id: number) => `/api/v1/tenant/users/${id}/`,
@@ -24,7 +25,8 @@ export const API_ENDPOINTS = {
   // Auth endpoints
   AUTH: {
     LOGIN: '/api/v1/auth/token/',
-    VALIDATE_INVITE: (token: string) => `/api/v1/auth/invite/validate/?token=${token}`,
+    VALIDATE_INVITE: (token: string) =>
+      `/api/v1/auth/invite/validate/?token=${encodeURIComponent(token)}`,
     ACCEPT_INVITE: '/api/v1/auth/invite/accept/',
     FORGOT_PASSWORD: '/api/v1/auth/forgot-password/',
     RESET_PASSWORD: '/api/v1/auth/reset-password/',
@@ -109,6 +111,7 @@ export const API_ENDPOINTS = {
       DETAIL: (id: number | string) => `/api/v1/tenant/parents/${id}/`,
       UPDATE: (id: number | string) => `/api/v1/tenant/parents/${id}/`,
       DELETE: (id: number | string) => `/api/v1/tenant/parents/${id}/`,
+      INVITE: (id: number | string) => `/api/v1/tenant/parents/${id}/invite/`,
     },
     CLASSES: {
       LIST: '/api/v1/tenant/classes/',
@@ -289,6 +292,7 @@ export const API_ENDPOINTS = {
       UPDATE: '/api/v1/tenant/academy/',
       SUBSCRIPTION: '/api/v1/tenant/academy/subscription/',
       USAGE: '/api/v1/tenant/academy/usage/',
+      TAX_SETTINGS: '/api/v1/tenant/academy/tax-settings/',
     },
     MASTERS: {
       TIMEZONES: '/api/v1/tenant/masters/timezones/',

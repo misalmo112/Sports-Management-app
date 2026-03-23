@@ -7,6 +7,7 @@ import type {
   UsersListResponse,
   User,
   CoachManagementRow,
+  ParentManagementRow,
   InviteUserRequest,
   InviteUserResponse,
   UpdateUserRequest,
@@ -44,6 +45,28 @@ export const getUsers = async (
 export const getCoachesForManagement = async (): Promise<CoachManagementRow[]> => {
   const response = await apiClient.get<CoachManagementRow[]>(
     API_ENDPOINTS.USERS.COACHES_FOR_MANAGEMENT
+  );
+  return response.data;
+};
+
+/**
+ * Unified parents list for User Management Parents tab (guardians + PARENT users).
+ */
+export const getParentsForManagement = async (): Promise<ParentManagementRow[]> => {
+  const response = await apiClient.get<ParentManagementRow[]>(
+    API_ENDPOINTS.USERS.PARENTS_FOR_MANAGEMENT
+  );
+  return response.data;
+};
+
+/**
+ * Create PARENT user from guardian record and send invite email.
+ */
+export const inviteGuardianParent = async (
+  parentId: number
+): Promise<{ invite_sent: boolean } & User> => {
+  const response = await apiClient.post<{ invite_sent: boolean } & User>(
+    API_ENDPOINTS.TENANT.PARENTS.INVITE(parentId)
   );
   return response.data;
 };

@@ -9,6 +9,7 @@ from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework import permissions
 
 from tenant.reports.services import ReportsService
 from tenant.reports.serializers import (
@@ -16,7 +17,23 @@ from tenant.reports.serializers import (
     FinanceOverviewReportSerializer,
     ReportSerializer,
 )
-from shared.permissions.tenant import IsTenantAdmin
+from shared.permissions.tenant import check_tenant_admin_module
+
+
+class IsTenantReportsAccess(permissions.BasePermission):
+    """finance_overview report_type requires finance-overview module; others require reports."""
+
+    def has_permission(self, request, view):
+        rt = request.query_params.get('report_type', 'attendance')
+        mod = 'finance-overview' if rt == 'finance_overview' else 'reports'
+        return check_tenant_admin_module(request, view, mod)
+
+
+class IsTenantFinanceOverviewExport(permissions.BasePermission):
+    """CSV export is always finance-overview data."""
+
+    def has_permission(self, request, view):
+        return check_tenant_admin_module(request, view, 'finance-overview')
 
 
 class ReportsView(APIView):
@@ -35,7 +52,7 @@ class ReportsView(APIView):
     - sport_id: Filter by sport (optional)
     - location_id: Filter by location (optional)
     """
-    permission_classes = [IsTenantAdmin]
+    permission_classes = [IsTenantReportsAccess]
     
     def get(self, request):
         """Get report data."""
@@ -145,7 +162,8 @@ class ReportsExportView(APIView):
     Export report as CSV (e.g. finance_overview).
     GET /api/v1/tenant/reports/export/?report_type=finance_overview&format=csv&date_from=...&date_to=...
     """
-    permission_classes = [IsTenantAdmin]
+
+    permission_classes = [IsTenantFinanceOverviewExport]
 
     def get(self, request):
         if not hasattr(request, 'academy') or not request.academy:

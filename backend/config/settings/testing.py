@@ -3,6 +3,17 @@ Testing settings for Sports Academy Management System.
 """
 from .base import *
 
+# APIClient / RequestFactory default host (Django system checks / middleware)
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
+
+# Force in-process cache so tests do not depend on REDIS_URL from .env (avoids 500 on preview/commit).
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'sports-academy-test-cache',
+    }
+}
+
 # Use in-memory database for testing
 DATABASES = {
     'default': {

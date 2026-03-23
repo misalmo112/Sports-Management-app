@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 import uuid
+from decimal import Decimal
+from django.core.validators import MinValueValidator, MaxValueValidator
 from shared.tenancy.schema import build_schema_name
 
 
@@ -26,6 +28,20 @@ class Academy(models.Model):
     country = models.CharField(max_length=100, blank=True)
     timezone = models.CharField(max_length=50, default='UTC')
     currency = models.CharField(max_length=3, default='USD')
+
+    # Student billing (tenant-level defaults)
+    # When enabled, all student invoices will automatically apply this tax rate
+    # to the net amount (subtotal - discount).
+    global_tax_enabled = models.BooleanField(default=False, db_index=True)
+    global_tax_rate_percent = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[
+            MinValueValidator(Decimal('0.00')),
+            MaxValueValidator(Decimal('100.00')),
+        ],
+    )
     
     # Onboarding Status
     onboarding_completed = models.BooleanField(default=False, db_index=True)

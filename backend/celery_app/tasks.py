@@ -7,6 +7,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 import logging
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,8 @@ def send_invite_email(user_id, token):
         
         # Generate invite URL (frontend URL + token)
         # In production, this should come from settings
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-        invite_url = f"{frontend_url}/auth/invite/accept?token={token}"
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+        invite_url = f"{frontend_url}/accept-invite?token={quote(token, safe='')}"
         
         # Calculate expiration time
         expiration_hours = getattr(settings, 'INVITE_TOKEN_EXPIRATION_HOURS', 48)

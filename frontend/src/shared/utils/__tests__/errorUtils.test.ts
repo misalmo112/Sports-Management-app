@@ -3,7 +3,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import { AxiosError } from 'axios';
-import { formatErrorMessage, extractValidationErrors } from '../errorUtils';
+import {
+  formatErrorMessage,
+  extractValidationErrors,
+  parseApiValidationEnvelope,
+} from '../errorUtils';
 
 describe('formatErrorMessage', () => {
   it('formats standard Error objects', () => {
@@ -91,5 +95,58 @@ describe('extractValidationErrors', () => {
   it('returns null when no validation errors', () => {
     const error = new Error('Some error');
     expect(extractValidationErrors(error)).toBeNull();
+  });
+
+  it('extracts field errors from global handler envelope (details)', () => {
+    const error = {
+      isAxiosError: true,
+      response: {
+        status: 400,
+        data: {
+          status: 'error',
+          code: 'VALIDATION_ERROR',
+          message: 'Please check the highlighted fields.',
+          details: {
+            allowed_modules: ['Invalid module key for staff.'],
+            email: ['Enter a valid email address.'],
+          },
+        },
+      },
+    } as unknown as AxiosError;
+
+    expect(extractValidationErrors(error)).toEqual({
+      allowed_modules: ['Invalid module key for staff.'],
+      email: ['Enter a valid email address.'],
+    });
+  });
+
+  it('coerces string field values in details', () => {
+    const error = {
+      isAxiosError: true,
+      response: {
+        data: {
+          details: { email: 'This email is already taken.' },
+        },
+      },
+    } as unknown as AxiosError;
+
+    expect(extractValidationErrors(error)).toEqual({
+      email: ['This email is already taken.'],
+    });
+  });
+});
+
+describe('parseApiValidationEnvelope', () => {
+  it('returns null for empty body', () => {
+    expect(parseApiValidationEnvelope({})).toBeNull();
+  });
+
+  it('uses top-level message when no field keys', () => {
+    expect(
+      parseApiValidationEnvelope({
+        status: 'error',
+        message: 'Something went wrong.',
+      }),
+    ).toEqual({ non_field_errors: ['Something went wrong.'] });
   });
 });

@@ -15,6 +15,101 @@ interface ApiErrorResponse {
   [key: string]: unknown;
 }
 
+const API_ERROR_ENVELOPE_KEYS = new Set([
+  'status',
+  'code',
+  'message',
+  'details',
+  'errors',
+  'request_id',
+  'tenant',
+  'timestamp',
+]);
+
+/**
+ * Coerces DRF / API field values to a list of user-facing strings.
+ */
+function normalizeValidationMessages(val: unknown): string[] {
+  if (val === null || val === undefined) return [];
+  if (typeof val === 'string') {
+    const t = val.trim();
+    return t ? [sanitizeMessage(t)] : [];
+  }
+  if (Array.isArray(val)) {
+    return val
+      .map((x) => (typeof x === 'string' ? x : x != null ? String(x) : ''))
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map(sanitizeMessage);
+  }
+  return [];
+}
+
+function mergeFieldErrorsFromObject(
+  obj: Record<string, unknown>,
+  out: Record<string, string[]>,
+): void {
+  for (const [key, val] of Object.entries(obj)) {
+    if (key === 'detail') {
+      const msgs = normalizeValidationMessages(val);
+      if (msgs.length) {
+        out.non_field_errors = [...(out.non_field_errors ?? []), ...msgs];
+      }
+      continue;
+    }
+    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+      continue;
+    }
+    const msgs = normalizeValidationMessages(val);
+    if (msgs.length) {
+      out[key] = msgs;
+    }
+  }
+}
+
+/**
+ * Parses validation field errors from API bodies, including the global handler envelope:
+ * `{ status, code, message, details: { allowed_modules: [...] } }`.
+ * Returns null if the body carries no usable validation info.
+ */
+export function parseApiValidationEnvelope(data: unknown): Record<string, string[]> | null {
+  if (!data || typeof data !== 'object') return null;
+  const o = data as Record<string, unknown>;
+  const out: Record<string, string[]> = {};
+
+  if (o.details && typeof o.details === 'object' && !Array.isArray(o.details)) {
+    mergeFieldErrorsFromObject(o.details as Record<string, unknown>, out);
+  }
+  if (o.errors && typeof o.errors === 'object' && !Array.isArray(o.errors)) {
+    mergeFieldErrorsFromObject(o.errors as Record<string, unknown>, out);
+  }
+
+  for (const [key, val] of Object.entries(o)) {
+    if (API_ERROR_ENVELOPE_KEYS.has(key)) continue;
+    if (out[key]) continue;
+    if (typeof val === 'object' && val !== null && !Array.isArray(val)) continue;
+    const msgs = normalizeValidationMessages(val);
+    if (msgs.length) {
+      out[key] = msgs;
+    }
+  }
+
+  if (typeof o.detail === 'string' || Array.isArray(o.detail)) {
+    const msgs = normalizeValidationMessages(o.detail);
+    if (msgs.length) {
+      out.non_field_errors = [...(out.non_field_errors ?? []), ...msgs];
+    }
+  }
+
+  const fieldKeys = Object.keys(out).filter((k) => k !== 'non_field_errors');
+  if (fieldKeys.length === 0 && typeof o.message === 'string' && o.message.trim()) {
+    out.non_field_errors = [sanitizeMessage(o.message)];
+  }
+
+  if (Object.keys(out).length === 0) return null;
+  return out;
+}
+
 /**
  * Sanitizes error messages by removing technical details
  */
@@ -177,41 +272,10 @@ export function extractValidationErrors(
 ): Record<string, string[]> | null {
   if (error && typeof error === 'object' && 'isAxiosError' in error) {
     const axiosError = error as AxiosError<ApiErrorResponse>;
-    const response = axiosError.response;
-    
-    if (response?.data?.errors && typeof response.data.errors === 'object') {
-      const errors: Record<string, string[]> = {};
-      
-      for (const [field, messages] of Object.entries(response.data.errors)) {
-        if (Array.isArray(messages)) {
-          errors[field] = messages
-            .filter((msg): msg is string => typeof msg === 'string')
-            .map(sanitizeMessage);
-        }
-      }
-      
-      if (Object.keys(errors).length > 0) {
-        return errors;
-      }
-    }
-
-    if (response?.data?.details && typeof response.data.details === 'object') {
-      const errors: Record<string, string[]> = {};
-
-      for (const [field, messages] of Object.entries(response.data.details)) {
-        if (Array.isArray(messages)) {
-          errors[field] = messages
-            .filter((msg): msg is string => typeof msg === 'string')
-            .map(sanitizeMessage);
-        }
-      }
-
-      if (Object.keys(errors).length > 0) {
-        return errors;
-      }
-    }
+    const data = axiosError.response?.data;
+    return parseApiValidationEnvelope(data);
   }
-  
+
   return null;
 }
 

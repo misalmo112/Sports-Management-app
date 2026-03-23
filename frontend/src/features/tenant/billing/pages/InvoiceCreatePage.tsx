@@ -24,6 +24,7 @@ import { useParents } from '@/features/tenant/students/hooks/useParents';
 import { useStudents } from '@/features/tenant/students/hooks/hooks';
 import { useLocations } from '@/features/tenant/settings/hooks/hooks';
 import { useSports } from '@/features/tenant/settings/hooks/hooks';
+import { useAcademyTaxSettings } from '@/features/tenant/settings/hooks/hooks';
 import { extractValidationErrors, clearFieldError } from '@/shared/utils/errorUtils';
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';
 import type { CreateInvoiceRequest } from '../types';
@@ -46,7 +47,6 @@ export const InvoiceCreatePage = () => {
     issued_date?: string;
     discount_type?: 'PERCENTAGE' | 'FIXED';
     discount_value?: number;
-    tax_amount?: number;
     sport?: number;
     location?: number;
     notes?: string;
@@ -79,6 +79,7 @@ export const InvoiceCreatePage = () => {
   });
   const { data: locationsData } = useLocations({ page_size: 100 });
   const { data: sportsData } = useSports({ page_size: 100 });
+  const { data: taxSettings } = useAcademyTaxSettings({ enabled: true });
 
   // Calculate totals (matching backend calculation logic)
   const calculateTotals = () => {
@@ -101,7 +102,13 @@ export const InvoiceCreatePage = () => {
       }
     }
 
-    const taxAmount = round(formData.tax_amount || 0);
+    const globalTaxEnabled = taxSettings?.global_tax_enabled ?? false;
+    const taxRatePercent =
+      taxSettings?.global_tax_rate_percent !== undefined
+        ? Number(taxSettings.global_tax_rate_percent)
+        : 0;
+    const netAfterDiscount = Math.max(0, subtotal - discountAmount);
+    const taxAmount = round(globalTaxEnabled ? (netAfterDiscount * taxRatePercent) / 100 : 0);
     const total = round(Math.max(0, subtotal - discountAmount + taxAmount));
 
     return { subtotal, discountAmount, taxAmount, total };
@@ -312,10 +319,6 @@ export const InvoiceCreatePage = () => {
       }
     }
 
-    if (formData.tax_amount !== undefined && formData.tax_amount < 0) {
-      newErrors.tax_amount = 'Tax amount must be greater than or equal to 0';
-    }
-
     setClientErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -351,9 +354,6 @@ export const InvoiceCreatePage = () => {
       }
       if (formData.discount_value !== undefined) {
         submitData.discount_value = formData.discount_value;
-      }
-      if (formData.tax_amount !== undefined) {
-        submitData.tax_amount = formData.tax_amount;
       }
       if (formData.sport) {
         submitData.sport = formData.sport;
@@ -876,25 +876,13 @@ export const InvoiceCreatePage = () => {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.tax_amount || ''}
-                  onChange={(e) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      tax_amount: e.target.value ? parseFloat(e.target.value) : undefined,
-                    }));
-                    if (errors.tax_amount)
-                      setErrors((prev) => clearFieldError(prev, 'tax_amount'));
-                    if (clientErrors.tax_amount)
-                      setClientErrors((prev) => ({ ...prev, tax_amount: '' }));
-                  }}
-                  placeholder="0.00"
-                  disabled={createInvoice.isPending}
+                  value={taxAmount || ''}
+                  disabled
+                  readOnly
                 />
-                {(errors.tax_amount || clientErrors.tax_amount) && (
-                  <p className="text-sm text-destructive">
-                    {errors.tax_amount?.[0] || clientErrors.tax_amount}
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground">
+                  Computed from academy global tax rate (net: subtotal minus discount).
+                </p>
               </div>
             </CardContent>
           </Card>

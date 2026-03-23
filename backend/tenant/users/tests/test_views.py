@@ -10,6 +10,7 @@ from saas_platform.tenants.models import Academy
 from saas_platform.subscriptions.models import Plan, Subscription, SubscriptionStatus
 from tenant.onboarding.models import Location
 from tenant.users.models import User
+from tenant.students.models import Parent
 from django.utils import timezone
 
 User = get_user_model()
@@ -341,6 +342,81 @@ class UserViewSetTest(TestCase):
             user2.refresh_from_db()
             self.assertFalse(user2.is_active)
 
+    def test_parents_for_management_guardian_only(self):
+        """Guardian without a PARENT user appears as guardian_not_invited."""
+        Parent.objects.create(
+            academy=self.academy1,
+            first_name='Jane',
+            last_name='Doe',
+            email='jane.parent@example.com',
+        )
+        response = self.client.get('/api/v1/admin/users/parents-for-management/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['source'], 'guardian_not_invited')
+        self.assertEqual(response.data[0]['email'], 'jane.parent@example.com')
+        self.assertEqual(response.data[0]['invite_status'], 'none')
+
+    def test_parents_for_management_linked_user(self):
+        """Guardian with matching PARENT user by email returns user row."""
+        Parent.objects.create(
+            academy=self.academy1,
+            first_name='Jane',
+            last_name='Doe',
+            email='linked@example.com',
+        )
+        puser = User.objects.create_user(
+            email='linked@example.com',
+            role=User.Role.PARENT,
+            academy=self.academy1,
+            is_active=False,
+            is_verified=False,
+            first_name='Jane',
+            last_name='Doe',
+        )
+        from tenant.users.models import ParentProfile
+
+        ParentProfile.objects.create(user=puser, academy=self.academy1, phone='')
+        response = self.client.get('/api/v1/admin/users/parents-for-management/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['source'], 'user')
+        self.assertEqual(response.data[0]['user_id'], puser.id)
+        self.assertEqual(response.data[0]['guardian_parent_id'], Parent.objects.get(email='linked@example.com').id)
+        self.assertEqual(response.data[0]['email'], 'linked@example.com')
+
+    def test_parents_for_management_orphan_parent_user(self):
+        """PARENT user with no Parent record still appears in the list."""
+        User.objects.create_user(
+            email='orphan@example.com',
+            role=User.Role.PARENT,
+            academy=self.academy1,
+            is_active=True,
+            is_verified=True,
+        )
+        from tenant.users.models import ParentProfile
+
+        u = User.objects.get(email='orphan@example.com')
+        ParentProfile.objects.create(user=u, academy=self.academy1, phone='')
+        response = self.client.get('/api/v1/admin/users/parents-for-management/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['source'], 'user')
+        self.assertEqual(response.data[0]['email'], 'orphan@example.com')
+        self.assertNotIn('guardian_parent_id', response.data[0])
+
+    def test_parents_for_management_academy_isolation(self):
+        """Parents from another academy are not listed."""
+        Parent.objects.create(
+            academy=self.academy2,
+            first_name='Other',
+            last_name='Academy',
+            email='other@example.com',
+        )
+        response = self.client.get('/api/v1/admin/users/parents-for-management/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
 
 class AcceptInviteViewTest(TestCase):
     """Test invite acceptance endpoint."""
@@ -460,11 +536,40 @@ class LoginViewTest(TestCase):
         self.assertIn('user', response.data)
         self.assertEqual(response.data['user']['email'], 'user@example.com')
         self.assertEqual(response.data['user']['role'], 'ADMIN')
-        
+        self.assertIn('allowed_modules', response.data['user'])
+        self.assertIsNone(
+            response.data['user']['allowed_modules'],
+            'Full ADMIN after migration: login payload should expose allowed_modules null',
+        )
+
         # Verify last_login was updated
         self.user.refresh_from_db()
         self.assertIsNotNone(self.user.last_login)
-    
+
+    def test_login_owner_includes_null_allowed_modules(self):
+        """Acceptance: OWNER rows keep NULL allowed_modules; login still succeeds."""
+        owner = User.objects.create_user(
+            email='owner@example.com',
+            password='SecurePassword123!',
+            role=User.Role.OWNER,
+            academy=self.academy,
+            is_active=True,
+            is_verified=True,
+        )
+        owner.refresh_from_db()
+        self.assertIsNone(owner.allowed_modules)
+
+        response = self.client.post(
+            '/api/v1/auth/token/',
+            {
+                'email': 'owner@example.com',
+                'password': 'SecurePassword123!',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data['user']['allowed_modules'])
+
     def test_login_invalid_credentials(self):
         """Test login with invalid credentials."""
         response = self.client.post(

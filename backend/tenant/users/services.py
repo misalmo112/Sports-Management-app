@@ -9,6 +9,7 @@ This service handles:
 """
 import logging
 import secrets
+from urllib.parse import quote
 from django.db import transaction
 from django.utils import timezone
 from django.conf import settings
@@ -18,11 +19,13 @@ from django.db import connection
 from shared.services.quota import check_quota_before_create, QuotaExceededError
 from shared.tenancy.schema import schema_context
 from tenant.users.models import User, AdminProfile, CoachProfile, ParentProfile, InviteToken, PasswordResetToken
+from shared.permissions.module_keys import validate_allowed_modules_for_staff
 from tenant.users.auth_helpers import (
     _find_user_by_email_across_schemas,
     _find_reset_token_across_schemas,
 )
 from tenant.coaches.models import Coach
+from tenant.students.models import Parent
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +41,22 @@ class UserService:
     
     @staticmethod
     @transaction.atomic
-    def create_user_with_invite(role, email, academy, created_by, profile_data=None, first_name=None, last_name=None):
+    def create_user_with_invite(
+        role,
+        email,
+        academy,
+        created_by,
+        profile_data=None,
+        first_name=None,
+        last_name=None,
+        allowed_modules=None,
+    ):
         """
         Create a user with profile and generate invite token.
         
         Args:
-            role: User.Role enum value (ADMIN, COACH, or PARENT)
+            role: User.Role enum value (ADMIN, STAFF, COACH, or PARENT)
+            allowed_modules: Required list of module keys when role is STAFF
             email: User email address (must be unique)
             academy: Academy instance
             created_by: User who is creating this user
@@ -61,11 +74,21 @@ class UserService:
         profile_data = profile_data or {}
         
         # Validate role
-        if role not in [User.Role.ADMIN, User.Role.COACH, User.Role.PARENT]:
-            raise ValidationError(f"Invalid role: {role}. Must be ADMIN, COACH, or PARENT.")
+        if role not in [
+            User.Role.ADMIN,
+            User.Role.STAFF,
+            User.Role.COACH,
+            User.Role.PARENT,
+        ]:
+            raise ValidationError(
+                f"Invalid role: {role}. Must be ADMIN, STAFF, COACH, or PARENT."
+            )
+
+        if role == User.Role.STAFF:
+            validate_allowed_modules_for_staff(allowed_modules)
         
         # Check quota before creating
-        if role == User.Role.ADMIN:
+        if role in (User.Role.ADMIN, User.Role.STAFF):
             check_quota_before_create(academy, 'admins', requested_increment=1)
         elif role == User.Role.COACH:
             check_quota_before_create(academy, 'coaches', requested_increment=1)
@@ -92,6 +115,8 @@ class UserService:
             user_kwargs['first_name'] = first_name
         if last_name is not None:
             user_kwargs['last_name'] = last_name
+        if role == User.Role.STAFF:
+            user_kwargs['allowed_modules'] = list(allowed_modules)
         
         user = User.objects.create_user(**user_kwargs)
         
@@ -182,7 +207,39 @@ class UserService:
         
         token = UserService.generate_invite_token(user, created_by)
         return user, token
-    
+
+    @staticmethod
+    @transaction.atomic
+    def create_user_with_invite_for_guardian_parent(parent, academy, created_by):
+        """
+        Create a User (role=PARENT) from an existing Parent (guardian) record,
+        generate invite token. Does not send email (caller sends).
+        """
+        if not isinstance(parent, Parent):
+            raise ValidationError("Invalid parent instance.")
+        if parent.academy_id != academy.id:
+            raise ValidationError("Parent does not belong to this academy.")
+        email = (parent.email or "").lower().strip()
+        if not email:
+            raise ValidationError("Parent has no email address.")
+        if User.objects.filter(email=email).exists():
+            raise ValidationError("A user with this email already exists.")
+
+        profile_data = {}
+        if parent.phone:
+            profile_data["phone"] = parent.phone
+
+        user, token = UserService.create_user_with_invite(
+            role=User.Role.PARENT,
+            email=email,
+            academy=academy,
+            created_by=created_by,
+            profile_data=profile_data,
+            first_name=parent.first_name or "",
+            last_name=parent.last_name or "",
+        )
+        return user, token
+
     @staticmethod
     @transaction.atomic
     def generate_invite_token(user, created_by=None):
@@ -217,6 +274,15 @@ class UserService:
         expiration_hours = getattr(settings, 'INVITE_TOKEN_EXPIRATION_HOURS', 48)
         expires_at = timezone.now() + timezone.timedelta(hours=expiration_hours)
         
+        # FK must reference a row visible on the current DB search_path (tenant vs public).
+        creator = created_by
+        if creator is not None and not User.objects.filter(pk=creator.pk).exists():
+            logger.warning(
+                'Invite created_by id=%s not found in current DB context; storing null',
+                creator.pk,
+            )
+            creator = None
+
         # Create invite token
         invite_token = InviteToken.objects.create(
             user=user,
@@ -224,7 +290,7 @@ class UserService:
             token_hash=token_hash,
             token_plain=token,
             expires_at=expires_at,
-            created_by=created_by
+            created_by=creator
         )
         
         return token
@@ -302,15 +368,24 @@ class UserService:
             user: User instance
             token: Plain text invite token
         """
+        if settings.DEBUG:
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+            invite_url = f"{frontend_url}/accept-invite?token={quote(token, safe='')}"
+            logger.info(
+                "Invite link (DEBUG only) email=%s user_id=%s role=%s: %s",
+                user.email,
+                user.id,
+                getattr(user, "role", ""),
+                invite_url,
+            )
         if send_invite_email:
             send_invite_email.delay(user.id, token)
         else:
             # Fallback: send synchronously if Celery not available
             from django.core.mail import send_mail
-            from django.conf import settings
-            
-            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-            invite_url = f"{frontend_url}/auth/invite/accept?token={token}"
+
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+            invite_url = f"{frontend_url}/accept-invite?token={quote(token, safe='')}"
             expiration_hours = getattr(settings, 'INVITE_TOKEN_EXPIRATION_HOURS', 48)
             
             send_mail(
@@ -413,3 +488,31 @@ class UserService:
                 _do_reset()
         else:
             _do_reset()
+
+
+def actor_bypasses_last_admin_guard(actor):
+    """Platform superuser or SUPERADMIN may deactivate the last Owner/Admin (break-glass)."""
+    if not actor or not getattr(actor, "is_authenticated", False):
+        return False
+    if getattr(actor, "is_superuser", False):
+        return True
+    return getattr(actor, "role", None) == "SUPERADMIN"
+
+
+def count_elevated_tenant_admins(academy_id, exclude_user_id=None):
+    """
+    Count login-capable Owner/Admin users for an academy (active + verified).
+
+    Used to prevent removing the last full academy administrator.
+    """
+    if not academy_id:
+        return 0
+    qs = User.objects.filter(
+        academy_id=academy_id,
+        role__in=(User.Role.OWNER, User.Role.ADMIN),
+        is_active=True,
+        is_verified=True,
+    )
+    if exclude_user_id is not None:
+        qs = qs.exclude(pk=exclude_user_id)
+    return qs.count()

@@ -19,6 +19,8 @@ class OverviewView(APIView):
     Provides:
     - GET /api/v1/tenant/overview/ - Get overview data based on user role
     """
+
+    required_tenant_module = 'admin-overview'
     permission_classes = [IsTenantAdminOrParentOrCoach]
     
     def get(self, request):

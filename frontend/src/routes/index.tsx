@@ -97,6 +97,9 @@ import { UserDetailPage } from '@/features/tenant/users/pages/UserDetailPage';
 import { InvoiceSchedulesPage } from '@/features/tenant/billing/invoice-schedules/pages/InvoiceSchedulesPage';
 import { InvoiceScheduleCreatePage } from '@/features/tenant/billing/invoice-schedules/pages/InvoiceScheduleCreatePage';
 import { InvoiceScheduleEditPage } from '@/features/tenant/billing/invoice-schedules/pages/InvoiceScheduleEditPage';
+import { StaffPaySchedulesPage } from '@/features/tenant/coaches/pay-schedules/pages/StaffPaySchedulesPage';
+import { StaffPayScheduleCreatePage } from '@/features/tenant/coaches/pay-schedules/pages/StaffPayScheduleCreatePage';
+import { StaffPayScheduleEditPage } from '@/features/tenant/coaches/pay-schedules/pages/StaffPayScheduleEditPage';
 
 // Coach pages
 import { CoachOverviewPage } from '@/features/tenant/overview/pages/CoachOverviewPage';
@@ -355,6 +358,18 @@ export const router = createBrowserRouter([
       {
         path: 'operations/invoice-schedules/:id/edit',
         element: createProtectedRoute(<InvoiceScheduleEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoice-schedules'),
+      },
+      {
+        path: 'operations/staff-pay-schedules',
+        element: createProtectedRoute(<StaffPaySchedulesPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
+      },
+      {
+        path: 'operations/staff-pay-schedules/create',
+        element: createProtectedRoute(<StaffPayScheduleCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
+      },
+      {
+        path: 'operations/staff-pay-schedules/:id/edit',
+        element: createProtectedRoute(<StaffPayScheduleEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
       },
 
       // Finance routes (Admin/Owner/STAFF)

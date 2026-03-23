@@ -26,6 +26,9 @@ export function Sidebar({ className }: SidebarProps) {
   const hasInvoiceSchedulesNav = navigationGroups.some((g) =>
     g.items.some((i) => i.id === 'invoice-schedules')
   );
+  const hasStaffPaySchedulesNav = navigationGroups.some((g) =>
+    g.items.some((i) => i.path === '/dashboard/operations/staff-pay-schedules')
+  );
 
   const { data: pendingApprovalsCount } = useQuery<number, Error>({
     queryKey: ['pending-approvals', 'count'],
@@ -34,6 +37,22 @@ export function Sidebar({ className }: SidebarProps) {
     refetchOnWindowFocus: false,
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/tenant/pending-approvals/?page_size=1');
+      const payload = res.data;
+
+      if (Array.isArray(payload)) return payload.length;
+      if (typeof payload?.count === 'number') return payload.count;
+      if (Array.isArray(payload?.results)) return payload.results.length;
+      return 0;
+    },
+  });
+
+  const { data: staffPendingApprovalsCount } = useQuery<number, Error>({
+    queryKey: ['staff-pending-approvals', 'count'],
+    enabled: hasStaffPaySchedulesNav,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/tenant/staff/pending-approvals/?page_size=1');
       const payload = res.data;
 
       if (Array.isArray(payload)) return payload.length;
@@ -135,6 +154,11 @@ export function Sidebar({ className }: SidebarProps) {
                             className="ml-auto"
                           >
                             {pendingApprovalsCount! > 99 ? '99+' : pendingApprovalsCount}
+                          </Badge>
+                        ) : null}
+                        {item.path === '/dashboard/operations/staff-pay-schedules' && (staffPendingApprovalsCount ?? 0) > 0 ? (
+                          <Badge variant="destructive" className="ml-auto">
+                            {staffPendingApprovalsCount! > 99 ? '99+' : staffPendingApprovalsCount}
                           </Badge>
                         ) : null}
                       </Link>

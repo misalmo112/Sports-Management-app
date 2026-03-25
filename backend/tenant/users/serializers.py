@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from urllib.parse import quote
 
 from django.conf import settings
+from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from tenant.users.models import User, AdminProfile, CoachProfile, ParentProfile, InviteToken
@@ -68,6 +69,14 @@ class ParentProfileSerializer(serializers.ModelSerializer):
         model = ParentProfile
         fields = ['phone', 'is_active']
         read_only_fields = ['user', 'academy']
+
+
+class ParentSelfServiceProfileSerializer(serializers.ModelSerializer):
+    """Parent self-service: phone only (no is_active changes)."""
+
+    class Meta:
+        model = ParentProfile
+        fields = ['phone']
 
 
 class ParentRecordSerializer(serializers.ModelSerializer):
@@ -680,6 +689,143 @@ class CurrentAccountSerializer(serializers.ModelSerializer):
                 f"User with email {value} already exists."
             )
         return value
+
+
+class ParentCurrentAccountSerializer(CurrentAccountSerializer):
+    """
+    Self-service account for PARENT: same user fields as CurrentAccountSerializer plus
+    parent_profile (phone), parent_record (address / guardian phones), read in GET and
+    validated from initial_data on PATCH.
+    """
+
+    class Meta(CurrentAccountSerializer.Meta):
+        pass
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+
+        try:
+            data['parent_profile'] = ParentSelfServiceProfileSerializer(
+                instance.parent_profile
+            ).data
+        except ParentProfile.DoesNotExist:
+            data['parent_profile'] = {'phone': ''}
+
+        if academy:
+            parent_row = (
+                Parent.objects.filter(
+                    academy_id=academy.id,
+                    email__iexact=instance.email,
+                )
+                .first()
+            )
+            data['parent_record'] = (
+                ParentRecordSerializer(parent_row).data if parent_row else None
+            )
+        else:
+            data['parent_record'] = None
+
+        return data
+
+    def validate_email(self, value):
+        value = value.lower().strip()
+        user = self.instance
+        if User.objects.filter(email=value).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError(
+                f"User with email {value} already exists."
+            )
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+        if (
+            academy
+            and getattr(user, 'role', None) == User.Role.PARENT
+            and Parent.objects.filter(academy_id=academy.id, email__iexact=value)
+            .exclude(email__iexact=user.email)
+            .exists()
+        ):
+            raise serializers.ValidationError(
+                'Another guardian already uses this email in this academy.'
+            )
+        return value
+
+    def update(self, instance, validated_data):
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+
+        parent_profile_touched = False
+        parent_profile_payload = None
+        parent_record_touched = False
+        parent_record_payload = None
+        initial = getattr(self, 'initial_data', None) or {}
+        if 'parent_profile' in initial:
+            parent_profile_touched = True
+            sub = ParentSelfServiceProfileSerializer(
+                data=initial.get('parent_profile') or {},
+                partial=True,
+            )
+            sub.is_valid(raise_exception=True)
+            parent_profile_payload = sub.validated_data
+        if 'parent_record' in initial:
+            parent_record_touched = True
+            sub = ParentRecordUpdateSerializer(
+                data=initial.get('parent_record') or {},
+                partial=True,
+            )
+            sub.is_valid(raise_exception=True)
+            parent_record_payload = sub.validated_data
+
+        old_email = (instance.email or '').lower().strip()
+
+        with transaction.atomic():
+            instance = super().update(instance, validated_data)
+            new_email = (instance.email or '').lower().strip()
+
+            if academy and getattr(instance, 'role', None) == User.Role.PARENT:
+                parent_row = (
+                    Parent.objects.select_for_update()
+                    .filter(academy_id=academy.id, email__iexact=old_email)
+                    .first()
+                )
+                if parent_row:
+                    row_dirty = False
+                    if instance.first_name != parent_row.first_name:
+                        parent_row.first_name = instance.first_name
+                        row_dirty = True
+                    if instance.last_name != parent_row.last_name:
+                        parent_row.last_name = instance.last_name
+                        row_dirty = True
+                    if old_email != new_email:
+                        parent_row.email = new_email
+                        row_dirty = True
+                    if parent_record_touched and parent_record_payload is not None:
+                        for key, val in parent_record_payload.items():
+                            setattr(parent_row, key, val)
+                        row_dirty = True
+                    if row_dirty:
+                        parent_row.save()
+
+            if parent_profile_touched and academy:
+                try:
+                    prof = instance.parent_profile
+                    if parent_profile_payload:
+                        for key, val in parent_profile_payload.items():
+                            setattr(prof, key, val)
+                        prof.save(
+                            update_fields=[
+                                *list(parent_profile_payload.keys()),
+                                'updated_at',
+                            ]
+                        )
+                except ParentProfile.DoesNotExist:
+                    ParentProfile.objects.create(
+                        user=instance,
+                        academy=academy,
+                        phone=(parent_profile_payload or {}).get('phone', '') or '',
+                    )
+
+        return instance
 
 
 class ChangePasswordSerializer(serializers.Serializer):

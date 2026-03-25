@@ -36,6 +36,7 @@ from tenant.users.serializers import (
     AcceptInviteSerializer,
     LoginSerializer,
     CurrentAccountSerializer,
+    ParentCurrentAccountSerializer,
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
@@ -58,10 +59,15 @@ User = get_user_model()
 
 
 class CurrentAccountView(RetrieveUpdateAPIView):
-    """Retrieve or update the authenticated tenant admin account."""
+    """Retrieve or update the authenticated tenant user account (all academy roles)."""
 
-    serializer_class = CurrentAccountSerializer
     permission_classes = [IsAuthenticatedAcademyUser]
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if getattr(user, 'role', None) == User.Role.PARENT:
+            return ParentCurrentAccountSerializer
+        return CurrentAccountSerializer
 
     def get_object(self):
         return self.request.user

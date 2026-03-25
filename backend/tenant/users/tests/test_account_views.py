@@ -4,6 +4,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from saas_platform.tenants.models import Academy
+from tenant.students.models import Parent, Student
+from tenant.users.models import ParentProfile
 
 User = get_user_model()
 
@@ -159,3 +161,114 @@ class CurrentAccountViewTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('current_password', response.data['details'])
+
+
+class ParentCurrentAccountViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.academy = Academy.objects.create(
+            name='Parent Storm Academy',
+            slug='parent-storm-academy',
+            email='hello@parent-storm.test',
+            onboarding_completed=True,
+        )
+        self.guardian_row = Parent.objects.create(
+            academy=self.academy,
+            first_name='Ann',
+            last_name='Lee',
+            email='parent@storm.test',
+            phone='111',
+            city='Dubai',
+            address_line1='Old Street',
+        )
+        self.parent_user = User.objects.create_user(
+            email='parent@storm.test',
+            password='SecurePassword123!',
+            role='PARENT',
+            academy=self.academy,
+            is_active=True,
+            is_verified=True,
+            first_name='Ann',
+            last_name='Lee',
+        )
+        ParentProfile.objects.create(
+            user=self.parent_user,
+            academy=self.academy,
+            phone='+999000',
+        )
+        self.student = Student.objects.create(
+            academy=self.academy,
+            parent=self.guardian_row,
+            first_name='Kim',
+            last_name='Lee',
+        )
+        self.client.force_authenticate(user=self.parent_user)
+        self.client.credentials(HTTP_X_ACADEMY_ID=str(self.academy.id))
+
+    def test_get_parent_account_includes_nested_fields(self):
+        response = self.client.get('/api/v1/tenant/account/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['email'], 'parent@storm.test')
+        self.assertEqual(response.data['parent_profile']['phone'], '+999000')
+        self.assertIsNotNone(response.data['parent_record'])
+        self.assertEqual(response.data['parent_record']['email'], 'parent@storm.test')
+        self.assertEqual(response.data['parent_record']['city'], 'Dubai')
+
+    def test_patch_parent_profile_and_record(self):
+        response = self.client.patch(
+            '/api/v1/tenant/account/',
+            {
+                'parent_profile': {'phone': '+555111'},
+                'parent_record': {'city': 'Abu Dhabi', 'address_line1': 'New Road'},
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.parent_user.parent_profile.refresh_from_db()
+        self.guardian_row.refresh_from_db()
+        self.assertEqual(self.parent_user.parent_profile.phone, '+555111')
+        self.assertEqual(self.guardian_row.city, 'Abu Dhabi')
+        self.assertEqual(self.guardian_row.address_line1, 'New Road')
+
+    def test_patch_parent_email_syncs_guardian_row(self):
+        response = self.client.patch(
+            '/api/v1/tenant/account/',
+            {'email': 'ann.updated@storm.test'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.parent_user.refresh_from_db()
+        self.guardian_row.refresh_from_db()
+        self.assertEqual(self.parent_user.email, 'ann.updated@storm.test')
+        self.assertEqual(self.guardian_row.email, 'ann.updated@storm.test')
+
+    def test_student_list_still_works_after_parent_email_change(self):
+        self.client.patch(
+            '/api/v1/tenant/account/',
+            {'email': 'ann.updated@storm.test'},
+            format='json',
+        )
+
+        response = self.client.get('/api/v1/tenant/students/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [row['id'] for row in response.data['results']]
+        self.assertIn(self.student.id, ids)
+
+    def test_patch_parent_email_rejects_guardian_email_conflict(self):
+        Parent.objects.create(
+            academy=self.academy,
+            first_name='Other',
+            last_name='Guardian',
+            email='other.guardian@storm.test',
+        )
+        response = self.client.patch(
+            '/api/v1/tenant/account/',
+            {'email': 'other.guardian@storm.test'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data['details'])

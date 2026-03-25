@@ -1,7 +1,7 @@
 /**
  * TanStack Query hooks for Tenant Students
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import {
   getStudents,
   getStudent,
@@ -19,19 +19,23 @@ import type {
 /**
  * Hook for fetching students list
  */
-export const useStudents = (params?: {
-  parent?: number;
-  is_active?: boolean;
-  gender?: string;
-  search?: string;
-  page?: number;
-  page_size?: number;
-}) => {
+export const useStudents = (
+  params?: {
+    parent?: number;
+    is_active?: boolean;
+    gender?: string;
+    search?: string;
+    page?: number;
+    page_size?: number;
+  },
+  options?: Pick<UseQueryOptions<StudentsListResponse, Error>, 'enabled'>
+) => {
   return useQuery<StudentsListResponse, Error>({
     queryKey: ['students', 'list', params],
     queryFn: () => getStudents(params),
     staleTime: 30000, // 30 seconds
     refetchOnWindowFocus: false,
+    ...options,
   });
 };
 

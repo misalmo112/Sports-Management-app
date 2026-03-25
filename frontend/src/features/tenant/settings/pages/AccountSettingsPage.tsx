@@ -14,6 +14,14 @@ import { clearFieldError, extractValidationErrors, formatErrorMessage } from '@/
 import { useChangePassword, useCurrentAccount, useUpdateCurrentAccount } from '../hooks/hooks';
 import type { ChangePasswordRequest, UpdateCurrentAccountRequest } from '../types';
 
+export type AccountSettingsCopyProps = {
+  pageTitle?: string;
+  pageSubtitle?: string;
+  profileCardTitle?: string;
+  profileCardDescription?: string;
+  passwordCardDescription?: string;
+};
+
 const emptyAccountForm: UpdateCurrentAccountRequest = {
   email: '',
   first_name: '',
@@ -26,7 +34,13 @@ const emptyPasswordForm: ChangePasswordRequest = {
   new_password_confirm: '',
 };
 
-export const AccountSettingsPage = () => {
+export const AccountSettingsPage = ({
+  pageTitle = 'My Account',
+  pageSubtitle = 'Manage your login identity separately from the academy’s organization profile.',
+  profileCardTitle = 'Profile',
+  profileCardDescription = 'Update the signed-in admin’s login email and display name.',
+  passwordCardDescription = 'Change your password without affecting other academy users.',
+}: AccountSettingsCopyProps = {}) => {
   const { data, isLoading, error, refetch } = useCurrentAccount();
   const updateAccount = useUpdateCurrentAccount();
   const updatePassword = useChangePassword();
@@ -133,17 +147,12 @@ export const AccountSettingsPage = () => {
 
   return (
     <div className="container mx-auto py-8">
-      <PageShell
-        title="My Account"
-        subtitle="Manage your login identity separately from the academy’s organization profile."
-      >
+      <PageShell title={pageTitle} subtitle={pageSubtitle}>
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <Card>
             <CardHeader>
-              <CardTitle>Profile</CardTitle>
-              <CardDescription>
-                Update the signed-in admin&apos;s login email and display name.
-              </CardDescription>
+              <CardTitle>{profileCardTitle}</CardTitle>
+              <CardDescription>{profileCardDescription}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={submitAccount} className="space-y-5">
@@ -208,10 +217,9 @@ export const AccountSettingsPage = () => {
                 </div>
 
                 <div className="rounded-xl border bg-muted/20 p-4">
-                  <p className="text-sm text-muted-foreground">Current role</p>
-                  <p className="mt-2 font-semibold">{data.role}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Last login: {data.last_login ? new Date(data.last_login).toLocaleString() : 'Not available'}
+                  <p className="text-sm text-muted-foreground">Last login</p>
+                  <p className="mt-2 text-sm font-medium">
+                    {data.last_login ? new Date(data.last_login).toLocaleString() : 'Not available'}
                   </p>
                 </div>
 
@@ -227,9 +235,7 @@ export const AccountSettingsPage = () => {
           <Card>
             <CardHeader>
               <CardTitle>Password</CardTitle>
-              <CardDescription>
-                Change your password without affecting other academy users.
-              </CardDescription>
+              <CardDescription>{passwordCardDescription}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={submitPassword} className="space-y-5">

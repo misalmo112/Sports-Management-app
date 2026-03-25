@@ -23,6 +23,24 @@ from tenant.students.models import Parent, Student
 from tenant.onboarding.serializers import SportListSerializer, LocationListSerializer
 
 
+def resolve_invoice_display_currency(invoice):
+    """
+    Currency code for displaying amounts: schedule billing item when present,
+    otherwise the academy's configured currency (tenant master).
+    """
+    schedule_id = getattr(invoice, "schedule_id", None)
+    if schedule_id:
+        schedule = getattr(invoice, "schedule", None)
+        if schedule and getattr(schedule, "billing_item_id", None) and schedule.billing_item:
+            c = getattr(schedule.billing_item, "currency", None)
+            if c:
+                return str(c).strip().upper()
+    academy = getattr(invoice, "academy", None)
+    if academy and getattr(academy, "currency", None):
+        return str(academy.currency).strip().upper()
+    return None
+
+
 class ItemSerializer(serializers.ModelSerializer):
     """Full item details serializer."""
 
@@ -256,6 +274,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     parent_email = serializers.EmailField(source='parent.email', read_only=True)
     sport_detail = serializers.SerializerMethodField()
     location_detail = serializers.SerializerMethodField()
+    currency = serializers.SerializerMethodField()
     paid_amount = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -275,7 +294,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'discount_value', 'discount_amount', 'tax_amount', 'total',
             'due_date', 'issued_date', 'parent_invoice', 'sport', 'sport_detail',
             'location', 'location_detail', 'notes',
-            'paid_amount', 'remaining_balance', 'items', 'receipts',
+            'currency', 'paid_amount', 'remaining_balance', 'items', 'receipts',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -312,6 +331,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
         if obj.location:
             return LocationListSerializer(obj.location).data
         return None
+
+    def get_currency(self, obj):
+        return resolve_invoice_display_currency(obj)
     
     def get_paid_amount(self, obj):
         """Get paid amount."""
@@ -328,6 +350,7 @@ class InvoiceListSerializer(serializers.ModelSerializer):
     parent_name = serializers.CharField(source='parent.full_name', read_only=True)
     sport_name = serializers.SerializerMethodField()
     location_name = serializers.SerializerMethodField()
+    currency = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
     remaining_balance = serializers.SerializerMethodField()
     
@@ -335,7 +358,7 @@ class InvoiceListSerializer(serializers.ModelSerializer):
         model = Invoice
         fields = [
             'id', 'invoice_number', 'parent', 'parent_name', 'status',
-            'total', 'paid_amount', 'remaining_balance', 'due_date',
+            'currency', 'total', 'paid_amount', 'remaining_balance', 'due_date',
             'sport', 'sport_name', 'location', 'location_name',
             'created_at'
         ]
@@ -348,6 +371,9 @@ class InvoiceListSerializer(serializers.ModelSerializer):
     def get_location_name(self, obj):
         """Get location name safely."""
         return obj.location.name if obj.location else None
+
+    def get_currency(self, obj):
+        return resolve_invoice_display_currency(obj)
     
     def get_paid_amount(self, obj):
         """Get paid amount."""
@@ -433,6 +459,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
     parent_email = serializers.EmailField(source='parent.email', read_only=True)
     sport_detail = serializers.SerializerMethodField()
     location_detail = serializers.SerializerMethodField()
+    currency = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
     remaining_balance = serializers.SerializerMethodField()
     
@@ -444,7 +471,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
             'discount_value', 'discount_amount', 'tax_amount', 'total',
             'due_date', 'issued_date', 'parent_invoice', 'sport', 'sport_detail',
             'location', 'location_detail', 'notes',
-            'paid_amount', 'remaining_balance', 'items', 'receipts',
+            'currency', 'paid_amount', 'remaining_balance', 'items', 'receipts',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -463,6 +490,9 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
         if obj.location:
             return LocationListSerializer(obj.location).data
         return None
+
+    def get_currency(self, obj):
+        return resolve_invoice_display_currency(obj)
     
     def get_paid_amount(self, obj):
         """Get paid amount."""
@@ -732,12 +762,7 @@ class PendingApprovalInvoiceSerializer(serializers.ModelSerializer):
         return None
 
     def get_currency(self, obj: Invoice):
-        # Pending approval invoices are always tied to a schedule, so prefer its billing item currency.
-        if obj.schedule and obj.schedule.billing_item and obj.schedule.billing_item.currency:
-            return str(obj.schedule.billing_item.currency).strip().upper()
-        if obj.academy and getattr(obj.academy, "currency", None):
-            return str(obj.academy.currency).strip().upper()
-        return None
+        return resolve_invoice_display_currency(obj)
 
     def get_students(self, obj: Invoice):
         # Deterministic order: sort by student_id ascending, de-dupe by student_id.

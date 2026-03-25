@@ -94,6 +94,7 @@ export const InvoiceDetailPage = () => {
   }
 
   const statusInfo = formatStatus(invoice.status);
+  const invoiceCurrency = invoice.currency;
 
   const handleEditClick = () => {
     setEditFormData({
@@ -267,10 +268,10 @@ export const InvoiceDetailPage = () => {
                         <TableCell>{item.student_name || '—'}</TableCell>
                         <TableCell className="text-right">{item.quantity}</TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(item.unit_price)}
+                          {formatCurrency(item.unit_price, invoiceCurrency)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {formatCurrency(item.line_total)}
+                          {formatCurrency(item.line_total, invoiceCurrency)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -290,7 +291,7 @@ export const InvoiceDetailPage = () => {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
+                <span className="font-medium">{formatCurrency(invoice.subtotal, invoiceCurrency)}</span>
               </div>
               {parseFloat(invoice.discount_amount) > 0 && (
                 <div className="flex justify-between text-muted-foreground">
@@ -301,30 +302,30 @@ export const InvoiceDetailPage = () => {
                       : '(Fixed)'}
                     :
                   </span>
-                  <span>-{formatCurrency(invoice.discount_amount)}</span>
+                  <span>-{formatCurrency(invoice.discount_amount, invoiceCurrency)}</span>
                 </div>
               )}
               {parseFloat(invoice.tax_amount) > 0 && (
                 <div className="flex justify-between text-muted-foreground">
                   <span>Tax:</span>
-                  <span>+{formatCurrency(invoice.tax_amount)}</span>
+                  <span>+{formatCurrency(invoice.tax_amount, invoiceCurrency)}</span>
                 </div>
               )}
               <div className="flex justify-between text-lg font-bold pt-2 border-t">
                 <span>Total:</span>
-                <span>{formatCurrency(invoice.total)}</span>
+                <span>{formatCurrency(invoice.total, invoiceCurrency)}</span>
               </div>
               {invoice.paid_amount && parseFloat(invoice.paid_amount) > 0 && (
                 <div className="flex justify-between text-muted-foreground pt-2">
                   <span>Paid:</span>
-                  <span>{formatCurrency(invoice.paid_amount)}</span>
+                  <span>{formatCurrency(invoice.paid_amount, invoiceCurrency)}</span>
                 </div>
               )}
               {invoice.remaining_balance && parseFloat(invoice.remaining_balance) > 0 && (
                 <div className="flex justify-between text-lg font-semibold pt-2 border-t">
                   <span>Remaining Balance:</span>
                   <span className="text-destructive">
-                    {formatCurrency(invoice.remaining_balance)}
+                    {formatCurrency(invoice.remaining_balance, invoiceCurrency)}
                   </span>
                 </div>
               )}
@@ -365,7 +366,7 @@ export const InvoiceDetailPage = () => {
                           {formatDateTime(receipt.payment_date)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {formatCurrency(receipt.amount)}
+                          {formatCurrency(receipt.amount, invoiceCurrency)}
                         </TableCell>
                       </TableRow>
                     ))}

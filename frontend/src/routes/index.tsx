@@ -2,6 +2,7 @@
  * Application routes
  */
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 
 /** Old emails / API used /auth/invite/accept; SPA route is /accept-invite. */
 function LegacyInviteAcceptRedirect() {
@@ -17,6 +18,7 @@ import { ModuleAccessDeniedPage } from '@/shared/components/common/ModuleAccessD
 import { DashboardHomeRedirect } from '@/shared/components/common/DashboardHomeRedirect';
 import { DashboardLayout } from '@/shared/components/layout/DashboardLayout';
 import type { UserRole } from '@/shared/utils/roleAccess';
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 // Public pages
 import OnboardingPage from '@/features/tenant/onboarding/pages/OnboardingPage';
@@ -100,6 +102,9 @@ import { InvoiceScheduleEditPage } from '@/features/tenant/billing/invoice-sched
 import { StaffPaySchedulesPage } from '@/features/tenant/coaches/pay-schedules/pages/StaffPaySchedulesPage';
 import { StaffPayScheduleCreatePage } from '@/features/tenant/coaches/pay-schedules/pages/StaffPayScheduleCreatePage';
 import { StaffPayScheduleEditPage } from '@/features/tenant/coaches/pay-schedules/pages/StaffPayScheduleEditPage';
+import { RentPaySchedulesPage } from '@/features/tenant/facilities/rent-schedules/pages/RentPaySchedulesPage';
+import { RentPayScheduleCreatePage } from '@/features/tenant/facilities/rent-schedules/pages/RentPayScheduleCreatePage';
+import { RentPayScheduleEditPage } from '@/features/tenant/facilities/rent-schedules/pages/RentPayScheduleEditPage';
 
 // Coach pages
 import { CoachOverviewPage } from '@/features/tenant/overview/pages/CoachOverviewPage';
@@ -114,9 +119,15 @@ import { ParentAttendancePage } from '@/features/tenant/attendance/pages/ParentA
 import { ParentInvoicesPage } from '@/features/tenant/billing/pages/ParentInvoicesPage';
 import { ParentInvoiceDetailPage } from '@/features/tenant/billing/pages/ParentInvoiceDetailPage';
 import { ParentMediaPage } from '@/features/tenant/media/pages/ParentMediaPage';
+import { ParentPersonalInfoPage } from '@/features/tenant/parent/pages/ParentPersonalInfoPage';
+import { ParentAccountSettingsPage } from '@/features/tenant/parent/pages/ParentAccountSettingsPage';
 import { FeedbackPage } from '@/features/tenant/communication/pages/FeedbackPage';
+import MediaUploadPage from '@/pages/media/MediaUploadPage';
+import MediaGalleryPage from '@/pages/media/MediaGalleryPage';
 
 // Helper function to create protected routes with guards
+const PortalRoutes = lazy(() => import('@/routes/PortalRoutes'));
+
 const createProtectedRoute = (
   element: React.ReactElement,
   requireOnboarding: boolean = false,
@@ -149,6 +160,14 @@ const createProtectedRoute = (
 };
 
 export const router = createBrowserRouter([
+  {
+    path: '/portal/*',
+    element: (
+      <Suspense fallback={<div className="p-6"><Skeleton className="h-40 w-full" /></div>}>
+        <PortalRoutes />
+      </Suspense>
+    ),
+  },
   // Public routes
   {
     path: '/login',
@@ -360,6 +379,18 @@ export const router = createBrowserRouter([
         element: createProtectedRoute(<InvoiceScheduleEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'invoice-schedules'),
       },
       {
+        path: 'operations/rent-schedules',
+        element: createProtectedRoute(<RentPaySchedulesPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'facilities'),
+      },
+      {
+        path: 'operations/rent-schedules/new',
+        element: createProtectedRoute(<RentPayScheduleCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'facilities'),
+      },
+      {
+        path: 'operations/rent-schedules/:id/edit',
+        element: createProtectedRoute(<RentPayScheduleEditPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'facilities'),
+      },
+      {
         path: 'management/staff/pay-schedules',
         element: createProtectedRoute(<StaffPaySchedulesPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'staff'),
       },
@@ -455,6 +486,14 @@ export const router = createBrowserRouter([
         path: 'media',
         element: createProtectedRoute(<MediaPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'media'),
       },
+      {
+        path: 'academy/media/upload',
+        element: createProtectedRoute(<MediaUploadPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'media'),
+      },
+      {
+        path: 'academy/media',
+        element: createProtectedRoute(<MediaGalleryPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'media'),
+      },
       // Reports route (Admin/Owner/STAFF)
       {
         path: 'reports',
@@ -519,6 +558,14 @@ export const router = createBrowserRouter([
       {
         path: 'parent/overview',
         element: createProtectedRoute(<ParentOverviewPage />, true, ['PARENT']),
+      },
+      {
+        path: 'parent/profile',
+        element: createProtectedRoute(<ParentPersonalInfoPage />, true, ['PARENT']),
+      },
+      {
+        path: 'parent/account',
+        element: createProtectedRoute(<ParentAccountSettingsPage />, true, ['PARENT']),
       },
       {
         path: 'parent/children',

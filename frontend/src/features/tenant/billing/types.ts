@@ -69,6 +69,8 @@ export interface Invoice {
     email: string;
   };
   invoice_number: string;
+  /** ISO 4217 code from academy settings (or schedule billing item). */
+  currency?: string;
   status: 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
   subtotal: string; // Decimal as string
   discount_type?: 'PERCENTAGE' | 'FIXED';

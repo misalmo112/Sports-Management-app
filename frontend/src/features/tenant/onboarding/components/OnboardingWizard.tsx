@@ -158,7 +158,7 @@ export const OnboardingWizard = () => {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Onboarding Complete!</CardTitle>
-            <CardDescription>Redirecting to setup checklist...</CardDescription>
+            <CardDescription>Redirecting to your dashboard...</CardDescription>
           </CardHeader>
         </Card>
       </div>

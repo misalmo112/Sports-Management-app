@@ -90,6 +90,23 @@ class ComplaintViewSetTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['subject'], 'New Complaint')
         self.assertEqual(response.data['status'], FeedbackStatus.PENDING)
+
+    def test_create_feedback_parent_without_student(self):
+        """General feedback may omit student (null)."""
+        self.client.force_authenticate(user=self.parent_user)
+        self.client.credentials(HTTP_X_ACADEMY_ID=str(self.academy.id))
+
+        data = {
+            'subject': 'General note',
+            'message': 'Not tied to a specific child',
+            'priority': FeedbackPriority.LOW,
+        }
+
+        response = self.client.post('/api/v1/tenant/feedback/', data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['subject'], 'General note')
+        self.assertIsNone(response.data['student'])
     
     def test_create_complaint_non_parent(self):
         """Test that non-parent cannot create complaint."""

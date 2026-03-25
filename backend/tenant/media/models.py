@@ -34,6 +34,12 @@ class MediaFile(models.Model):
     
     # Optional Metadata
     description = models.TextField(blank=True)
+    capture_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Date when this media was captured',
+    )
     
     # Status
     is_active = models.BooleanField(default=True, db_index=True)
@@ -48,6 +54,7 @@ class MediaFile(models.Model):
             models.Index(fields=['academy', 'is_active']),
             models.Index(fields=['academy', 'created_at']),
             models.Index(fields=['academy', 'class_obj']),
+            models.Index(fields=['academy', 'capture_date']),
             models.Index(fields=['file_name']),
         ]
         verbose_name = 'Media File'

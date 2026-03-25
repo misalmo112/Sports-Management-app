@@ -1,5 +1,5 @@
 """Tests for facilities models."""
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -7,7 +7,15 @@ from django.test import TestCase
 from django.utils import timezone
 
 from saas_platform.tenants.models import Academy
-from tenant.facilities.models import Bill, BillLineItem, FacilityRentConfig, InventoryItem, RentInvoice, RentPayment
+from tenant.facilities.models import (
+    Bill,
+    BillLineItem,
+    FacilityRentConfig,
+    InventoryItem,
+    RentInvoice,
+    RentPaySchedule,
+    RentPayment,
+)
 from tenant.onboarding.models import Location
 
 
@@ -137,3 +145,67 @@ class FacilitiesModelTest(TestCase):
                 quantity=5,
                 unit='pcs',
             )
+
+    def test_rent_pay_schedule_session_requires_sessions_per_invoice(self):
+        schedule = RentPaySchedule(
+            academy=self.academy,
+            location=self.location,
+            billing_type=RentPaySchedule.BillingType.SESSION,
+            amount=Decimal('50.00'),
+            currency='AED',
+            sessions_per_invoice=None,
+            billing_day=None,
+            cycle_start_date=date(2026, 1, 1),
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            schedule.full_clean()
+        self.assertIn('sessions_per_invoice', ctx.exception.error_dict)
+
+    def test_rent_pay_schedule_monthly_requires_billing_day(self):
+        schedule = RentPaySchedule(
+            academy=self.academy,
+            location=self.location,
+            billing_type=RentPaySchedule.BillingType.MONTHLY,
+            amount=Decimal('5000.00'),
+            currency='AED',
+            sessions_per_invoice=None,
+            billing_day=None,
+            cycle_start_date=date(2026, 1, 1),
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            schedule.full_clean()
+        self.assertIn('billing_day', ctx.exception.error_dict)
+
+    def test_rent_pay_schedule_unique_per_location_billing_type(self):
+        RentPaySchedule.objects.create(
+            academy=self.academy,
+            location=self.location,
+            billing_type=RentPaySchedule.BillingType.MONTHLY,
+            amount=Decimal('1000.00'),
+            currency='AED',
+            billing_day=15,
+            cycle_start_date=date(2026, 1, 1),
+        )
+        dup = RentPaySchedule(
+            academy=self.academy,
+            location=self.location,
+            billing_type=RentPaySchedule.BillingType.MONTHLY,
+            amount=Decimal('2000.00'),
+            currency='AED',
+            billing_day=20,
+            cycle_start_date=date(2026, 1, 1),
+        )
+        with self.assertRaises(ValidationError):
+            dup.full_clean()
+
+    def test_rent_invoice_schedule_fk_nullable(self):
+        inv = RentInvoice.objects.create(
+            academy=self.academy,
+            location=self.location,
+            invoice_number='RINV-test-academy-2026-099',
+            amount=Decimal('100.00'),
+            period_description='Test',
+            schedule=None,
+        )
+        inv.refresh_from_db()
+        self.assertIsNone(inv.schedule_id)

@@ -89,6 +89,9 @@ export const API_ENDPOINTS = {
       UPDATE: '/api/v1/tenant/account/',
       CHANGE_PASSWORD: '/api/v1/tenant/account/change-password/',
     },
+    PORTAL: {
+      STUDENT_DETAIL: (id: number | string) => `/api/v1/tenant/portal/students/${id}/`,
+    },
     OVERVIEW: '/api/v1/tenant/overview/',
     REPORTS: '/api/v1/tenant/reports/',
     REPORTS_EXPORT: '/api/v1/tenant/reports/export/',

@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/v1/tenant/', include('tenant.media.urls')),
     path('api/v1/tenant/', include('tenant.masters.urls')),
     path('api/v1/tenant/', include('tenant.academy.urls')),
+    path('api/v1/tenant/', include('tenant.portal.urls')),
     # Tenant user management endpoints
     path('api/v1/tenant/', include('tenant.users.urls')),
     # Admin user management endpoints (legacy, kept for backward compatibility)

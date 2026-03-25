@@ -34,10 +34,10 @@ import {
   Upload,
   Settings,
   Shield,
+  UserCircle,
   PackageOpen,
   Globe,
   CircleDollarSign,
-  ListChecks,
 } from 'lucide-react';
 
 /**
@@ -214,14 +214,6 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'overview',
         },
-        {
-          id: 'setup',
-          label: 'Setup',
-          path: '/dashboard/setup',
-          icon: ListChecks,
-          roles: ['ADMIN', 'OWNER', 'STAFF'],
-          group: 'overview',
-        },
       ],
     },
     {
@@ -252,13 +244,35 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'operations',
         },
+      ],
+    },
+    {
+      id: 'automation',
+      label: 'Automation',
+      items: [
         {
           id: 'invoice-schedules',
           label: 'Invoice Schedules',
           path: '/dashboard/operations/invoice-schedules',
           icon: CalendarDays,
           roles: ['ADMIN', 'OWNER', 'STAFF'],
-          group: 'operations',
+          group: 'automation',
+        },
+        {
+          id: 'staff-pay-schedules',
+          label: 'Staff Pay Schedules',
+          path: '/dashboard/management/staff/pay-schedules',
+          icon: CalendarDays,
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
+          group: 'automation',
+        },
+        {
+          id: 'rent-schedules',
+          label: 'Rent Schedules',
+          path: '/dashboard/operations/rent-schedules',
+          icon: Warehouse,
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
+          group: 'automation',
         },
       ],
     },
@@ -307,8 +321,16 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
         {
           id: 'media',
           label: 'Media',
-          path: '/dashboard/media',
+          path: '/dashboard/academy/media',
           icon: Image,
+          roles: ['ADMIN', 'OWNER', 'STAFF'],
+          group: 'management',
+        },
+        {
+          id: 'media-upload',
+          label: 'Media Upload',
+          path: '/dashboard/academy/media/upload',
+          icon: Upload,
           roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
         },
@@ -344,14 +366,6 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           roles: ['ADMIN', 'OWNER', 'STAFF'],
           group: 'management',
           exact: true,
-        },
-        {
-          id: 'staff-pay-schedules',
-          label: 'Staff Pay Schedules',
-          path: '/dashboard/management/staff/pay-schedules',
-          icon: CalendarDays,
-          roles: ['ADMIN', 'OWNER', 'STAFF'],
-          group: 'management',
         },
         {
           id: 'feedback',
@@ -535,6 +549,22 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
       label: 'My Information',
       items: [
         {
+          id: 'parent-profile',
+          label: 'Personal information',
+          path: '/dashboard/parent/profile',
+          icon: UserCircle,
+          roles: ['PARENT'],
+          group: 'parent-operations',
+        },
+        {
+          id: 'parent-account-security',
+          label: 'Account & security',
+          path: '/dashboard/parent/account',
+          icon: Shield,
+          roles: ['PARENT'],
+          group: 'parent-operations',
+        },
+        {
           id: 'children',
           label: 'Children',
           path: '/dashboard/parent/children',
@@ -593,6 +623,9 @@ export function filterAdminNavByModules(
       // Part of Staff module: show when Staff list is granted (or explicit key if added later).
       return allow.has('staff-pay-schedules') || allow.has('staff');
     }
+    if (item.id === 'rent-schedules') {
+      return allow.has('facilities');
+    }
     return allow.has(item.id);
   };
   return groups
@@ -607,7 +640,7 @@ const STAFF_FALLBACK_HOME = '/dashboard/settings/account';
 
 /**
  * First allowed admin nav path for STAFF, in sidebar order (navigationConfig.ADMIN).
- * Skips my-account (always visible without a grant). Matches Phase 5: overview before setup when both granted.
+ * Skips my-account (always visible without a grant).
  */
 export function getStaffLandingPathFromModules(modules: string[]): string {
   const allow = new Set(modules);

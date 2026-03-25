@@ -113,7 +113,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         
         # Superadmin can see all
         if hasattr(self.request.user, 'role') and self.request.user.role == 'SUPERADMIN':
-            return queryset
+            return queryset.select_related('schedule__billing_item', 'academy')
         
         # Parents can only see their own invoices
         if hasattr(self.request.user, 'role') and self.request.user.role == 'PARENT':
@@ -129,8 +129,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 self.request.user,
                 self.request
             )
-        
-        return queryset
+
+        return queryset.select_related('schedule__billing_item', 'academy')
     
     def get_permissions(self):
         """Return appropriate permissions based on action."""

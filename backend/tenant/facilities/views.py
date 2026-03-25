@@ -1,11 +1,13 @@
 """Views for facilities APIs."""
 from django.db import IntegrityError
-from rest_framework import status, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
+from django.utils import timezone
 
 from shared.permissions.tenant import IsTenantAdmin
 from shared.utils.queryset_filtering import filter_by_academy
@@ -15,6 +17,8 @@ from tenant.facilities.models import (
     FacilityRentConfig,
     InventoryItem,
     RentInvoice,
+    RentPaySchedule,
+    RentPayScheduleRun,
     RentReceipt,
 )
 from tenant.facilities.serializers import (
@@ -26,11 +30,20 @@ from tenant.facilities.serializers import (
     InventoryItemSerializer,
     MarkBillPaidSerializer,
     MarkPaidRentInvoiceSerializer,
+    PendingRentInvoiceSerializer,
+    RentBulkIssueSerializer,
     RentInvoiceSerializer,
+    RentPayScheduleRunSerializer,
+    RentPayScheduleSerializer,
     RentPaymentSerializer,
     RentReceiptSerializer,
 )
 from tenant.facilities.services import FacilitiesService
+from tenant.facilities.tasks import (
+    evaluate_daily_rent_schedules,
+    evaluate_monthly_rent_schedules,
+    evaluate_session_rent_schedules,
+)
 
 
 class FacilityRentConfigViewSet(viewsets.ModelViewSet):
@@ -262,3 +275,138 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
             serializer.validated_data['delta'],
         )
         return Response(InventoryItemSerializer(inventory_item).data)
+
+
+class RentPayScheduleViewSet(viewsets.ModelViewSet):
+    required_tenant_module = 'facilities'
+    queryset = RentPaySchedule.objects.all()
+    serializer_class = RentPayScheduleSerializer
+    permission_classes = [IsTenantAdmin]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['billing_type', 'is_active', 'location']
+    ordering_fields = ['created_at', 'location__name', 'billing_type']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return filter_by_academy(
+            super().get_queryset().select_related('location', 'academy'),
+            self.request.academy,
+            self.request.user,
+            self.request,
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(academy=self.request.academy)
+
+    @action(detail=True, methods=['post'], url_path='run')
+    def manual_run(self, request, pk=None):
+        schedule = self.get_object()
+        t0 = timezone.now()
+        manual = RentPayScheduleRun.TriggerSource.MANUAL
+        evaluate_monthly_rent_schedules(schedule_id=schedule.id, triggered_by=manual)
+        evaluate_daily_rent_schedules(schedule_id=schedule.id, triggered_by=manual)
+        evaluate_session_rent_schedules(schedule_id=schedule.id, triggered_by=manual)
+        runs = RentPayScheduleRun.objects.filter(schedule=schedule, run_at__gte=t0).order_by('run_at')
+        invoices_created = sum(r.invoices_created for r in runs)
+        if any(r.status == RentPayScheduleRun.RunStatus.FAILED for r in runs):
+            st = RentPayScheduleRun.RunStatus.FAILED
+        elif any(r.status == RentPayScheduleRun.RunStatus.PARTIAL for r in runs):
+            st = RentPayScheduleRun.RunStatus.PARTIAL
+        else:
+            st = RentPayScheduleRun.RunStatus.SUCCEEDED
+        run_at = runs.last().run_at if runs else t0
+        return Response(
+            {
+                'invoices_created': invoices_created,
+                'status': st,
+                'run_at': run_at,
+            }
+        )
+
+    @action(detail=True, methods=['post'], url_path='toggle-active')
+    def toggle_active(self, request, pk=None):
+        schedule = self.get_object()
+        schedule.is_active = not schedule.is_active
+        schedule.save(update_fields=['is_active', 'updated_at'])
+        return Response(RentPayScheduleSerializer(schedule, context={'request': request}).data)
+
+    @action(detail=True, methods=['get'], url_path='runs')
+    def run_history(self, request, pk=None):
+        schedule = self.get_object()
+        qs = RentPayScheduleRun.objects.filter(schedule=schedule).order_by('-run_at')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            ser = RentPayScheduleRunSerializer(page, many=True)
+            return self.get_paginated_response(ser.data)
+        return Response(RentPayScheduleRunSerializer(qs, many=True).data)
+
+
+class RentPendingApprovalsView(generics.ListAPIView):
+    required_tenant_module = 'facilities'
+    serializer_class = PendingRentInvoiceSerializer
+    permission_classes = [IsTenantAdmin]
+
+    def get_queryset(self):
+        qs = RentInvoice.objects.filter(
+            academy=self.request.academy,
+            status=RentInvoice.Status.DRAFT,
+            schedule__isnull=False,
+        ).select_related('location', 'schedule', 'schedule__location')
+        qs = filter_by_academy(
+            qs,
+            self.request.academy,
+            self.request.user,
+            self.request,
+        )
+        sid = self.request.query_params.get('schedule_id')
+        lid = self.request.query_params.get('location_id')
+        bt = self.request.query_params.get('billing_type')
+        if sid is not None and sid != '':
+            qs = qs.filter(schedule_id=sid)
+        if lid is not None and lid != '':
+            qs = qs.filter(location_id=lid)
+        if bt is not None and bt != '':
+            qs = qs.filter(schedule__billing_type=bt)
+        return qs.order_by('-created_at')
+
+
+class RentBulkIssueView(APIView):
+    required_tenant_module = 'facilities'
+    permission_classes = [IsTenantAdmin]
+
+    def post(self, request):
+        serializer = RentBulkIssueSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ids = serializer.validated_data['invoice_ids']
+        unique_ids = list(dict.fromkeys(ids))
+
+        base = RentInvoice.objects.filter(academy=request.academy, pk__in=unique_ids)
+        found = set(base.values_list('id', flat=True))
+        if found != set(unique_ids):
+            return Response(
+                {'detail': 'One or more invoices were not found for this academy.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        eligible = base.filter(status=RentInvoice.Status.DRAFT, schedule__isnull=False)
+        if eligible.count() != len(unique_ids):
+            return Response(
+                {'detail': 'All invoices must be in DRAFT status and linked to a rent pay schedule.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        today = timezone.localdate()
+        now = timezone.now()
+        to_update = list(eligible)
+        for inv in to_update:
+            inv.status = RentInvoice.Status.PENDING
+            inv.issued_date = today
+            inv.updated_at = now
+        RentInvoice.objects.bulk_update(to_update, ['status', 'issued_date', 'updated_at'])
+
+        return Response(
+            {
+                'issued_count': len(to_update),
+                'invoice_ids': [i.id for i in to_update],
+            }
+        )

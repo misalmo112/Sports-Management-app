@@ -148,6 +148,26 @@ export interface UpdateAcademyTaxSettingsRequest {
   global_tax_rate_percent?: number;
 }
 
+export interface ParentProfileSelfService {
+  phone: string;
+}
+
+export interface ParentRecordSnapshot {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  phone_numbers: unknown[];
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  is_active: boolean;
+}
+
 export interface CurrentAccount {
   id: number;
   email: string;
@@ -157,12 +177,29 @@ export interface CurrentAccount {
   allowed_modules?: string[] | null;
   is_active: boolean;
   last_login?: string | null;
+  /** Present for PARENT role on GET / PATCH account */
+  parent_profile?: ParentProfileSelfService;
+  parent_record?: ParentRecordSnapshot | null;
 }
 
 export interface UpdateCurrentAccountRequest {
   email?: string;
   first_name?: string;
   last_name?: string;
+  parent_profile?: Partial<ParentProfileSelfService>;
+  parent_record?: Partial<
+    Pick<
+      ParentRecordSnapshot,
+      | 'phone'
+      | 'phone_numbers'
+      | 'address_line1'
+      | 'address_line2'
+      | 'city'
+      | 'state'
+      | 'postal_code'
+      | 'country'
+    >
+  >;
 }
 
 export interface ChangePasswordRequest {

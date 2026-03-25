@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     'tenant.overview',
     'tenant.reports',
     'tenant.communication',
+    'tenant.portal',
     # etc.
 ]
 
@@ -271,6 +272,10 @@ if os.getenv('AWS_S3_ENDPOINT_URL'):
         AWS_SECRET_ACCESS_KEY = get_env_variable('AWS_SECRET_ACCESS_KEY', required=False)
         AWS_STORAGE_BUCKET_NAME = get_env_variable('AWS_STORAGE_BUCKET_NAME', required=False)
         AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
+        # Optional: URL the *browser* uses for presigned GETs (e.g. http://localhost:9000) while
+        # AWS_S3_ENDPOINT_URL stays on the Docker network (e.g. http://minio:9000 for backend uploads).
+        _public_ep = (os.getenv('AWS_S3_PUBLIC_ENDPOINT_URL') or '').strip()
+        AWS_S3_PUBLIC_ENDPOINT_URL = _public_ep or None
         AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
         AWS_S3_USE_SSL = os.getenv('AWS_S3_USE_SSL', 'True') == 'True'
         AWS_DEFAULT_ACL = os.getenv('AWS_DEFAULT_ACL', 'private')
@@ -331,6 +336,10 @@ CELERY_BEAT_SCHEDULE = {
       'task': 'tenant.coaches.tasks.run_staff_pay_schedules',
       'schedule': crontab(hour=0, minute=30),
   },
+    'run-rent-pay-schedules': {
+        'task': 'tenant.facilities.tasks.run_rent_pay_schedules',
+        'schedule': crontab(hour=1, minute=0),
+    },
 }
 
 # Frankfurter API (currencies + exchange rates)

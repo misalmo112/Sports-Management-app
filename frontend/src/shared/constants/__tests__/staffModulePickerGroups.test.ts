@@ -33,7 +33,7 @@ describe('getStaffModulePickerGroups', () => {
   });
 
   it('returns stable group count for regression', () => {
-    expect(getStaffModulePickerGroups()).toHaveLength(5);
+    expect(getStaffModulePickerGroups()).toHaveLength(6);
   });
 });
 

@@ -2,8 +2,11 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from tenant.media.models import MediaFile
 from tenant.media.serializers import (
     MediaFileSerializer,
@@ -29,7 +32,7 @@ class MediaFileViewSet(viewsets.ModelViewSet):
     serializer_class = MediaFileSerializer
     permission_classes = [IsTenantAdminOrParentOrCoach]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['is_active', 'mime_type', 'class_obj']
+    filterset_fields = ['mime_type']
     search_fields = ['file_name', 'description']
     ordering_fields = ['file_name', 'file_size', 'created_at']
     ordering = ['-created_at']
@@ -76,7 +79,43 @@ class MediaFileViewSet(viewsets.ModelViewSet):
                 self.request
             )
         
-        return queryset.select_related('class_obj', 'class_obj__coach')
+        queryset = queryset.select_related('class_obj', 'class_obj__coach')
+
+        class_id = self.request.query_params.get('class_id')
+        if class_id:
+            queryset = queryset.filter(class_obj_id=class_id)
+
+        mime_type = self.request.query_params.get('mime_type')
+        if mime_type:
+            queryset = queryset.filter(mime_type=mime_type)
+
+        is_active_param = self.request.query_params.get('is_active')
+        if is_active_param is None:
+            queryset = queryset.filter(is_active=True)
+        else:
+            normalized = str(is_active_param).strip().lower()
+            if normalized in {'true', '1', 'yes'}:
+                queryset = queryset.filter(is_active=True)
+            elif normalized in {'false', '0', 'no'}:
+                queryset = queryset.filter(is_active=False)
+            else:
+                raise ValidationError({'is_active': 'Invalid boolean value.'})
+
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            parsed_from = parse_date(date_from)
+            if not parsed_from:
+                raise ValidationError({'date_from': 'Invalid date format. Use YYYY-MM-DD.'})
+            queryset = queryset.filter(capture_date__gte=parsed_from)
+
+        date_to = self.request.query_params.get('date_to')
+        if date_to:
+            parsed_to = parse_date(date_to)
+            if not parsed_to:
+                raise ValidationError({'date_to': 'Invalid date format. Use YYYY-MM-DD.'})
+            queryset = queryset.filter(capture_date__lte=parsed_to)
+
+        return queryset
     
     def get_serializer_class(self):
         """Use appropriate serializer based on action."""
@@ -88,7 +127,7 @@ class MediaFileViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """Restrict create/delete to admins and coaches (parents are read-only)."""
-        if self.action in ['create', 'destroy', 'upload_multiple']:
+        if self.action in ['create', 'destroy', 'upload_multiple', 'upload', 'bulk_deactivate']:
             return [IsTenantAdminOrCoach()]
         return super().get_permissions()
     
@@ -103,37 +142,9 @@ class MediaFileViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         
         file = serializer.validated_data['file']
-        class_id = serializer.validated_data['class_id']
+        class_obj = serializer.validated_data['class_obj']
         description = serializer.validated_data.get('description', '')
-        
-        # Get class object
-        from tenant.classes.models import Class
-        try:
-            class_obj = Class.objects.get(
-                id=class_id,
-                academy=request.academy,
-                is_active=True
-            )
-        except Class.DoesNotExist:
-            return Response(
-                {'detail': 'Class not found or does not belong to this academy'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        # Check coach permission for assigned classes
-        if hasattr(request.user, 'role') and request.user.role == 'COACH':
-            try:
-                coach = Coach.objects.get(user=request.user, academy=request.academy)
-                if class_obj.coach != coach:
-                    return Response(
-                        {'detail': 'You can only upload media for your assigned classes.'},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-            except Coach.DoesNotExist:
-                return Response(
-                    {'detail': 'Coach profile not found.'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+        capture_date = serializer.validated_data.get('capture_date') or timezone.localdate()
         
         try:
             # Upload file to S3 and create MediaFile record
@@ -141,7 +152,8 @@ class MediaFileViewSet(viewsets.ModelViewSet):
                 academy=request.academy,
                 class_obj=class_obj,
                 file=file,
-                description=description
+                description=description,
+                capture_date=capture_date,
             )
             
             # Update storage usage atomically
@@ -161,43 +173,34 @@ class MediaFileViewSet(viewsets.ModelViewSet):
                 {'detail': f'File upload failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=['post'], url_path='upload')
+    @check_quota('storage_bytes')
+    def upload(self, request, *args, **kwargs):
+        """Alias endpoint for single media upload."""
+        return self.create(request, *args, **kwargs)
     
     def destroy(self, request, *args, **kwargs):
         """
-        Delete a file and update storage usage.
+        Soft-delete a media file (S3 object remains intact).
         """
         media_file = self.get_object()
-        file_size = media_file.file_size
-        
-        try:
-            # Delete file from S3 and database
-            MediaService.delete_file(media_file)
-            
-            # Update storage usage atomically (decrement)
-            with transaction.atomic():
-                usage, _ = TenantUsage.objects.select_for_update().get_or_create(
-                    academy=request.academy
-                )
-                usage.storage_used_bytes -= file_size
-                
-                # Prevent negative storage
-                if usage.storage_used_bytes < 0:
-                    usage.storage_used_bytes = 0
-                
-                usage.save()
-            
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        
-        except MediaFile.DoesNotExist:
+        media_file.is_active = False
+        media_file.save(update_fields=['is_active', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['patch'], url_path='bulk-deactivate')
+    def bulk_deactivate(self, request):
+        """Soft-delete multiple media files scoped to request.academy."""
+        ids = request.data.get('ids')
+        if not isinstance(ids, list) or not ids:
             return Response(
-                {'detail': 'Media file not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {'detail': 'ids must be a non-empty list.'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
-            return Response(
-                {'detail': f'File deletion failed: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+
+        deactivated_count = self.get_queryset().filter(id__in=ids).update(is_active=False)
+        return Response({'deactivated': deactivated_count}, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'], url_path='upload-multiple')
     @check_quota('storage_bytes')
@@ -249,7 +252,8 @@ class MediaFileViewSet(viewsets.ModelViewSet):
                         academy=request.academy,
                         class_obj=class_obj,
                         file=file,
-                        description=request.data.get('description', '')
+                        description=request.data.get('description', ''),
+                        capture_date=request.data.get('capture_date') or None,
                     )
                     uploaded_files.append(media_file)
                 except Exception as e:

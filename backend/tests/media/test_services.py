@@ -155,6 +155,42 @@ class MediaServiceTest(TestCase):
             
             self.assertEqual(url, 'http://signed-url.com/test.jpg')
             mock_client.generate_presigned_url.assert_called_once()
+
+    @override_settings(
+        AWS_STORAGE_BUCKET_NAME='test-bucket',
+        AWS_S3_ENDPOINT_URL='http://minio:9000',
+        AWS_S3_PUBLIC_ENDPOINT_URL='http://localhost:9000',
+        AWS_ACCESS_KEY_ID='test-key',
+        AWS_SECRET_ACCESS_KEY='test-secret',
+    )
+    @patch('tenant.media.services.default_storage')
+    def test_get_file_url_presign_uses_public_endpoint(self, mock_storage):
+        """Presigned URLs must use the browser-reachable endpoint when set."""
+        try:
+            import boto3  # noqa: F401
+        except ImportError:
+            self.skipTest('boto3 not available')
+
+        media_file = MediaFile.objects.create(
+            academy=self.academy,
+            file_name='test.jpg',
+            file_path='test-path/test.jpg',
+            file_size=1024,
+        )
+
+        with patch('boto3.client') as mock_boto3_client:
+            mock_client = MagicMock()
+            mock_client.generate_presigned_url.return_value = 'http://localhost:9000/signed.jpg'
+            mock_boto3_client.return_value = mock_client
+            mock_storage.bucket_name = 'test-bucket'
+
+            url = MediaService.get_file_url(media_file)
+
+            self.assertEqual(url, 'http://localhost:9000/signed.jpg')
+            mock_boto3_client.assert_called_once()
+            _, call_kwargs = mock_boto3_client.call_args
+            self.assertEqual(call_kwargs['endpoint_url'], 'http://localhost:9000')
+            mock_storage.url.assert_not_called()
     
     @override_settings(
         AWS_STORAGE_BUCKET_NAME='test-bucket',

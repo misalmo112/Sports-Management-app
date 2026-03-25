@@ -4,6 +4,7 @@ Tests for media API views.
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from datetime import date
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch
@@ -39,6 +40,8 @@ class MediaFileViewsTest(TestCase):
             limits_json={
                 'storage_bytes': 10485760,  # 10MB
                 'max_students': 100,
+                'allowed_mime_types': ['image/jpeg', 'image/png'],
+                'max_file_size_mb': 1,
             }
         )
         
@@ -87,6 +90,11 @@ class MediaFileViewsTest(TestCase):
             b"file_content",
             content_type="image/jpeg"
         )
+
+    @staticmethod
+    def _extract_error_list(response, field_name):
+        details = response.data.get('details', response.data)
+        return details.get(field_name, [])
     
     @patch('tenant.media.services.default_storage')
     def test_list_media_files(self, mock_storage):
@@ -181,6 +189,7 @@ class MediaFileViewsTest(TestCase):
         self.assertEqual(response.data['file_name'], 'test.jpg')
         self.assertEqual(response.data['file_size'], 1024)
         self.assertEqual(response.data['description'], 'Test image upload')
+        self.assertIn('file_url', response.data)
         
         # Verify MediaFile was created
         self.assertTrue(MediaFile.objects.filter(file_name='test.jpg').exists())
@@ -188,6 +197,58 @@ class MediaFileViewsTest(TestCase):
         # Verify storage usage was updated
         usage = TenantUsage.objects.get(academy=self.academy)
         self.assertEqual(usage.storage_used_bytes, 1024)
+
+    def test_upload_file_requires_class_id(self):
+        """Test upload without class_id returns 400."""
+        data = {'file': self.test_file}
+        response = self.client.post('/api/v1/tenant/media/', data, format='multipart')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(self._extract_error_list(response, 'class_id'))
+
+    def test_upload_file_rejects_other_academy_class_id(self):
+        """Test class_id from another academy returns 400."""
+        other_academy = Academy.objects.create(
+            name='Other Academy',
+            slug='other-academy-2',
+            email='other2@example.com',
+            onboarding_completed=True,
+        )
+        other_class = Class.objects.create(
+            academy=other_academy,
+            name='Other Class',
+            max_capacity=20,
+        )
+        data = {
+            'file': self.test_file,
+            'class_id': other_class.id,
+        }
+
+        response = self.client.post('/api/v1/tenant/media/', data, format='multipart')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(self._extract_error_list(response, 'class_id'))
+
+    def test_upload_file_rejects_disallowed_mime(self):
+        """Test disallowed MIME type returns 400 with allowed types in message."""
+        bad_file = SimpleUploadedFile(
+            "doc.txt",
+            b"not allowed",
+            content_type="text/plain"
+        )
+        data = {
+            'file': bad_file,
+            'class_id': self.test_class.id
+        }
+
+        response = self.client.post('/api/v1/tenant/media/', data, format='multipart')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        file_errors = self._extract_error_list(response, 'file')
+        self.assertTrue(file_errors)
+        self.assertIn('allowed types', str(file_errors[0]).lower())
+        self.assertIn('image/jpeg', str(file_errors[0]))
+        self.assertIn('image/png', str(file_errors[0]))
     
     @patch('tenant.media.services.default_storage')
     def test_upload_file_quota_exceeded(self, mock_storage):
@@ -218,33 +279,21 @@ class MediaFileViewsTest(TestCase):
     @patch('tenant.media.services.default_storage')
     def test_delete_file(self, mock_storage):
         """Test DELETE /api/v1/tenant/media/{id}/"""
-        # Create and upload a file first
-        mock_storage.save.return_value = f"{self.academy.id}/2024/01/test-uuid-test.jpg"
-        mock_storage.size.return_value = 1024
-        mock_storage.exists.return_value = True
-        
+        # Create a file first
         media_file = MediaFile.objects.create(
             academy=self.academy,
             file_name='test.jpg',
             file_path='test-path/test.jpg',
             file_size=1024
         )
-        
-        # Update usage
-        usage = TenantUsage.objects.get(academy=self.academy)
-        usage.storage_used_bytes = 1024
-        usage.save()
-        
+
         response = self.client.delete(f'/api/v1/tenant/media/{media_file.id}/')
-        
+
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        
-        # Verify file was deleted
-        self.assertFalse(MediaFile.objects.filter(id=media_file.id).exists())
-        
-        # Verify storage usage was decremented
-        usage.refresh_from_db()
-        self.assertEqual(usage.storage_used_bytes, 0)
+
+        # Verify file was soft-deleted (not removed from DB)
+        media_file.refresh_from_db()
+        self.assertFalse(media_file.is_active)
     
     @patch('tenant.media.services.default_storage')
     def test_delete_file_not_found(self, mock_storage):
@@ -321,11 +370,10 @@ class MediaFileViewsTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
     def test_upload_file_too_large(self):
-        """Test upload with file exceeding size limit."""
-        # Create a file larger than 100MB
+        """Test upload with file exceeding plan max_file_size_mb limit."""
         large_file = SimpleUploadedFile(
             "large.jpg",
-            b"x" * (101 * 1024 * 1024),  # 101MB
+            b"x" * (2 * 1024 * 1024),  # 2MB > 1MB limit
             content_type="image/jpeg"
         )
         
@@ -336,14 +384,41 @@ class MediaFileViewsTest(TestCase):
         
         response = self.client.post('/api/v1/tenant/media/', data, format='multipart')
         
-        # Should be rejected by serializer validation (400) or quota check (403)
-        # The quota decorator runs first, so if file is huge it might hit quota first
-        self.assertIn(response.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN])
-        if response.status_code == status.HTTP_400_BAD_REQUEST:
-            self.assertIn('exceeds maximum', response.data.get('file', [''])[0].lower())
-        else:
-            # Quota exceeded due to large file
-            self.assertIn('quota', response.data.get('detail', '').lower())
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        file_errors = self._extract_error_list(response, 'file')
+        self.assertTrue(file_errors)
+        self.assertIn('maximum allowed limit of 1 mb', str(file_errors[0]).lower())
+
+    @patch('tenant.media.services.default_storage')
+    def test_upload_alias_returns_201_with_file_url(self, mock_storage):
+        """Test POST /api/v1/tenant/media/upload/ returns file_url."""
+        mock_storage.save.return_value = f"{self.academy.id}/2024/01/test-uuid-test.jpg"
+        mock_storage.size.return_value = 1024
+
+        data = {
+            'file': SimpleUploadedFile("alias.jpg", b"abc", content_type="image/jpeg"),
+            'class_id': self.test_class.id,
+        }
+        response = self.client.post('/api/v1/tenant/media/upload/', data, format='multipart')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('file_url', response.data)
+
+    @patch('tenant.media.services.default_storage')
+    def test_upload_file_stores_capture_date(self, mock_storage):
+        """Test capture_date is persisted from upload payload."""
+        mock_storage.save.return_value = f"{self.academy.id}/2024/01/test-uuid-date.jpg"
+        mock_storage.size.return_value = 1024
+
+        data = {
+            'file': SimpleUploadedFile("dated.jpg", b"abc", content_type="image/jpeg"),
+            'class_id': self.test_class.id,
+            'capture_date': '2026-03-24',
+        }
+        response = self.client.post('/api/v1/tenant/media/', data, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        media = MediaFile.objects.get(id=response.data['id'])
+        self.assertEqual(media.capture_date, date(2026, 3, 24))
     
     @patch('tenant.media.services.default_storage')
     def test_list_filters_by_is_active(self, mock_storage):
@@ -369,6 +444,117 @@ class MediaFileViewsTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
         self.assertEqual(response.data['results'][0]['file_name'], 'active.jpg')
+
+    @patch('tenant.media.services.default_storage')
+    def test_list_defaults_to_active_only(self, mock_storage):
+        """Test list defaults to only active media when is_active omitted."""
+        MediaFile.objects.create(
+            academy=self.academy,
+            class_obj=self.test_class,
+            file_name='active.jpg',
+            file_path='test-path/active.jpg',
+            file_size=1024,
+            is_active=True,
+        )
+        MediaFile.objects.create(
+            academy=self.academy,
+            class_obj=self.test_class,
+            file_name='inactive.jpg',
+            file_path='test-path/inactive.jpg',
+            file_size=2048,
+            is_active=False,
+        )
+
+        response = self.client.get('/api/v1/tenant/media/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['file_name'], 'active.jpg')
+
+    @patch('tenant.media.services.default_storage')
+    def test_list_filters_by_class_id(self, mock_storage):
+        """Test filtering by class_id query param."""
+        other_class = Class.objects.create(
+            academy=self.academy,
+            name='Other Class',
+            max_capacity=15,
+        )
+        MediaFile.objects.create(
+            academy=self.academy,
+            class_obj=self.test_class,
+            file_name='class1.jpg',
+            file_path='test-path/class1.jpg',
+            file_size=100,
+            is_active=True,
+        )
+        MediaFile.objects.create(
+            academy=self.academy,
+            class_obj=other_class,
+            file_name='class2.jpg',
+            file_path='test-path/class2.jpg',
+            file_size=200,
+            is_active=True,
+        )
+
+        response = self.client.get(f'/api/v1/tenant/media/?class_id={self.test_class.id}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['file_name'], 'class1.jpg')
+
+    def test_bulk_deactivate_soft_deletes_with_academy_scope(self):
+        """PATCH /bulk-deactivate deactivates matching academy media only."""
+        target_one = MediaFile.objects.create(
+            academy=self.academy,
+            class_obj=self.test_class,
+            file_name='target1.jpg',
+            file_path='test-path/target1.jpg',
+            file_size=100,
+            is_active=True,
+        )
+        target_two = MediaFile.objects.create(
+            academy=self.academy,
+            class_obj=self.test_class,
+            file_name='target2.jpg',
+            file_path='test-path/target2.jpg',
+            file_size=100,
+            is_active=True,
+        )
+
+        other_academy = Academy.objects.create(
+            name='External Academy',
+            slug='external-academy',
+            email='external@example.com',
+            onboarding_completed=True,
+        )
+        external_class = Class.objects.create(
+            academy=other_academy,
+            name='External Class',
+            max_capacity=10,
+        )
+        external_media = MediaFile.objects.create(
+            academy=other_academy,
+            class_obj=external_class,
+            file_name='external.jpg',
+            file_path='test-path/external.jpg',
+            file_size=100,
+            is_active=True,
+        )
+
+        response = self.client.patch(
+            '/api/v1/tenant/media/bulk-deactivate/',
+            {'ids': [str(target_one.id), str(target_two.id), str(external_media.id)]},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['deactivated'], 2)
+
+        target_one.refresh_from_db()
+        target_two.refresh_from_db()
+        external_media.refresh_from_db()
+        self.assertFalse(target_one.is_active)
+        self.assertFalse(target_two.is_active)
+        self.assertTrue(external_media.is_active)
+        self.assertTrue(MediaFile.objects.filter(id=target_one.id).exists())
+        self.assertTrue(MediaFile.objects.filter(id=target_two.id).exists())
     
     @patch('tenant.media.services.default_storage')
     def test_list_search_by_file_name(self, mock_storage):

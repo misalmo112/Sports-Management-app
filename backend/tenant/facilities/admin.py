@@ -5,8 +5,11 @@ from tenant.facilities.models import (
     Bill,
     BillLineItem,
     FacilityRentConfig,
+    FacilitySessionCycle,
     InventoryItem,
     RentInvoice,
+    RentPaySchedule,
+    RentPayScheduleRun,
     RentPayment,
 )
 
@@ -36,6 +39,30 @@ class RentPaymentAdmin(admin.ModelAdmin):
     list_display = ('rent_invoice', 'amount', 'payment_method', 'payment_date')
     list_filter = ('payment_method', 'payment_date')
     search_fields = ('rent_invoice__invoice_number',)
+
+
+@admin.register(RentPaySchedule)
+class RentPayScheduleAdmin(admin.ModelAdmin):
+    list_display = ('location', 'billing_type', 'amount', 'is_active', 'last_run_at')
+    list_filter = ('billing_type', 'is_active')
+
+
+@admin.register(FacilitySessionCycle)
+class FacilitySessionCycleAdmin(admin.ModelAdmin):
+    list_display = ('schedule', 'cycle_number', 'sessions_counted', 'invoice')
+
+
+@admin.register(RentPayScheduleRun)
+class RentPayScheduleRunAdmin(admin.ModelAdmin):
+    list_display = ('schedule', 'run_at', 'status', 'invoices_created', 'triggered_by')
+    readonly_fields = (
+        'schedule',
+        'run_at',
+        'invoices_created',
+        'status',
+        'triggered_by',
+        'error_detail',
+    )
 
 
 class BillLineItemInline(admin.TabularInline):

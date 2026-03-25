@@ -35,7 +35,8 @@ export interface FeedbackListResponse {
 }
 
 export interface CreateFeedbackRequest {
-  student: number;
+  /** Omit or null for feedback not about a specific child */
+  student?: number | null;
   subject: string;
   message: string;
   priority: FeedbackPriority;

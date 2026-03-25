@@ -3,6 +3,7 @@ Serializers for Tenant Feedback API.
 """
 from rest_framework import serializers
 from tenant.communication.models import Feedback, FeedbackStatus, FeedbackPriority
+from tenant.students.models import Student
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
@@ -42,7 +43,13 @@ class FeedbackSerializer(serializers.ModelSerializer):
 
 class FeedbackCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating feedback (Parent only)."""
-    
+
+    student = serializers.PrimaryKeyRelatedField(
+        queryset=Student.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
     # Accept 'description' as alias for 'message' for API compatibility
     description = serializers.CharField(write_only=True, required=False, allow_blank=True)
     # Accept 'category' but ignore it (not part of model, for API compatibility)

@@ -12,7 +12,7 @@ export const useAcademyFormat = () => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(numAmount)) return '—';
     const resolvedCurrency = currencyOverride || currency;
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency: resolvedCurrency,
     }).format(numAmount);

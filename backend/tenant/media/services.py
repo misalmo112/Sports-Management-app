@@ -20,6 +20,31 @@ from tenant.media.models import MediaFile
 
 class MediaService:
     """Service for media file operations with S3/MinIO."""
+
+    @staticmethod
+    def _s3_browser_endpoint_url():
+        """
+        Base URL embedded in presigned GET links returned to browsers.
+
+        When unset, uses AWS_S3_ENDPOINT_URL (same host as the backend uses).
+        """
+        public = getattr(settings, 'AWS_S3_PUBLIC_ENDPOINT_URL', None) or ''
+        internal = getattr(settings, 'AWS_S3_ENDPOINT_URL', None) or ''
+        chosen = (public.strip() or internal).rstrip('/')
+        return chosen
+
+    @staticmethod
+    def _prefer_presign_over_storage_url():
+        """
+        django-storages ``url()`` uses AWS_S3_ENDPOINT_URL (often a Docker-only hostname).
+        If we expose a different public endpoint for browsers, skip ``storage.url()`` so
+        presigning uses the browser-reachable host.
+        """
+        public = (getattr(settings, 'AWS_S3_PUBLIC_ENDPOINT_URL', None) or '').strip().rstrip('/')
+        if not public:
+            return False
+        internal = (getattr(settings, 'AWS_S3_ENDPOINT_URL', None) or '').strip().rstrip('/')
+        return bool(internal and public != internal)
     
     @staticmethod
     def _get_storage():
@@ -77,7 +102,13 @@ class MediaService:
         return f"{academy.id}/{now.year:04d}/{now.month:02d}/{file_uuid}-{safe_filename}"
     
     @staticmethod
-    def upload_file(academy, file: UploadedFile, description: str = None, class_obj=None):
+    def upload_file(
+        academy,
+        file: UploadedFile,
+        description: str = None,
+        class_obj=None,
+        capture_date=None,
+    ):
         """
         Upload file to S3/MinIO and create MediaFile record.
         
@@ -86,6 +117,7 @@ class MediaService:
             file: Django UploadedFile
             description: Optional description
             class_obj: Optional Class instance to associate with media
+            capture_date: Optional capture date for the media
         
         Returns:
             MediaFile instance
@@ -121,7 +153,8 @@ class MediaService:
             file_path=stored_path,
             file_size=file_size,
             mime_type=mime_type,
-            description=description or ''
+            description=description or '',
+            capture_date=capture_date,
         )
         
         return media_file
@@ -162,19 +195,24 @@ class MediaService:
         storage = MediaService._get_storage()
         
         # Check if storage supports URL generation
-        if hasattr(storage, 'url'):
+        if not MediaService._prefer_presign_over_storage_url() and hasattr(storage, 'url'):
             try:
                 # Try to get public URL
                 return storage.url(media_file.file_path)
             except Exception:
                 pass
         
+        browser_endpoint = MediaService._s3_browser_endpoint_url()
         # For private files, generate signed URL
-        if BOTO3_AVAILABLE and hasattr(storage, 'bucket_name') and hasattr(settings, 'AWS_S3_ENDPOINT_URL'):
+        if (
+            BOTO3_AVAILABLE
+            and hasattr(storage, 'bucket_name')
+            and browser_endpoint
+        ):
             try:
                 s3_client = boto3.client(
                     's3',
-                    endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+                    endpoint_url=browser_endpoint,
                     aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
                     aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None),
                     region_name=getattr(settings, 'AWS_S3_REGION_NAME', 'us-east-1'),
@@ -192,13 +230,10 @@ class MediaService:
             except Exception:
                 pass
         
-        # Fallback: construct URL manually
+        # Fallback: construct URL manually (unsigned; may 403 if bucket is private)
         bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '')
-        endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', '')
-        if endpoint_url and bucket_name:
-            # Remove trailing slash from endpoint
-            endpoint_url = endpoint_url.rstrip('/')
-            return f"{endpoint_url}/{bucket_name}/{media_file.file_path}"
+        if browser_endpoint and bucket_name:
+            return f"{browser_endpoint}/{bucket_name}/{media_file.file_path}"
         
         # Last resort: return file path
         return media_file.file_path

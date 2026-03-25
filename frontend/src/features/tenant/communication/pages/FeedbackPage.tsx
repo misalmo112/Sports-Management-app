@@ -2,7 +2,7 @@
  * Feedback Page
  * Submit and view feedback (Parent can create, Admin can view/manage)
  */
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -35,11 +35,15 @@ import { ErrorState } from '@/shared/components/common/ErrorState';
 import { EmptyState } from '@/shared/components/common/EmptyState';
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';
 import type { CreateFeedbackRequest, FeedbackStatus, FeedbackPriority } from '../types';
+import { useStudents } from '@/features/tenant/students/hooks/hooks';
+
+const STUDENT_NONE = '__none__';
 
 export const FeedbackPage = () => {
   const userRole = getCurrentUserRole();
   const isParent = userRole === 'PARENT';
-  const isAdmin = userRole === 'ADMIN' || userRole === 'OWNER';
+  const canManageFeedback =
+    userRole === 'ADMIN' || userRole === 'OWNER' || userRole === 'STAFF';
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('__all__');
@@ -58,8 +62,13 @@ export const FeedbackPage = () => {
     priority: priorityFilter === '__all__' ? undefined : priorityFilter,
   });
 
+  const { data: studentsData, isLoading: studentsLoading } = useStudents(
+    { is_active: true },
+    { enabled: isParent && showCreateForm }
+  );
+
   const [formData, setFormData] = useState<CreateFeedbackRequest>({
-    student: 0,
+    student: null,
     subject: '',
     message: '',
     priority: 'MEDIUM',
@@ -67,13 +76,33 @@ export const FeedbackPage = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string[]>>({});
   const createFeedback = useCreateFeedback();
 
+  const parentStudents = useMemo(
+    () => studentsData?.results ?? [],
+    [studentsData?.results]
+  );
+
+  useEffect(() => {
+    if (!isParent || !showCreateForm) return;
+    if (parentStudents.length !== 1) return;
+    setFormData((prev) =>
+      prev.student == null ? { ...prev, student: parentStudents[0].id } : prev
+    );
+  }, [isParent, showCreateForm, parentStudents]);
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors({});
 
+    const payload: CreateFeedbackRequest = {
+      subject: formData.subject,
+      message: formData.message,
+      priority: formData.priority,
+      student: formData.student ?? null,
+    };
+
     try {
-      await createFeedback.mutateAsync(formData);
-      setFormData({ student: 0, subject: '', message: '', priority: 'MEDIUM' });
+      await createFeedback.mutateAsync(payload);
+      setFormData({ student: null, subject: '', message: '', priority: 'MEDIUM' });
       setShowCreateForm(false);
     } catch (error: any) {
       if (error.response?.data) {
@@ -152,14 +181,42 @@ export const FeedbackPage = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="student">Student *</Label>
-                <Input
-                  id="student"
-                  type="number"
-                  value={formData.student || ''}
-                  onChange={(e) => setFormData({ ...formData, student: parseInt(e.target.value) || 0 })}
-                  required
-                />
+                <Label htmlFor="student">Student</Label>
+                {studentsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading your children...</p>
+                ) : (
+                  <Select
+                    value={
+                      formData.student != null ? String(formData.student) : STUDENT_NONE
+                    }
+                    onValueChange={(v) =>
+                      setFormData({
+                        ...formData,
+                        student: v === STUDENT_NONE ? null : Number(v),
+                      })
+                    }
+                  >
+                    <SelectTrigger id="student">
+                      <SelectValue placeholder="Choose a child or general feedback" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={STUDENT_NONE}>
+                        General (not about a specific child)
+                      </SelectItem>
+                      {parentStudents.map((s) => (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          {s.full_name ||
+                            [s.first_name, s.last_name].filter(Boolean).join(' ') ||
+                            `Student #${s.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Link this feedback to one of your children, or choose general if it applies to the
+                  whole family or academy.
+                </p>
                 {formErrors.student && (
                   <p className="text-sm text-destructive">{formErrors.student[0]}</p>
                 )}
@@ -220,6 +277,7 @@ export const FeedbackPage = () => {
                   onClick={() => {
                     setShowCreateForm(false);
                     setFormErrors({});
+                    setFormData({ student: null, subject: '', message: '', priority: 'MEDIUM' });
                   }}
                   disabled={createFeedback.isPending}
                 >
@@ -234,7 +292,7 @@ export const FeedbackPage = () => {
         </Card>
       )}
 
-      {isAdmin && (
+      {canManageFeedback && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
@@ -278,6 +336,7 @@ export const FeedbackPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <>
           {isLoading ? (
             <LoadingState message="Loading feedback..." />
           ) : data?.results && data.results.length > 0 ? (
@@ -290,8 +349,9 @@ export const FeedbackPage = () => {
                     <TableHead>Student</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Priority</TableHead>
-                    {isAdmin && <TableHead>Parent</TableHead>}
-                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                    <TableHead className="min-w-[160px] max-w-[280px]">Response</TableHead>
+                    {canManageFeedback && <TableHead>Parent</TableHead>}
+                    {canManageFeedback && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -326,8 +386,20 @@ export const FeedbackPage = () => {
                           {feedback.priority_display}
                         </Badge>
                       </TableCell>
-                      {isAdmin && <TableCell>{feedback.parent_name || feedback.parent_email}</TableCell>}
-                      {isAdmin && (
+                      <TableCell
+                        className="max-w-[280px] align-top text-sm text-muted-foreground"
+                        title={feedback.resolution_notes || undefined}
+                      >
+                        {feedback.resolution_notes ? (
+                          <span className="line-clamp-3 whitespace-pre-wrap">
+                            {feedback.resolution_notes}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/70">—</span>
+                        )}
+                      </TableCell>
+                      {canManageFeedback && <TableCell>{feedback.parent_name || feedback.parent_email}</TableCell>}
+                      {canManageFeedback && (
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
@@ -367,11 +439,14 @@ export const FeedbackPage = () => {
             />
           )}
 
-          {isAdmin && selectedFeedbackData && (
+          {canManageFeedback && selectedFeedbackData ? (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Manage Feedback</CardTitle>
-                <CardDescription>Update feedback status and resolution</CardDescription>
+                <CardDescription>
+                  Update status and priority. Your reply below is shown to the parent in their
+                  feedback list.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -426,13 +501,13 @@ export const FeedbackPage = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="resolution_notes">Resolution Notes</Label>
+                    <Label htmlFor="resolution_notes">Reply to parent</Label>
                     <Textarea
                       id="resolution_notes"
                       value={updateData.resolution_notes || ''}
                       onChange={(e) => setUpdateData({ ...updateData, resolution_notes: e.target.value })}
                       rows={4}
-                      placeholder="Add resolution notes..."
+                      placeholder="e.g. Thank you - we have noted this and will follow up shortly."
                     />
                     {updateErrors.resolution_notes && (
                       <p className="text-sm text-destructive">{updateErrors.resolution_notes[0]}</p>
@@ -470,7 +545,8 @@ export const FeedbackPage = () => {
                 </div>
               </CardContent>
             </Card>
-          )}
+          ) : null}
+          </>
         </CardContent>
       </Card>
     </div>

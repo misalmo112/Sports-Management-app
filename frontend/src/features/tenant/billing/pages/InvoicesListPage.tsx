@@ -194,12 +194,12 @@ export const InvoicesListPage = () => {
                           <TableCell>
                             <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                           </TableCell>
-                          <TableCell>{formatCurrency(invoice.total)}</TableCell>
+                          <TableCell>{formatCurrency(invoice.total, invoice.currency)}</TableCell>
                           <TableCell>
-                            {formatCurrency(invoice.paid_amount || '0')}
+                            {formatCurrency(invoice.paid_amount || '0', invoice.currency)}
                           </TableCell>
                           <TableCell>
-                            {formatCurrency(invoice.remaining_balance || invoice.total)}
+                            {formatCurrency(invoice.remaining_balance || invoice.total, invoice.currency)}
                           </TableCell>
                           <TableCell>
                             {invoice.due_date

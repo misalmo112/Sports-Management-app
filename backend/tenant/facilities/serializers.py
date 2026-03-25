@@ -1,6 +1,10 @@
 """Serializers for facilities APIs."""
+from calendar import monthrange
+from datetime import date, timedelta
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from rest_framework import serializers
 
 from tenant.billing.models import Receipt
@@ -11,6 +15,8 @@ from tenant.facilities.models import (
     InventoryItem,
     RentInvoice,
     RentPayment,
+    RentPaySchedule,
+    RentPayScheduleRun,
     RentReceipt,
 )
 from tenant.onboarding.serializers import LocationListSerializer
@@ -363,3 +369,165 @@ class InventoryAdjustSerializer(serializers.Serializer):
         if value == 0:
             raise serializers.ValidationError('Delta must not be zero.')
         return value
+
+
+def _compute_rent_schedule_next_run_at(schedule) -> date | None:
+    today = timezone.localdate()
+    if schedule.billing_type == RentPaySchedule.BillingType.DAILY:
+        return today + timedelta(days=1)
+    if schedule.billing_type == RentPaySchedule.BillingType.SESSION:
+        return None
+    if schedule.billing_type == RentPaySchedule.BillingType.MONTHLY:
+        bd = schedule.billing_day
+        if bd is None:
+            return None
+        y, m, d = today.year, today.month, today.day
+        last = monthrange(y, m)[1]
+        target_day = min(bd, last)
+        if d <= target_day:
+            return date(y, m, target_day)
+        if m == 12:
+            y, m = y + 1, 1
+        else:
+            m += 1
+        last = monthrange(y, m)[1]
+        target_day = min(bd, last)
+        return date(y, m, target_day)
+    return None
+
+
+class RentPayScheduleSerializer(serializers.ModelSerializer):
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    next_run_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RentPaySchedule
+        fields = [
+            'id',
+            'academy',
+            'location',
+            'location_name',
+            'billing_type',
+            'amount',
+            'currency',
+            'sessions_per_invoice',
+            'billing_day',
+            'due_date_offset_days',
+            'cycle_start_date',
+            'is_active',
+            'last_run_at',
+            'next_run_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'academy', 'last_run_at', 'created_at', 'updated_at']
+
+    def get_next_run_at(self, obj):
+        n = _compute_rent_schedule_next_run_at(obj)
+        return n.isoformat() if n else None
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        academy = getattr(request, 'academy', None) if request else None
+        if not academy:
+            raise serializers.ValidationError({'academy': 'Academy context is required.'})
+
+        field_names = {f.name for f in RentPaySchedule._meta.fields} - {
+            'id',
+            'created_at',
+            'updated_at',
+        }
+        merged: dict = {}
+        if self.instance:
+            for name in field_names:
+                merged[name] = getattr(self.instance, name)
+        merged.update({k: v for k, v in attrs.items() if k in field_names})
+        merged['academy'] = academy
+
+        location = merged.get('location')
+        if location is not None and getattr(location, 'academy_id', None) != academy.id:
+            raise serializers.ValidationError({'location': 'Location must belong to the same academy.'})
+
+        stub = RentPaySchedule(**{k: merged[k] for k in field_names if k in merged})
+        if self.instance:
+            stub.pk = self.instance.pk
+            stub._state.adding = False
+        try:
+            stub.full_clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.error_dict)
+        return attrs
+
+
+class RentPayScheduleRunSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RentPayScheduleRun
+        fields = [
+            'id',
+            'schedule',
+            'run_at',
+            'invoices_created',
+            'status',
+            'triggered_by',
+            'error_detail',
+        ]
+        read_only_fields = [
+            'id',
+            'schedule',
+            'run_at',
+            'invoices_created',
+            'status',
+            'triggered_by',
+            'error_detail',
+        ]
+
+
+class PendingRentInvoiceSerializer(serializers.ModelSerializer):
+    location = serializers.SerializerMethodField()
+    schedule = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RentInvoice
+        fields = [
+            'id',
+            'invoice_number',
+            'location',
+            'amount',
+            'currency',
+            'period_description',
+            'issued_date',
+            'due_date',
+            'status',
+            'created_at',
+            'schedule',
+        ]
+        read_only_fields = [
+            'id',
+            'invoice_number',
+            'location',
+            'amount',
+            'currency',
+            'period_description',
+            'issued_date',
+            'due_date',
+            'status',
+            'created_at',
+            'schedule',
+        ]
+
+    def get_location(self, obj):
+        return {'id': obj.location_id, 'name': obj.location.name}
+
+    def get_schedule(self, obj):
+        s = obj.schedule
+        if not s:
+            return None
+        return {
+            'id': s.id,
+            'billing_type': s.billing_type,
+            'location_name': s.location.name,
+        }
+
+
+class RentBulkIssueSerializer(serializers.Serializer):
+    invoice_ids = serializers.ListField(child=serializers.IntegerField(min_value=1))

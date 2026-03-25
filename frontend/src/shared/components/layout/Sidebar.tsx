@@ -11,14 +11,16 @@ import { cn } from '@/shared/utils/cn';
 import { getNavigationForRole, isRouteActive } from '@/shared/nav/navigation';
 import { getCurrentUserRole } from '@/shared/utils/roleAccess';
 import apiClient from '@/shared/services/api';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge';
 
 interface SidebarProps {
   className?: string;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, collapsed = false, onToggleCollapsed }: SidebarProps) {
   const location = useLocation();
   const userRole = getCurrentUserRole();
   const navigationGroups = getNavigationForRole(userRole);
@@ -29,6 +31,7 @@ export function Sidebar({ className }: SidebarProps) {
   const hasStaffPaySchedulesNav = navigationGroups.some((g) =>
     g.items.some((i) => i.id === 'staff-pay-schedules')
   );
+  const hasRentSchedulesNav = navigationGroups.some((g) => g.items.some((i) => i.id === 'rent-schedules'));
 
   const { data: pendingApprovalsCount } = useQuery<number, Error>({
     queryKey: ['pending-approvals', 'count'],
@@ -62,6 +65,21 @@ export function Sidebar({ className }: SidebarProps) {
     },
   });
 
+  const { data: rentPendingApprovalsCount } = useQuery<number, Error>({
+    queryKey: ['rent-pending-approvals', 'count'],
+    enabled: hasRentSchedulesNav,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/tenant/facilities/rent/pending-approvals/?page_size=1');
+      const payload = res.data;
+      if (Array.isArray(payload)) return payload.length;
+      if (typeof payload?.count === 'number') return payload.count;
+      if (Array.isArray(payload?.results)) return payload.results.length;
+      return 0;
+    },
+  });
+
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(navigationGroups.map(g => g.id)) // All groups expanded by default
   );
@@ -85,34 +103,50 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-30 w-72 h-screen border-r border-border/70 bg-background/80 backdrop-blur flex flex-col',
+        'fixed left-0 top-0 z-30 h-screen border-r border-border/70 bg-background/80 backdrop-blur flex flex-col transition-all',
+        collapsed ? 'w-20' : 'w-72',
         className
       )}
     >
-      <div className="p-6 border-b border-border/70">
-        <div className="flex items-center gap-3">
+      <div className={cn('border-b border-border/70', collapsed ? 'p-4' : 'p-6')}>
+        <div className={cn('flex items-center', collapsed ? 'justify-center' : 'gap-3')}>
           <div className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-semibold shadow">
             SA
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-muted-foreground">
-              Sports Academy
-            </p>
-            <h2 className="text-lg font-semibold">Control Desk</h2>
-          </div>
+          {!collapsed ? (
+            <div>
+              <p className="text-xs uppercase tracking-[0.32em] text-muted-foreground">
+                Sports Academy
+              </p>
+              <h2 className="text-lg font-semibold">Control Desk</h2>
+            </div>
+          ) : null}
         </div>
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className={cn(
+            'mt-3 flex h-9 items-center rounded-xl border border-border/80 bg-background/80 px-2 text-muted-foreground transition hover:text-foreground',
+            collapsed ? 'w-full justify-center' : 'w-full justify-start gap-2'
+          )}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          {!collapsed ? <span className="text-sm font-medium">Collapse</span> : null}
+        </button>
       </div>
       
-      <nav className="flex-1 overflow-y-auto p-5 space-y-3">
+      <nav className={cn('flex-1 overflow-y-auto space-y-3', collapsed ? 'p-3' : 'p-5')}>
         {navigationGroups.map(group => {
-          const isExpanded = expandedGroups.has(group.id);
+          const isExpanded = collapsed ? true : expandedGroups.has(group.id);
           const hasActiveItem = group.items.some(item =>
             isRouteActive(location.pathname, item)
           );
 
           return (
-            <div key={group.id} className="space-y-1">
-              {group.label && (
+            <div key={group.id} className={cn('space-y-1', collapsed && 'space-y-2')}>
+              {!collapsed && group.label && (
                 <button
                   onClick={() => toggleGroup(group.id)}
                   className={cn(
@@ -130,7 +164,7 @@ export function Sidebar({ className }: SidebarProps) {
               )}
               
               {isExpanded && (
-                <div className="space-y-1 ml-2">
+                <div className={cn('space-y-1', collapsed ? '' : 'ml-2')}>
                   {group.items.map(item => {
                     const isActive = isRouteActive(location.pathname, item);
                     const Icon = item.icon;
@@ -140,15 +174,17 @@ export function Sidebar({ className }: SidebarProps) {
                         key={item.id}
                         to={item.path}
                         className={cn(
-                          'flex items-center gap-3 px-3 py-2 text-sm rounded-xl transition-colors',
+                          'flex items-center text-sm rounded-xl transition-colors',
+                          collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2',
                           isActive
                             ? 'bg-primary text-primary-foreground font-medium shadow'
                             : 'text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground'
                         )}
+                        title={collapsed ? item.label : undefined}
                       >
                         {Icon && <Icon className="h-4 w-4" />}
-                        <span>{item.label}</span>
-                        {item.id === 'invoice-schedules' && (pendingApprovalsCount ?? 0) > 0 ? (
+                        {!collapsed ? <span>{item.label}</span> : null}
+                        {!collapsed && item.id === 'invoice-schedules' && (pendingApprovalsCount ?? 0) > 0 ? (
                           <Badge
                             variant="destructive"
                             className="ml-auto"
@@ -156,9 +192,14 @@ export function Sidebar({ className }: SidebarProps) {
                             {pendingApprovalsCount! > 99 ? '99+' : pendingApprovalsCount}
                           </Badge>
                         ) : null}
-                        {item.id === 'staff-pay-schedules' && (staffPendingApprovalsCount ?? 0) > 0 ? (
+                        {!collapsed && item.id === 'staff-pay-schedules' && (staffPendingApprovalsCount ?? 0) > 0 ? (
                           <Badge variant="destructive" className="ml-auto">
                             {staffPendingApprovalsCount! > 99 ? '99+' : staffPendingApprovalsCount}
+                          </Badge>
+                        ) : null}
+                        {!collapsed && item.id === 'rent-schedules' && (rentPendingApprovalsCount ?? 0) > 0 ? (
+                          <Badge variant="destructive" className="ml-auto">
+                            {rentPendingApprovalsCount! > 99 ? '99+' : rentPendingApprovalsCount}
                           </Badge>
                         ) : null}
                       </Link>

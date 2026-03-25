@@ -3,7 +3,7 @@
  * Parent dashboard overview
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { Calendar, DollarSign, Users } from 'lucide-react';
+import { Calendar, Users } from 'lucide-react';
 import { useOverview } from '../hooks/useOverview';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
@@ -85,9 +85,8 @@ export const ParentOverviewPage = () => {
 
         {data.finance_summary && (
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Total Due</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">

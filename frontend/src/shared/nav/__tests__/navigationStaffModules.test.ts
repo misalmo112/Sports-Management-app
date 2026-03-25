@@ -21,12 +21,12 @@ describe('getStaffLandingPathFromModules', () => {
     expect(getStaffLandingPathFromModules(['students'])).toBe('/dashboard/students');
   });
 
-  it('prefers admin-overview over setup when both granted (ADMIN nav order)', () => {
+  it('prefers admin-overview when both setup and admin-overview are granted (ADMIN nav order)', () => {
     expect(getStaffLandingPathFromModules(['setup', 'admin-overview'])).toBe('/dashboard/admin/overview');
   });
 
-  it('returns setup when granted without admin-overview', () => {
-    expect(getStaffLandingPathFromModules(['setup'])).toBe('/dashboard/setup');
+  it('falls back to account when only setup is granted (no setup nav item)', () => {
+    expect(getStaffLandingPathFromModules(['setup'])).toBe('/dashboard/settings/account');
   });
 
   it('falls back to account when no granted module matches nav items', () => {
@@ -55,6 +55,18 @@ describe('filterAdminNavByModules', () => {
     const filtered = filterAdminNavByModules(navigationConfig.ADMIN, ['students']);
     const ids = filtered.flatMap((g) => g.items.map((i) => i.id));
     expect(ids).not.toContain('staff-pay-schedules');
+  });
+
+  it('shows rent-schedules when facilities module is granted', () => {
+    const filtered = filterAdminNavByModules(navigationConfig.ADMIN, ['facilities']);
+    const ids = filtered.flatMap((g) => g.items.map((i) => i.id));
+    expect(ids).toContain('rent-schedules');
+  });
+
+  it('hides rent-schedules when facilities is not granted', () => {
+    const filtered = filterAdminNavByModules(navigationConfig.ADMIN, ['students']);
+    const ids = filtered.flatMap((g) => g.items.map((i) => i.id));
+    expect(ids).not.toContain('rent-schedules');
   });
 });
 

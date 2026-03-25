@@ -72,7 +72,10 @@ export const ReceiptCreatePage = () => {
     if (!formData.amount || formData.amount <= 0) {
       newErrors.amount = 'Amount is required and must be greater than 0';
     } else if (formData.amount > remainingBalance) {
-      newErrors.amount = `Amount cannot exceed remaining balance of ${formatCurrency(remainingBalance)}`;
+      newErrors.amount = `Amount cannot exceed remaining balance of ${formatCurrency(
+        remainingBalance,
+        selectedInvoice?.currency
+      )}`;
     }
 
     if (!formData.payment_date) {
@@ -183,7 +186,7 @@ export const ReceiptCreatePage = () => {
                   {invoicesData?.results.map((invoice) => (
                     <SelectItem key={invoice.id} value={invoice.id.toString()}>
                       {invoice.invoice_number} - {invoice.parent_name} (
-                      {formatCurrency(invoice.total)})
+                      {formatCurrency(invoice.total, invoice.currency)})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -198,18 +201,22 @@ export const ReceiptCreatePage = () => {
                   <div className="text-sm space-y-1">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Invoice Total:</span>
-                      <span className="font-medium">{formatCurrency(selectedInvoice.total)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(selectedInvoice.total, selectedInvoice.currency)}
+                      </span>
                     </div>
                     {selectedInvoice.paid_amount && parseFloat(selectedInvoice.paid_amount) > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Paid:</span>
-                        <span>{formatCurrency(selectedInvoice.paid_amount)}</span>
+                        <span>
+                          {formatCurrency(selectedInvoice.paid_amount, selectedInvoice.currency)}
+                        </span>
                       </div>
                     )}
                     <div className="flex justify-between font-semibold pt-1 border-t">
                       <span>Remaining Balance:</span>
                       <span className="text-destructive">
-                        {formatCurrency(remainingBalance)}
+                        {formatCurrency(remainingBalance, selectedInvoice.currency)}
                       </span>
                     </div>
                   </div>
@@ -250,7 +257,7 @@ export const ReceiptCreatePage = () => {
                 )}
                 {selectedInvoice && remainingBalance > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Maximum: {formatCurrency(remainingBalance)}
+                    Maximum: {formatCurrency(remainingBalance, selectedInvoice.currency)}
                   </p>
                 )}
               </div>

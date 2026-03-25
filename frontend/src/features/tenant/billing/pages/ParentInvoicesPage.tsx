@@ -29,7 +29,7 @@ import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
 import { EmptyState } from '@/shared/components/common/EmptyState';
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';
-import { X, Eye, Calendar, DollarSign } from 'lucide-react';
+import { X, Eye, Calendar } from 'lucide-react';
 
 export const ParentInvoicesPage = () => {
   const navigate = useNavigate();
@@ -216,11 +216,8 @@ export const ParentInvoicesPage = () => {
                           '—'
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          {formatCurrency(invoice.total)}
-                        </div>
+                      <TableCell className="font-medium">
+                        {formatCurrency(invoice.total, invoice.currency)}
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(invoice.status)}>

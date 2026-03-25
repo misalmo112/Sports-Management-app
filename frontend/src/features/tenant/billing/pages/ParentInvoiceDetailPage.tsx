@@ -19,7 +19,7 @@ import { useInvoice } from '../hooks/hooks';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';
-import { ArrowLeft, Calendar, DollarSign, FileText } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText } from 'lucide-react';
 
 export const ParentInvoiceDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -104,6 +104,8 @@ export const ParentInvoiceDetailPage = () => {
     );
   }
 
+  const invoiceCurrency = invoice.currency;
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6">
@@ -151,17 +153,11 @@ export const ParentInvoiceDetailPage = () => {
               </div>
               <div>
                 <Label className="text-muted-foreground">Subtotal</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <p className="font-medium">{formatCurrency(invoice.subtotal)}</p>
-                </div>
+                <p className="font-medium mt-1">{formatCurrency(invoice.subtotal, invoiceCurrency)}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Total</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <p className="font-medium text-lg">{formatCurrency(invoice.total)}</p>
-                </div>
+                <p className="font-medium text-lg mt-1">{formatCurrency(invoice.total, invoiceCurrency)}</p>
               </div>
             </div>
           </CardContent>
@@ -194,10 +190,10 @@ export const ParentInvoiceDetailPage = () => {
                         </TableCell>
                         <TableCell className="text-right">{item.quantity}</TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(item.unit_price)}
+                          {formatCurrency(item.unit_price, invoiceCurrency)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {formatCurrency(item.line_total)}
+                          {formatCurrency(item.line_total, invoiceCurrency)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -217,7 +213,7 @@ export const ParentInvoiceDetailPage = () => {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <Label className="text-muted-foreground">Subtotal</Label>
-                <p className="font-medium">{formatCurrency(invoice.subtotal)}</p>
+                <p className="font-medium">{formatCurrency(invoice.subtotal, invoiceCurrency)}</p>
               </div>
               {invoice.discount_amount && parseFloat(invoice.discount_amount) > 0 && (
                 <div className="flex justify-between">
@@ -228,19 +224,19 @@ export const ParentInvoiceDetailPage = () => {
                       : ''}
                   </Label>
                   <p className="font-medium text-green-600">
-                    -{formatCurrency(invoice.discount_amount)}
+                    -{formatCurrency(invoice.discount_amount, invoiceCurrency)}
                   </p>
                 </div>
               )}
               {invoice.tax_amount && parseFloat(invoice.tax_amount) > 0 && (
                 <div className="flex justify-between">
                   <Label className="text-muted-foreground">Tax</Label>
-                  <p className="font-medium">{formatCurrency(invoice.tax_amount)}</p>
+                  <p className="font-medium">{formatCurrency(invoice.tax_amount, invoiceCurrency)}</p>
                 </div>
               )}
               <div className="flex justify-between border-t pt-3">
                 <Label className="text-lg font-semibold">Total</Label>
-                <p className="text-lg font-bold">{formatCurrency(invoice.total)}</p>
+                <p className="text-lg font-bold">{formatCurrency(invoice.total, invoiceCurrency)}</p>
               </div>
             </div>
           </CardContent>

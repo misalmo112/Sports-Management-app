@@ -1,9 +1,16 @@
 """
 Quota check helper functions for reusable quota validation.
 """
+from django.conf import settings
 from rest_framework.exceptions import ValidationError
 from saas_platform.quotas.services import QuotaService
 from saas_platform.quotas.models import TenantUsage
+from shared.cache_keys import build_count_usage_cache_key, safe_cache_get, safe_cache_set, QUOTA_COUNT_TTL
+
+
+# Single source of truth for count-usage cache TTL.
+QUOTA_COUNT_CACHE_TIMEOUT_SECONDS = QUOTA_COUNT_TTL
+_CACHE_MISS = "__quota_count_cache_miss__"
 
 
 class QuotaExceededError(ValidationError):
@@ -76,24 +83,29 @@ def check_quota_before_create(academy, quota_type, requested_increment=1):
 
 def _get_count_usage(academy, quota_type):
     """Get current count usage for a quota type."""
+    cache_key = build_count_usage_cache_key(academy.id, quota_type)
+    cached_value = safe_cache_get(cache_key, _CACHE_MISS)
+    if cached_value != _CACHE_MISS:
+        return cached_value
+
+    usage_count = 0
     if quota_type == 'students':
         from tenant.students.models import Student
-        return Student.objects.filter(academy=academy, is_active=True).count()
+        usage_count = Student.objects.filter(academy=academy, is_active=True).count()
     elif quota_type == 'coaches':
         from tenant.coaches.models import Coach
-        return Coach.objects.filter(academy=academy, is_active=True).count()
+        usage_count = Coach.objects.filter(academy=academy, is_active=True).count()
     elif quota_type == 'classes':
         from tenant.classes.models import Class
-        return Class.objects.filter(academy=academy, is_active=True).count()
+        usage_count = Class.objects.filter(academy=academy, is_active=True).count()
     elif quota_type == 'admins':
         from django.contrib.auth import get_user_model
         User = get_user_model()
         if hasattr(User, 'objects'):
-            return User.objects.filter(
+            usage_count = User.objects.filter(
                 academy_id=academy.id,
                 role__in=['OWNER', 'ADMIN', 'STAFF'],
                 is_active=True
             ).count()
-        return 0
-    else:
-        return 0
+    safe_cache_set(cache_key, usage_count, timeout=QUOTA_COUNT_CACHE_TIMEOUT_SECONDS)
+    return usage_count

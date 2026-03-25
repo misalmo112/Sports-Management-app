@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from saas_platform.quotas.services import QuotaService
 from saas_platform.quotas.models import TenantUsage
+from shared.services.quota import _get_count_usage as _get_cached_count_usage
 
 
 def check_quota(quota_type):
@@ -94,27 +95,4 @@ def check_quota(quota_type):
 
 def _get_count_usage(academy, quota_type):
     """Get current count usage for a quota type."""
-    try:
-        if quota_type == 'students':
-            from tenant.students.models import Student
-            # Use values_list to avoid potential query issues
-            return Student.objects.filter(academy=academy).filter(is_active=True).count()
-        elif quota_type == 'coaches':
-            from tenant.coaches.models import Coach
-            return Coach.objects.filter(academy=academy).filter(is_active=True).count()
-        elif quota_type == 'classes':
-            from tenant.classes.models import Class
-            return Class.objects.filter(academy=academy).filter(is_active=True).count()
-        elif quota_type == 'admins':
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            return User.objects.filter(
-                academy_id=academy.id,
-                role__in=['OWNER', 'ADMIN']
-            ).filter(is_active=True).count()
-        else:
-            return 0
-    except Exception:
-        # If there's any error counting, return 0 to allow the operation
-        # This prevents quota check from blocking operations due to database issues
-        return 0
+    return _get_cached_count_usage(academy, quota_type)

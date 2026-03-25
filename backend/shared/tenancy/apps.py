@@ -8,5 +8,9 @@ class TenancyConfig(AppConfig):
 
     def ready(self):
         from shared.tenancy.signals import register_dual_write_signals
+        from shared.tenancy.quota_cache_signals import (
+            register_quota_cache_invalidation_signals,
+        )
 
         register_dual_write_signals()
+        register_quota_cache_invalidation_signals()

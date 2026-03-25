@@ -31,5 +31,6 @@ def subscription_pre_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Subscription)
 def subscription_post_save(sender, instance, created, **kwargs):
     """Update TenantQuota when subscription is created or updated."""
+    QuotaService.invalidate_quota_cache(instance.academy_id)
     if instance.is_current:
         QuotaService.update_tenant_quota(instance.academy)

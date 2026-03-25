@@ -143,7 +143,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: sports_academy_celery_worker
-    command: python run_celery.py -A celery_app worker --loglevel=info --concurrency=2
+    command: python run_celery.py -A celery_app worker --loglevel=info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
     entrypoint: ["/app/entrypoint.sh"]
     volumes:
       - ./backend:/app
@@ -201,6 +201,72 @@ services:
         condition: service_healthy
       backend:
         condition: service_started
+    networks:
+      - sports_academy_network
+    restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sports_academy_celery_beat
+    # Beat must not run inside the worker; run it as a separate service.
+    command: python -m celery -A celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    entrypoint: ["/app/entrypoint.sh"]
+    volumes:
+      - ./backend:/app
+    environment:
+      # Application
+      DEBUG: ${DEBUG:-True}
+      SECRET_KEY: ${SECRET_KEY}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      
+      # Database
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-sports_academy_dev}}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-sports_academy_dev}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      
+      # Redis
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: ${REDIS_DB:-0}
+      
+      # JWT
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      
+      # Storage (MinIO)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-${MINIO_ROOT_USER:-minioadmin}}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin}}
+      AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-sports-academy-media}
+      AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://minio:9000}
+      AWS_S3_PUBLIC_ENDPOINT_URL: ${AWS_S3_PUBLIC_ENDPOINT_URL:-}
+      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-us-east-1}
+      AWS_S3_USE_SSL: ${AWS_S3_USE_SSL:-False}
+      
+      # Celery
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      CELERY_TASK_SERIALIZER: ${CELERY_TASK_SERIALIZER:-json}
+      CELERY_RESULT_SERIALIZER: ${CELERY_RESULT_SERIALIZER:-json}
+      CELERY_ACCEPT_CONTENT: ${CELERY_ACCEPT_CONTENT:-["json"]}
+      CELERY_TIMEZONE: ${CELERY_TIMEZONE:-UTC}
+      
+      # Email
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-localhost}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - sports_academy_network
     restart: unless-stopped

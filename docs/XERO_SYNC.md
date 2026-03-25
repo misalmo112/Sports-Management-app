@@ -4,12 +4,12 @@
 
 `sync_payments_to_xero` is a Celery task that attempts to sync unsynced platform payments to Xero and records the returned external reference on success. The current implementation is a stub and does not include a real OAuth2 or invoice creation flow.
 
-## Required Environment Variables
+## Credential Configuration
 
 - `XERO_CLIENT_ID`
 - `XERO_CLIENT_SECRET`
 
-These variables are documented for the future real integration. The current task stub does not use them yet.
+If either variable is missing, the task logs a warning and exits cleanly (no retry).
 
 ## Manual Trigger
 
@@ -21,7 +21,7 @@ python manage.py shell -c "from saas_platform.finance.tasks import sync_payments
 
 ## Suggested Beat Schedule
 
-Run the task periodically after the real Xero client is implemented. A reasonable default is every 15 minutes.
+The `sync-payments-to-xero` beat entry runs every 15 minutes.
 
 ## Idempotency
 
@@ -34,5 +34,5 @@ Run the task periodically after the real Xero client is implemented. A reasonabl
 
 - No OAuth2 handshake
 - No real invoice payload mapping
-- No retry/backoff policy beyond Celery task reruns
+- `NotImplementedError` only fires when credentials are present (because the `XeroClient` is instantiated only when env vars exist).
 - No webhook reconciliation

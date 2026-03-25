@@ -98,6 +98,11 @@ class MediaServiceTest(TestCase):
         
         self.assertFalse(MediaFile.objects.filter(id=media_file.id).exists())
     
+    @override_settings(
+        AWS_STORAGE_BUCKET_NAME='',
+        AWS_S3_ENDPOINT_URL='',
+        AWS_S3_PUBLIC_ENDPOINT_URL='',
+    )
     @patch('tenant.media.services.default_storage')
     def test_get_file_url_with_storage_url(self, mock_storage):
         """Test URL generation using storage.url()."""

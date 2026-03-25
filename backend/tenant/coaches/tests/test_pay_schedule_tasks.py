@@ -8,9 +8,11 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.core.management import call_command
 from django.conf import settings as django_settings
 from django.test import TestCase
 from django.utils import timezone
+from django_celery_beat.models import PeriodicTask
 
 from saas_platform.tenants.models import Academy
 from tenant.attendance.models import CoachAttendance
@@ -337,8 +339,16 @@ class TimeBasedStaffPayScheduleTaskTest(TestCase):
             monthly_delay.assert_called_once()
             weekly_delay.assert_called_once()
 
+    def test_run_staff_pay_schedules_has_retry_policy_and_ignores_result(self):
+        self.assertTrue(run_staff_pay_schedules.ignore_result)
+        self.assertIn(Exception, run_staff_pay_schedules.autoretry_for)
+        self.assertEqual(run_staff_pay_schedules.retry_kwargs.get("max_retries"), 3)
+
     def test_beat_entry_registered_for_staff_pay_schedules(self):
-        self.assertIn("run-staff-pay-schedules", django_settings.CELERY_BEAT_SCHEDULE)
-        entry = django_settings.CELERY_BEAT_SCHEDULE["run-staff-pay-schedules"]
-        self.assertEqual(entry["task"], "tenant.coaches.tasks.run_staff_pay_schedules")
-        self.assertIn("schedule", entry)
+        call_command("seed_beat_schedule", verbosity=0)
+        self.assertTrue(
+            PeriodicTask.objects.filter(
+                task="tenant.coaches.tasks.run_staff_pay_schedules",
+                enabled=True,
+            ).exists()
+        )

@@ -54,9 +54,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_filters',
+    'django_celery_beat',
     
     # Celery (optional - will be removed in testing if not available)
     'celery_app',
+
+    # Project-level management commands (e.g. beat seeding)
+    'management',
     
     # Local apps (will be added as they are created)
     # 'saas_platform.accounts',
@@ -290,6 +294,8 @@ CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:63
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_IGNORE_RESULT = os.getenv('CELERY_TASK_IGNORE_RESULT', 'True') == 'True'
+CELERY_RESULT_EXPIRES = int(os.getenv('CELERY_RESULT_EXPIRES', '3600'))
 CELERY_TIMEZONE = os.getenv('CELERY_TIMEZONE', 'UTC')
 CELERY_ENABLE_UTC = os.getenv('CELERY_ENABLE_UTC', 'True') == 'True'
 
@@ -298,49 +304,8 @@ CELERY_IMPORTS = [
     'tenant.coaches.tasks',
 ]
 
-# Beat schedule utilities (keep import safe for test environments)
-try:  # pragma: no cover
-    from celery.schedules import crontab
-except ImportError:  # pragma: no cover
-    # Provide a minimal placeholder so settings import stays stable even when Celery
-    # is not installed in the current environment. When Celery is available, the real
-    # `crontab` is used.
-    class _CrontabPlaceholder:
-        def __init__(self, **kwargs):
-            self.hour = kwargs.get("hour", None)
-            self.minute = kwargs.get("minute", None)
-
-        def __repr__(self) -> str:
-            return f"crontab(hour={self.hour}, minute={self.minute})"
-
-    def crontab(*_args, **kwargs):  # type: ignore[no-redef]
-        return _CrontabPlaceholder(**kwargs)
-
-# Celery Beat schedule (masters sync from Frankfurter and WorldTimeAPI)
-CELERY_BEAT_SCHEDULE = {
-    'sync-frankfurter-daily': {
-        'task': 'saas_platform.masters.tasks.sync_currencies_and_rates_from_frankfurter_task',
-        'schedule': 60 * 60 * 24,  # every 24 hours (seconds)
-        'options': {'expires': 60 * 60},
-    },
-    'sync-worldtimeapi-weekly': {
-        'task': 'saas_platform.masters.tasks.sync_timezones_from_worldtimeapi_task',
-        'schedule': 60 * 60 * 24 * 7,  # every 7 days
-        'options': {'expires': 60 * 60},
-    },
-    'run-invoice-schedules': {
-      'task': 'tenant.billing.tasks.run_invoice_schedules',
-      'schedule': crontab(hour=0, minute=0),
-  },
-    'run-staff-pay-schedules': {
-      'task': 'tenant.coaches.tasks.run_staff_pay_schedules',
-      'schedule': crontab(hour=0, minute=30),
-  },
-    'run-rent-pay-schedules': {
-        'task': 'tenant.facilities.tasks.run_rent_pay_schedules',
-        'schedule': crontab(hour=1, minute=0),
-    },
-}
+# django-celery-beat scheduler (DB-backed periodic tasks)
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Frankfurter API (currencies + exchange rates)
 FRANKFURTER_BASE_URL = os.getenv('FRANKFURTER_BASE_URL', 'https://api.frankfurter.dev')
@@ -361,6 +326,10 @@ EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('EMAIL_FROM', EMAIL_HOST_USER)
+
+# Attendance notifications
+# Default is `disabled` to preserve existing behavior.
+ATTENDANCE_NOTIFY_CHANNEL = os.getenv("ATTENDANCE_NOTIFY_CHANNEL", "disabled")
 
 # Invite token configuration
 INVITE_TOKEN_EXPIRATION_HOURS = int(os.getenv('INVITE_TOKEN_EXPIRATION_HOURS', '48'))

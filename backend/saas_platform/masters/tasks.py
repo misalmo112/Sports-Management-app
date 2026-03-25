@@ -13,7 +13,13 @@ from saas_platform.masters.services import (
 logger = logging.getLogger(__name__)
 
 
-@shared_task
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    retry_kwargs={"max_retries": 3},
+    ignore_result=True,
+)
 def sync_currencies_and_rates_from_frankfurter_task():
     """
     Sync currency list and latest exchange rates from Frankfurter.
@@ -26,7 +32,13 @@ def sync_currencies_and_rates_from_frankfurter_task():
         raise
 
 
-@shared_task
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    retry_kwargs={"max_retries": 3},
+    ignore_result=True,
+)
 def sync_timezones_from_worldtimeapi_task():
     """
     Sync timezone list from WorldTimeAPI (add new IANA zones).

@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
@@ -190,22 +191,32 @@ class SyncPaymentsToXeroTaskTestCase(TestCase):
             synced_at=synced_at,
         )
 
-    @patch('saas_platform.finance.tasks.xero_client.create_invoice')
+    @patch('saas_platform.finance.tasks.XeroClient.create_invoice')
     def test_sync_task_stamps_external_ref_and_synced_at(self, create_invoice_mock):
         payment = self.create_payment()
         create_invoice_mock.return_value = 'xero-123'
 
-        sync_payments_to_xero()
+        with patch.dict(
+            os.environ,
+            {"XERO_CLIENT_ID": "xero-id", "XERO_CLIENT_SECRET": "xero-secret"},
+            clear=False,
+        ):
+            sync_payments_to_xero()
 
         payment.refresh_from_db()
         self.assertEqual(payment.external_ref, 'xero-123')
         self.assertIsNotNone(payment.synced_at)
 
-    @patch('saas_platform.finance.tasks.xero_client.create_invoice')
+    @patch('saas_platform.finance.tasks.XeroClient.create_invoice')
     def test_sync_task_skips_already_synced_payments(self, create_invoice_mock):
         payment = self.create_payment(synced_at=timezone.now())
 
-        sync_payments_to_xero()
+        with patch.dict(
+            os.environ,
+            {"XERO_CLIENT_ID": "xero-id", "XERO_CLIENT_SECRET": "xero-secret"},
+            clear=False,
+        ):
+            sync_payments_to_xero()
 
         payment.refresh_from_db()
         create_invoice_mock.assert_not_called()

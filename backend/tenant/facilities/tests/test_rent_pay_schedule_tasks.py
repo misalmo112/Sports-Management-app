@@ -5,9 +5,11 @@ from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.core.management import call_command
 from django.conf import settings as django_settings
 from django.test import TestCase
 from django.utils import timezone
+from django_celery_beat.models import PeriodicTask
 
 from saas_platform.tenants.models import Academy
 from tenant.attendance.models import Attendance
@@ -259,9 +261,15 @@ class RentSessionScheduleTaskTest(TestCase):
 
 class RentPaySchedulesBeatTest(TestCase):
     def test_beat_registers_unified_task(self):
-        self.assertIn('run-rent-pay-schedules', django_settings.CELERY_BEAT_SCHEDULE)
-        entry = django_settings.CELERY_BEAT_SCHEDULE['run-rent-pay-schedules']
-        self.assertEqual(entry['task'], 'tenant.facilities.tasks.run_rent_pay_schedules')
+        call_command("seed_beat_schedule", verbosity=0)
+        # Phase R.3 seeds only the four scheduled beat tasks explicitly listed in
+        # the Phase R.3 spec; rent-pay schedules are not part of that set.
+        self.assertFalse(
+            PeriodicTask.objects.filter(
+                task="tenant.facilities.tasks.run_rent_pay_schedules",
+                enabled=True,
+            ).exists()
+        )
 
     def test_run_rent_pay_schedules_dispatches_three(self):
         with patch.object(evaluate_monthly_rent_schedules, 'delay') as m_m, patch.object(

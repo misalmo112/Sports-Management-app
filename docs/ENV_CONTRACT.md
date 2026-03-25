@@ -144,6 +144,7 @@ This document defines the complete environment variable contract for the Sports 
 | `CELERY_TASK_TRACK_STARTED` | No | `True` | Track task start | `True` |
 | `CELERY_TASK_TIME_LIMIT` | No | `300` | Task time limit (seconds) | `300` |
 | `CELERY_TASK_SOFT_TIME_LIMIT` | No | `240` | Task soft time limit (seconds) | `240` |
+| `CELERY_WORKER_CONCURRENCY` | No | `2` | Celery worker process concurrency used by Docker Compose worker command | `2` |
 
 #### Xero Integration
 
@@ -185,6 +186,12 @@ Sync runs via Celery Beat (daily for Frankfurter, weekly for WorldTimeAPI) or ma
 | Variable | Required | Default | Description | Example |
 |----------|----------|---------|-------------|---------|
 | `GOOGLE_CLOUD_EMAIL_API_KEY` | No | - | GCP email API key | `api_key_here` |
+
+#### Attendance Notifications
+
+| Variable | Required | Default | Description | Example |
+|----------|----------|---------|-------------|---------|
+| `ATTENDANCE_NOTIFY_CHANNEL` | No | `disabled` | Celery channel for attendance notifications | `disabled` |
 
 ### 9. Logging Configuration
 

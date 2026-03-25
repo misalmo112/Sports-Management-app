@@ -6,7 +6,12 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
+    # Ensure Django uses the correct settings module for tests.
+    # Without this, `python manage.py test` runs against development settings
+    # (Redis/seeded master data), which makes the suite non-deterministic.
+    is_test_command = any(arg == "test" for arg in sys.argv[1:])
+    default_settings = "config.settings.testing" if is_test_command else "config.settings.development"
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", default_settings)
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

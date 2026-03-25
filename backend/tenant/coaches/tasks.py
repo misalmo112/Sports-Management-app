@@ -241,7 +241,13 @@ def evaluate_weekly_pay_schedules(schedule_id=None):
             )
 
 
-@shared_task
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    retry_kwargs={"max_retries": 3},
+    ignore_result=True,
+)
 def run_staff_pay_schedules():
     """Fan-out scheduler task for all staff pay schedule evaluators."""
     evaluate_session_pay_schedules.delay()

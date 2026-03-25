@@ -411,7 +411,13 @@ def evaluate_monthly_schedules(
             )
 
 
-@shared_task
+@shared_task(
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    retry_kwargs={"max_retries": 3},
+    ignore_result=True,
+)
 def run_invoice_schedules():
     evaluate_session_schedules.delay()
     evaluate_monthly_schedules.delay()

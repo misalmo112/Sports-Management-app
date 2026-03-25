@@ -8,9 +8,11 @@ from decimal import Decimal
 from contextlib import contextmanager
 from unittest.mock import patch
 
+from django.core.management import call_command
 from django.conf import settings as django_settings
 from django.test import TestCase
 from django.utils import timezone
+from django_celery_beat.models import PeriodicTask
 
 from saas_platform.tenants.models import Academy
 from tenant.billing.models import (
@@ -344,11 +346,16 @@ class MonthlyInvoiceScheduleTaskTest(TestCase):
             session_delay.assert_called_once()
             monthly_delay.assert_called_once()
 
+    def test_run_invoice_schedules_has_retry_policy_and_ignores_result(self):
+        self.assertTrue(run_invoice_schedules.ignore_result)
+        self.assertIn(Exception, run_invoice_schedules.autoretry_for)
+        self.assertEqual(run_invoice_schedules.retry_kwargs.get("max_retries"), 3)
+
     def test_beat_entry_registered(self):
-        self.assertIn("run-invoice-schedules", django_settings.CELERY_BEAT_SCHEDULE)
-        entry = django_settings.CELERY_BEAT_SCHEDULE["run-invoice-schedules"]
-        self.assertEqual(entry["task"], "tenant.billing.tasks.run_invoice_schedules")
-        # In environments where Celery isn't installed, settings/base.py
-        # uses a safe fallback that may set schedule to None.
-        self.assertIn("schedule", entry)
+        call_command("seed_beat_schedule", verbosity=0)
+        self.assertTrue(
+            PeriodicTask.objects.filter(
+                task="tenant.billing.tasks.run_invoice_schedules", enabled=True
+            ).exists()
+        )
 

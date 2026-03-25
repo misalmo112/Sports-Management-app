@@ -4,7 +4,6 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from tenant.media.models import MediaFile
@@ -20,7 +19,6 @@ from shared.permissions.tenant import (
 )
 from shared.decorators.quota import check_quota
 from shared.utils.queryset_filtering import filter_by_academy
-from saas_platform.quotas.models import TenantUsage
 
 
 class MediaFileViewSet(viewsets.ModelViewSet):
@@ -155,15 +153,7 @@ class MediaFileViewSet(viewsets.ModelViewSet):
                 description=description,
                 capture_date=capture_date,
             )
-            
-            # Update storage usage atomically
-            with transaction.atomic():
-                usage, _ = TenantUsage.objects.select_for_update().get_or_create(
-                    academy=request.academy
-                )
-                usage.storage_used_bytes += media_file.file_size
-                usage.save()
-            
+
             # Return created media file
             response_serializer = MediaFileSerializer(media_file)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -199,8 +189,14 @@ class MediaFileViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        deactivated_count = self.get_queryset().filter(id__in=ids).update(is_active=False)
-        return Response({'deactivated': deactivated_count}, status=status.HTTP_200_OK)
+        # Use per-instance `save()` (not `QuerySet.update()`) so post_save signals fire
+        # and TenantUsage.storage_used_bytes is immediately recomputed.
+        queryset = list(self.get_queryset().filter(id__in=ids))
+        for media_file in queryset:
+            media_file.is_active = False
+            media_file.save(update_fields=["is_active", "updated_at"])
+
+        return Response({"deactivated": len(queryset)}, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'], url_path='upload-multiple')
     @check_quota('storage_bytes')
@@ -263,15 +259,6 @@ class MediaFileViewSet(viewsets.ModelViewSet):
                     })
             
             # Update storage usage atomically for all successful uploads
-            if uploaded_files:
-                total_uploaded_size = sum(mf.file_size for mf in uploaded_files)
-                with transaction.atomic():
-                    usage, _ = TenantUsage.objects.select_for_update().get_or_create(
-                        academy=request.academy
-                    )
-                    usage.storage_used_bytes += total_uploaded_size
-                    usage.save()
-            
             # Return results
             response_data = {
                 'uploaded': MediaFileListSerializer(uploaded_files, many=True).data,

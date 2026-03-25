@@ -34,6 +34,9 @@ export interface Academy {
     db_size_gb: number;
     total_used_bytes: number;
     total_used_gb: number;
+    storage_status?: "unlimited" | "ok" | "warning" | "exceeded";
+    storage_usage_pct?: number;
+    storage_warning_threshold_pct?: number;
     students_count: number;
     coaches_count: number;
     admins_count: number;

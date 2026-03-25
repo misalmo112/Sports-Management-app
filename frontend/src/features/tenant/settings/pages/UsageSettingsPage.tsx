@@ -49,6 +49,14 @@ export const UsageSettingsPage = () => {
   }
 
   const { quota, usage } = data;
+  const storageStatus = usage.storage_status ?? 'ok';
+  const totalUsagePct =
+    typeof usage.storage_usage_pct === 'number'
+      ? usage.storage_usage_pct
+      : toPercentage(usage.total_used_bytes, quota.storage_bytes_limit);
+  const mediaUsagePct = toPercentage(usage.storage_used_bytes, quota.storage_bytes_limit);
+  const dbUsagePct = toPercentage(usage.db_size_bytes, quota.storage_bytes_limit);
+
   const metrics = [
     {
       key: 'students',
@@ -112,18 +120,24 @@ export const UsageSettingsPage = () => {
                 used={usage.total_used_bytes}
                 limit={quota.storage_bytes_limit}
                 secondary={`${usage.total_used_gb.toFixed(2)} GB used`}
+                storageStatus={storageStatus}
+                usagePct={totalUsagePct}
               />
               <StorageMetric
                 label="Media Files"
                 used={usage.storage_used_bytes}
                 limit={quota.storage_bytes_limit}
                 secondary={`${usage.storage_used_gb.toFixed(2)} GB in uploads`}
+                storageStatus="ok"
+                usagePct={mediaUsagePct}
               />
               <StorageMetric
                 label="Database Size"
                 used={usage.db_size_bytes}
                 limit={quota.storage_bytes_limit}
                 secondary={`${usage.db_size_gb.toFixed(2)} GB in database records`}
+                storageStatus="ok"
+                usagePct={dbUsagePct}
               />
             </CardContent>
           </Card>
@@ -188,13 +202,17 @@ function StorageMetric({
   used,
   limit,
   secondary,
+  storageStatus,
+  usagePct,
 }: {
   label: string;
   used: number;
   limit: number;
   secondary: string;
+  storageStatus: 'unlimited' | 'ok' | 'warning' | 'exceeded';
+  usagePct: number;
 }) {
-  const percentage = toPercentage(used, limit);
+  const progressVariant = storageStatus === 'warning' ? 'warning' : storageStatus === 'exceeded' ? 'exceeded' : 'default';
 
   return (
     <div className="rounded-xl border p-4">
@@ -210,7 +228,16 @@ function StorageMetric({
           <span>{formatBytes(used)}</span>
           <span className="text-muted-foreground">of {formatBytes(limit)}</span>
         </div>
-        <Progress value={percentage} />
+        <Progress value={usagePct} variant={progressVariant} />
+        {storageStatus === 'warning' ? (
+          <div className="rounded-md bg-amber-50 px-2 py-1 text-sm text-amber-700">
+            {usagePct}% used — approaching storage limit
+          </div>
+        ) : storageStatus === 'exceeded' ? (
+          <div className="rounded-md bg-red-50 px-2 py-1 text-sm text-red-700">
+            Storage limit reached — uploads are blocked
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -89,7 +89,12 @@ Storage usage is read from `TenantUsage.storage_used_bytes`.
 
 ## Current Behavior Rules
 
-- Quotas are hard blocks. There is no soft-warning mode in the current implementation.
+- Storage has three states: `ok`, `warning`, and `exceeded`.
+  - `warning`: usage >= `storage_warning_threshold_pct` (default `80%`). Uploads are allowed and a `X-Storage-Status: warning` header is attached on successful uploads.
+  - `exceeded`: usage >= `100%` (>= effective `storage_bytes_limit`). Uploads are blocked with HTTP `403` and `storage_status: exceeded` in the response body.
+  - The warning threshold is configurable per-academy by the platform admin via the quota override endpoint (`PATCH /api/v1/platform/academies/{id}/quota`).
+- `TenantUsage.storage_used_bytes` is maintained by Django signals (`post_save`/`post_delete`) on `MediaFile`, and a safety-net Celery reconcile task runs every 30 minutes to correct drift.
+- Daily storage snapshots are stored in `StorageSnapshot` for growth tracking and quota-exhaustion projection (`days_to_quota`).
 - Media uploads check storage quota before writing files.
 - Student, coach, class, and user creation flows may check quota before creation.
 - Superadmin can still update subscription/quota inputs at the platform layer, but tenant create operations are blocked when academy quota is exceeded.

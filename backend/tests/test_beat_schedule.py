@@ -12,16 +12,18 @@ class BeatSchedulePersistenceTest(TestCase):
             "run-invoice-schedules": "tenant.billing.tasks.run_invoice_schedules",
             "run-staff-pay-schedules": "tenant.coaches.tasks.run_staff_pay_schedules",
             "sync-payments-to-xero": "saas_platform.finance.tasks.sync_payments_to_xero",
+            "reconcile-storage-30min": "quotas.reconcile_all_storage",
+            "snapshot-storage-daily": "quotas.snapshot_all_storage",
         }
 
     def test_create_seeds_exactly_5_periodic_tasks(self):
         call_command("seed_beat_schedule", verbosity=0)
-        self.assertEqual(PeriodicTask.objects.count(), 5)
+        self.assertEqual(PeriodicTask.objects.count(), 7)
 
     def test_idempotency_seed_does_not_create_duplicates(self):
         call_command("seed_beat_schedule", verbosity=0)
         call_command("seed_beat_schedule", verbosity=0)
-        self.assertEqual(PeriodicTask.objects.count(), 5)
+        self.assertEqual(PeriodicTask.objects.count(), 7)
 
     def test_seed_sets_expected_names_module_paths_and_enabled(self):
         call_command("seed_beat_schedule", verbosity=0)

@@ -322,7 +322,7 @@ class QuotaCacheSignalsIntegrationTests(TestCase):
         TenantUsage.objects.filter(academy=self.academy).update(storage_used_bytes=100)
 
         with CaptureQueriesContext(connection) as storage_ctx:
-            allowed, current_usage, limit = check_quota_before_create(
+            allowed, current_usage, limit, _storage_status = check_quota_before_create(
                 self.academy,
                 quota_type="storage_bytes",
                 requested_increment=1,

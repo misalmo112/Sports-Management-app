@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "Seed django-celery-beat periodic tasks for scheduled operations."
 
-    def _crontab_at(self, *, hour: int, minute: int) -> CrontabSchedule:
+    def _crontab_at(self, *, hour: int | str, minute: int | str) -> CrontabSchedule:
         tz = getattr(settings, "CELERY_TIMEZONE", "UTC")
         return CrontabSchedule.objects.get_or_create(
             minute=str(minute),
@@ -33,7 +33,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         """
-        Seed exactly 5 periodic tasks (idempotent by PeriodicTask.name).
+        Seed periodic tasks (idempotent by PeriodicTask.name).
 
         Note: we delete any previously-created PeriodicTask entries that are not
         part of the expected Phase R.4 set, so that PeriodicTask count is deterministic.
@@ -65,6 +65,16 @@ class Command(BaseCommand):
                 "task": "tenant.coaches.tasks.run_staff_pay_schedules",
                 "crontab_hour": 0,
                 "crontab_minute": 30,
+            },
+            "reconcile-storage-30min": {
+                "task": "quotas.reconcile_all_storage",
+                "crontab_hour": "*",
+                "crontab_minute": "*/30",
+            },
+            "snapshot-storage-daily": {
+                "task": "quotas.snapshot_all_storage",
+                "crontab_hour": 0,
+                "crontab_minute": 5,
             },
         }
 

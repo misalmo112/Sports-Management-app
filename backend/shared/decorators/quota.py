@@ -74,20 +74,66 @@ def check_quota(quota_type):
             
             # Check if operation would exceed limit
             new_usage = current_usage + requested_increment
-            
-            if new_usage > limit:
-                return Response(
-                    {
-                        'detail': 'Quota exceeded',
-                        'quota_type': quota_type,
-                        'current_usage': current_usage,
-                        'limit': limit,
-                        'requested': requested_increment
-                    },
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            
-            return func(self, request, *args, **kwargs)
+
+            # Soft warning support only for storage.
+            current_pct = None
+            warning_pct = None
+            if quota_type == 'storage_bytes':
+                quota = getattr(request.academy, 'quota', None)
+                warning_pct = getattr(quota, 'storage_warning_threshold_pct', 80)
+                if warning_pct is None:
+                    warning_pct = 80
+
+                if limit > 0:
+                    current_pct = round((current_usage / float(limit)) * 100.0, 2)
+                else:
+                    # Treat storage_bytes_limit <= 0 as unlimited.
+                    current_pct = 0.0
+
+                # Hard block before calling the wrapped function.
+                if limit > 0 and new_usage > limit:
+                    return Response(
+                        {
+                            'detail': 'Storage quota exceeded.',
+                            'quota_type': quota_type,
+                            'current_usage': current_usage,
+                            'limit': limit,
+                            'requested': requested_increment,
+                            'storage_status': 'exceeded',
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            else:
+                # Existing hard-block behavior for count-based quotas.
+                if new_usage > limit:
+                    return Response(
+                        {
+                            'detail': 'Quota exceeded',
+                            'quota_type': quota_type,
+                            'current_usage': current_usage,
+                            'limit': limit,
+                            'requested': requested_increment,
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            response = func(self, request, *args, **kwargs)
+
+            # Emit warning headers only after successful wrapped call.
+            if quota_type == 'storage_bytes' and limit > 0 and current_pct is not None:
+                if current_pct >= float(warning_pct):
+                    if hasattr(response, 'headers'):
+                        response.headers['X-Storage-Status'] = 'warning'
+                        response.headers['X-Storage-Usage-Pct'] = f'{current_pct:.2f}'
+                        response.headers[
+                            'X-Storage-Warning'
+                        ] = (
+                            f'Storage usage is at {current_pct:.2f}% '
+                            f'(warning threshold: {int(warning_pct)}%).'
+                        )
+
+            return response
         
         return wrapper
     return decorator

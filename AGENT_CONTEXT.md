@@ -152,9 +152,9 @@ Enforcement
 
 Enforced at API level
 
-No soft warnings beyond 100%
+Soft warnings at a configurable storage threshold (default 80%)
 
-Uploads blocked when storage exceeded
+Hard block at 100% — HTTP 403 with `storage_status: exceeded`
 
 8. Storage & Media Rules
 

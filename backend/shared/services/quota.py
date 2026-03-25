@@ -35,7 +35,7 @@ def check_quota_before_create(academy, quota_type, requested_increment=1):
         requested_increment: Amount to add (for storage: bytes, for counts: 1)
     
     Returns:
-        tuple: (allowed: bool, current_usage: int, limit: int)
+        tuple: (allowed: bool, current_usage: int, limit: int, storage_status: str)
     
     Raises:
         QuotaExceededError: If quota would be exceeded
@@ -77,8 +77,17 @@ def check_quota_before_create(academy, quota_type, requested_increment=1):
             limit=limit,
             requested=requested_increment
         )
-    
-    return True, current_usage, limit
+
+    storage_status = 'ok'
+    if quota_type == 'storage_bytes' and limit > 0:
+        quota = getattr(academy, 'quota', None)
+        warning_pct = getattr(quota, 'storage_warning_threshold_pct', 80)
+        if warning_pct is None:
+            warning_pct = 80
+        current_pct = round((current_usage / float(limit)) * 100.0, 2)
+        storage_status = 'warning' if current_pct >= float(warning_pct) else 'ok'
+
+    return True, current_usage, limit, storage_status
 
 
 def _get_count_usage(academy, quota_type):

@@ -5,6 +5,7 @@ from django.db import connection
 from django.db.models import Count, Sum, Q
 from django.apps import apps
 from django.utils import timezone
+from django.core.cache import cache
 from datetime import timedelta
 from saas_platform.tenants.models import Academy
 from saas_platform.subscriptions.models import Subscription, SubscriptionStatus
@@ -13,6 +14,9 @@ from saas_platform.quotas.models import TenantUsage
 
 class StatsService:
     """Service for aggregating platform statistics."""
+
+    _DB_SIZE_CACHE_KEY_PREFIX = "db_size_bytes:"
+    _DB_SIZE_CACHE_TIMEOUT_SECONDS = 300
 
     @staticmethod
     def _get_table_sizes():
@@ -72,6 +76,11 @@ class StatsService:
                 allocated = int(table_size * proportion)
                 academy_sizes[academy_id] = academy_sizes.get(academy_id, 0) + allocated
 
+        # Warm per-academy read-through cache keys.
+        for academy_id, db_size_bytes in academy_sizes.items():
+            cache_key = f"{StatsService._DB_SIZE_CACHE_KEY_PREFIX}{academy_id}"
+            cache.set(cache_key, db_size_bytes, timeout=StatsService._DB_SIZE_CACHE_TIMEOUT_SECONDS)
+
         return academy_sizes
 
     @staticmethod
@@ -86,7 +95,15 @@ class StatsService:
     @staticmethod
     def get_academy_db_size_bytes(academy_id):
         """Estimate DB size for a single academy."""
-        return StatsService.get_academy_db_sizes().get(academy_id, 0)
+        cache_key = f"{StatsService._DB_SIZE_CACHE_KEY_PREFIX}{academy_id}"
+        cached_value = cache.get(cache_key)
+        if cached_value is not None:
+            return cached_value
+
+        # Preserve existing computation logic.
+        db_size_bytes = StatsService.get_academy_db_sizes().get(academy_id, 0)
+        cache.set(cache_key, db_size_bytes, timeout=StatsService._DB_SIZE_CACHE_TIMEOUT_SECONDS)
+        return db_size_bytes
     
     @staticmethod
     def get_platform_stats():

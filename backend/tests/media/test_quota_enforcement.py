@@ -115,21 +115,10 @@ class QuotaEnforcementTest(TransactionTestCase):
             academy=self.academy,
             file=self.test_file
         )
-        
-        # Manually update usage (as views would do)
-        with transaction.atomic():
-            usage = TenantUsage.objects.select_for_update().get(
-                academy=self.academy
-            )
-            usage.storage_used_bytes += media_file.file_size
-            usage.save()
-        
-        # Verify usage increased
+
+        # Storage counter is signal-driven: it should already be updated.
         self.usage.refresh_from_db()
-        self.assertEqual(
-            self.usage.storage_used_bytes,
-            initial_usage + 2048
-        )
+        self.assertEqual(self.usage.storage_used_bytes, initial_usage + 2048)
     
     @patch('tenant.media.services.default_storage')
     def test_storage_usage_decremented_on_delete(self, mock_storage):
@@ -143,38 +132,23 @@ class QuotaEnforcementTest(TransactionTestCase):
             academy=self.academy,
             file=self.test_file
         )
-        
-        # Update usage
-        with transaction.atomic():
-            usage = TenantUsage.objects.select_for_update().get(
-                academy=self.academy
-            )
-            usage.storage_used_bytes += 2048
-            usage.save()
-        
-        # Refresh usage object
+
+        # Signal-driven counter should already reflect the uploaded file.
         self.usage.refresh_from_db()
         initial_usage = self.usage.storage_used_bytes
         self.assertEqual(initial_usage, 2048)
-        
+
         # Delete file
         file_size = media_file.file_size
         MediaService.delete_file(media_file)
-        
-        # Update usage (as views would do)
-        with transaction.atomic():
-            usage = TenantUsage.objects.select_for_update().get(
-                academy=self.academy
-            )
-            usage.storage_used_bytes -= file_size
-            if usage.storage_used_bytes < 0:
-                usage.storage_used_bytes = 0
-            usage.save()
-        
-        # Verify usage decreased - refresh the instance we're tracking
+
+        # Signal-driven counter should now be recomputed to 0.
         self.usage.refresh_from_db()
-        self.assertEqual(self.usage.storage_used_bytes, 0, 
-                        f"Expected 0, got {self.usage.storage_used_bytes}. Initial was {initial_usage}, file_size was {file_size}")
+        self.assertEqual(
+            self.usage.storage_used_bytes,
+            0,
+            f"Expected 0, got {self.usage.storage_used_bytes}. Initial was {initial_usage}, file_size was {file_size}",
+        )
     
     @patch('tenant.media.services.default_storage')
     def test_negative_storage_prevented_on_delete(self, mock_storage):
@@ -305,7 +279,7 @@ class QuotaEnforcementTest(TransactionTestCase):
         # Upload 1 byte should be allowed
         from shared.services.quota import check_quota_before_create
         
-        allowed, current, limit = check_quota_before_create(
+        allowed, current, limit, _storage_status = check_quota_before_create(
             academy=self.academy,
             quota_type='storage_bytes',
             requested_increment=1

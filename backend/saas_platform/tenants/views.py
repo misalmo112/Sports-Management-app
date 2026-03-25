@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from django.db.models import deletion
 from django.http import HttpResponse
 from rest_framework import viewsets, status
@@ -19,6 +20,8 @@ from saas_platform.tenants.serializers import (
     PlanUpdateSerializer,
     QuotaUpdateSerializer
 )
+from saas_platform.quotas.serializers import StorageSnapshotSerializer
+from saas_platform.quotas.models import StorageSnapshot
 from saas_platform.tenants.services import AcademyService
 from saas_platform.audit.services import AuditService
 from saas_platform.audit.models import AuditAction, ResourceType
@@ -388,4 +391,45 @@ class AcademyViewSet(viewsets.ModelViewSet):
         return Response(
             TenantQuotaSerializer(quota).data,
             status=status.HTTP_200_OK
+        )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="storage-history",
+        permission_classes=[IsPlatformAdmin],
+    )
+    def storage_history(self, request, pk=None):
+        """Return StorageSnapshot history for the academy (platform admin only)."""
+        academy = self.get_object()
+
+        days_param = request.query_params.get("days", 30)
+        try:
+            days = int(days_param)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Invalid 'days' query parameter."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        days = max(1, min(days, 365))
+        since = timezone.now() - timedelta(days=days)
+
+        snapshots_qs = (
+            StorageSnapshot.objects.filter(
+                academy=academy,
+                recorded_at__gte=since,
+            )
+            .order_by("-recorded_at")
+        )
+
+        snapshots_count = snapshots_qs.count()
+        return Response(
+            {
+                "academy_id": str(academy.id),
+                "days": days,
+                "count": snapshots_count,
+                "snapshots": StorageSnapshotSerializer(snapshots_qs, many=True).data,
+            },
+            status=status.HTTP_200_OK,
         )

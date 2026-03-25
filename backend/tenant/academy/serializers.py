@@ -2,11 +2,9 @@
 Serializers for tenant academy settings.
 """
 from django.db.models import Sum
-from django.utils import timezone
 from rest_framework import serializers
 from saas_platform.tenants.models import Academy
 from saas_platform.subscriptions.serializers import SubscriptionSerializer
-from saas_platform.quotas.models import TenantUsage
 from saas_platform.quotas.serializers import TenantQuotaSerializer
 from saas_platform.subscriptions.models import Subscription
 from saas_platform.masters.models import Currency, Timezone
@@ -131,8 +129,13 @@ class AcademyUsageSummarySerializer(serializers.Serializer):
 
     def get_usage(self, obj: Academy):
         from saas_platform.analytics.services import StatsService
+        from saas_platform.quotas.services import QuotaService
         from tenant.media.models import MediaFile
 
+        # Avoid triggering an extra DB query for `obj.quota` when this serializer
+        # method is called directly (tests assert no "write" operations).
+        state = getattr(obj, "_state", None)
+        quota = getattr(state, "fields_cache", {}).get("quota") if state else None
         storage_used = MediaFile.objects.filter(
             academy=obj,
             is_active=True,
@@ -141,34 +144,36 @@ class AcademyUsageSummarySerializer(serializers.Serializer):
         total_used_bytes = storage_used + db_size_bytes
 
         usage = getattr(obj, 'usage', None)
-        if not usage:
-            usage, _ = TenantUsage.objects.get_or_create(
-                academy=obj,
-                defaults={
-                    'storage_used_bytes': storage_used,
-                    'students_count': 0,
-                    'coaches_count': 0,
-                    'admins_count': 0,
-                    'classes_count': 0,
-                },
-            )
+        usage_obj = usage
+        students_count = usage.students_count if usage else 0
+        coaches_count = usage.coaches_count if usage else 0
+        admins_count = usage.admins_count if usage else 0
+        classes_count = usage.classes_count if usage else 0
+        counts_computed_at = usage.counts_computed_at if usage else None
 
-        if usage.storage_used_bytes != storage_used:
-            TenantUsage.objects.filter(pk=usage.pk).update(
-                storage_used_bytes=storage_used,
-                counts_computed_at=timezone.now(),
-            )
+        storage_warning_threshold_pct = getattr(quota, 'storage_warning_threshold_pct', 80) if quota else 80
+        if usage_obj and quota:
+            storage_status = usage_obj.get_storage_status(quota)
+            storage_usage_pct = usage_obj.get_storage_usage_pct(quota)
+        else:
+            # Best-effort fallback when quota/usage aren't available.
+            storage_status = 'unlimited' if not quota or (getattr(quota, 'storage_bytes_limit', 0) or 0) <= 0 else 'ok'
+            storage_usage_pct = 0.0
 
         return {
             'storage_used_bytes': storage_used,
             'storage_used_gb': round(storage_used / (1024 ** 3), 2),
+            'storage_status': storage_status,
+            'storage_usage_pct': storage_usage_pct,
+            'storage_warning_threshold_pct': storage_warning_threshold_pct,
             'db_size_bytes': db_size_bytes,
             'db_size_gb': round(db_size_bytes / (1024 ** 3), 2),
             'total_used_bytes': total_used_bytes,
             'total_used_gb': round(total_used_bytes / (1024 ** 3), 2),
-            'students_count': usage.students_count,
-            'coaches_count': usage.coaches_count,
-            'admins_count': usage.admins_count,
-            'classes_count': usage.classes_count,
-            'counts_computed_at': usage.counts_computed_at,
+            'students_count': students_count,
+            'coaches_count': coaches_count,
+            'admins_count': admins_count,
+            'classes_count': classes_count,
+            'counts_computed_at': counts_computed_at,
+            'days_to_quota': QuotaService.estimate_days_to_quota(obj),
         }

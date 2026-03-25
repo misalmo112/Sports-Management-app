@@ -2,7 +2,7 @@
  * Staff module picker: groups aligned with navigationConfig.ADMIN (module key = nav item id).
  */
 import { navigationConfig } from '@/shared/nav/navigation';
-import { STAFF_ASSIGNABLE_MODULE_KEYS } from '@/shared/constants/moduleKeys';
+import { STAFF_ASSIGNABLE_MODULE_KEYS, formatTenantModuleLabel } from '@/shared/constants/moduleKeys';
 
 export interface StaffModulePickerModule {
   key: string;
@@ -24,13 +24,32 @@ export interface StaffModulePreset {
 const assignableSet = new Set(STAFF_ASSIGNABLE_MODULE_KEYS);
 
 export function getStaffModulePickerGroups(): StaffModulePickerGroup[] {
-  return navigationConfig.ADMIN.map((group) => ({
+  const groups: StaffModulePickerGroup[] = navigationConfig.ADMIN.map((group) => ({
     groupId: group.id,
     groupLabel: group.label,
     modules: group.items
       .filter((item) => item.id !== 'my-account' && assignableSet.has(item.id))
       .map((item) => ({ key: item.id, label: item.label })),
   })).filter((g) => g.modules.length > 0);
+
+  // `STAFF_ASSIGNABLE_MODULE_KEYS` can include keys that are not present in
+  // `navigationConfig.ADMIN` (e.g. `setup`). For the picker UI we still need a
+  // deterministic grouping so the union of picker keys matches the assignable set.
+  const fromGroups = new Set(groups.flatMap((g) => g.modules.map((m) => m.key)));
+  const missingKeys = STAFF_ASSIGNABLE_MODULE_KEYS.filter((k) => !fromGroups.has(k));
+  if (missingKeys.length > 0) {
+    const settingsGroup = groups.find((g) => g.groupId === 'settings');
+    if (settingsGroup) {
+      settingsGroup.modules.push(
+        ...missingKeys.map((key) => ({
+          key,
+          label: formatTenantModuleLabel(key),
+        })),
+      );
+    }
+  }
+
+  return groups;
 }
 
 function buildStaffModulePresets(): StaffModulePreset[] {

@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from django.db.models import Sum
-from django.utils import timezone
 from saas_platform.tenants.models import Academy
 from saas_platform.masters.models import Country, Currency, Timezone
 from django.contrib.auth import get_user_model
@@ -45,8 +44,12 @@ class AcademySerializer(serializers.ModelSerializer):
         Return usage stats. Safe when tenant tables are not in the current schema
         (e.g. platform academy create runs in public schema where MediaFile may not exist).
         """
-        from saas_platform.quotas.models import TenantUsage
+        # Avoid triggering an extra DB query for `obj.quota` when this method
+        # is called directly (tests assert no "write" operations).
+        state = getattr(obj, "_state", None)
+        quota = getattr(state, "fields_cache", {}).get("quota") if state else None
         from saas_platform.analytics.services import StatsService
+        from saas_platform.quotas.services import QuotaService
 
         try:
             from tenant.media.models import MediaFile
@@ -63,54 +66,37 @@ class AcademySerializer(serializers.ModelSerializer):
             db_size_bytes = 0
 
         usage = getattr(obj, 'usage', None)
-        if not usage:
-            try:
-                usage, _ = TenantUsage.objects.get_or_create(
-                    academy=obj,
-                    defaults={
-                        'storage_used_bytes': storage_used,
-                        'students_count': 0,
-                        'coaches_count': 0,
-                        'admins_count': 0,
-                        'classes_count': 0,
-                    }
-                )
-            except Exception:
-                return {
-                    'storage_used_bytes': storage_used,
-                    'storage_used_gb': round(storage_used / (1024 ** 3), 2),
-                    'db_size_bytes': db_size_bytes,
-                    'db_size_gb': round(db_size_bytes / (1024 ** 3), 2),
-                    'total_used_bytes': storage_used + db_size_bytes,
-                    'total_used_gb': round((storage_used + db_size_bytes) / (1024 ** 3), 2),
-                    'students_count': 0,
-                    'coaches_count': 0,
-                    'admins_count': 0,
-                    'classes_count': 0,
-                    'counts_computed_at': None,
-                }
+        usage_obj = usage
+        students_count = usage.students_count if usage else 0
+        coaches_count = usage.coaches_count if usage else 0
+        admins_count = usage.admins_count if usage else 0
+        classes_count = usage.classes_count if usage else 0
+        counts_computed_at = usage.counts_computed_at if usage else None
 
-        if usage.storage_used_bytes != storage_used:
-            try:
-                TenantUsage.objects.filter(pk=usage.pk).update(
-                    storage_used_bytes=storage_used,
-                    counts_computed_at=timezone.now()
-                )
-            except Exception:
-                pass
+        storage_warning_threshold_pct = getattr(quota, 'storage_warning_threshold_pct', 80) if quota else 80
+        if usage_obj and quota:
+            storage_status = usage_obj.get_storage_status(quota)
+            storage_usage_pct = usage_obj.get_storage_usage_pct(quota)
+        else:
+            storage_status = 'unlimited' if not quota or (getattr(quota, 'storage_bytes_limit', 0) or 0) <= 0 else 'ok'
+            storage_usage_pct = 0.0
 
         return {
             'storage_used_bytes': storage_used,
             'storage_used_gb': round(storage_used / (1024 ** 3), 2),
+            'storage_status': storage_status,
+            'storage_usage_pct': storage_usage_pct,
+            'storage_warning_threshold_pct': storage_warning_threshold_pct,
             'db_size_bytes': db_size_bytes,
             'db_size_gb': round(db_size_bytes / (1024 ** 3), 2),
             'total_used_bytes': storage_used + db_size_bytes,
             'total_used_gb': round((storage_used + db_size_bytes) / (1024 ** 3), 2),
-            'students_count': usage.students_count,
-            'coaches_count': usage.coaches_count,
-            'admins_count': usage.admins_count,
-            'classes_count': usage.classes_count,
-            'counts_computed_at': usage.counts_computed_at,
+            'students_count': students_count,
+            'coaches_count': coaches_count,
+            'admins_count': admins_count,
+            'classes_count': classes_count,
+            'counts_computed_at': counts_computed_at,
+            'days_to_quota': QuotaService.estimate_days_to_quota(obj),
         }
 
 
@@ -317,6 +303,11 @@ class QuotaUpdateSerializer(serializers.Serializer):
     overrides_json = serializers.JSONField(required=False)
     # Accept flat quota fields directly
     storage_bytes = serializers.IntegerField(required=False, min_value=0)
+    storage_warning_threshold_pct = serializers.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=99,
+    )
     max_students = serializers.IntegerField(required=False, min_value=0)
     max_coaches = serializers.IntegerField(required=False, min_value=0)
     max_admins = serializers.IntegerField(required=False, min_value=0)
@@ -325,7 +316,9 @@ class QuotaUpdateSerializer(serializers.Serializer):
     def validate(self, attrs):
         """Validate and convert flat format to nested format if needed."""
         valid_keys = {
-            'storage_bytes', 'max_students', 'max_coaches',
+            'storage_bytes',
+            'storage_warning_threshold_pct',
+            'max_students', 'max_coaches',
             'max_admins', 'max_classes'
         }
         

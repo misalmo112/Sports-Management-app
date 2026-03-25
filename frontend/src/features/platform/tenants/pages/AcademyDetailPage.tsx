@@ -115,6 +115,7 @@ export const AcademyDetailPage = () => {
     storageLimitBytes > 0
       ? Math.min(100, (totalUsedBytes / storageLimitBytes) * 100)
       : null;
+  const storageStatus = academy?.usage?.storage_status;
 
   if (isLoading) {
     return (
@@ -402,7 +403,24 @@ export const AcademyDetailPage = () => {
               <p className="text-lg font-medium">{formatBytes(dbSizeBytes)}</p>
             </div>
             <div>
-              <Label className="text-muted-foreground">Total Used</Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-muted-foreground">Total Used</Label>
+                {storageStatus === 'warning' ? (
+                  <Badge
+                    variant="outline"
+                    className="border-amber-500 bg-amber-50 text-amber-700"
+                  >
+                    Warning
+                  </Badge>
+                ) : storageStatus === 'exceeded' ? (
+                  <Badge
+                    variant="outline"
+                    className="border-red-500 bg-red-50 text-red-700"
+                  >
+                    Exceeded
+                  </Badge>
+                ) : null}
+              </div>
               <p className="text-lg font-medium">{formatBytes(totalUsedBytes)}</p>
             </div>
             <div>

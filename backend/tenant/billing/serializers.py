@@ -6,6 +6,7 @@ from decimal import Decimal
 from datetime import datetime, time, timedelta
 
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 
 from tenant.billing.models import (
     BillingType,
@@ -21,6 +22,7 @@ from tenant.billing.models import (
 )
 from tenant.students.models import Parent, Student
 from tenant.onboarding.serializers import SportListSerializer, LocationListSerializer
+from tenant.notifications.models import NotificationLog
 
 
 def resolve_invoice_display_currency(invoice):
@@ -39,6 +41,35 @@ def resolve_invoice_display_currency(invoice):
     if academy and getattr(academy, "currency", None):
         return str(academy.currency).strip().upper()
     return None
+
+
+def whatsapp_enabled_for_academy(academy) -> bool:
+    """
+    WhatsApp feature flag guard.
+    Returns False when academy config is missing or explicitly disabled.
+    """
+    try:
+        config = academy.whatsapp_config
+    except ObjectDoesNotExist:
+        return False
+    return bool(getattr(config, "is_enabled", False))
+
+
+def latest_notification_status(*, academy, doc_type: str, object_id: int, channel: str):
+    """
+    Returns latest NotificationLog.status for the given channel, or None.
+    """
+    return (
+        NotificationLog.objects.filter(
+            academy=academy,
+            doc_type=doc_type,
+            object_id=object_id,
+            channel=channel,
+        )
+        .order_by("-sent_at")
+        .values_list("status", flat=True)
+        .first()
+    )
 
 
 class ItemSerializer(serializers.ModelSerializer):
@@ -166,6 +197,7 @@ class ReceiptSerializer(serializers.ModelSerializer):
     )
     sport_detail = serializers.SerializerMethodField()
     location_detail = serializers.SerializerMethodField()
+    notification_summary = serializers.SerializerMethodField()
     
     class Meta:
         model = Receipt
@@ -173,7 +205,7 @@ class ReceiptSerializer(serializers.ModelSerializer):
             'id', 'academy', 'invoice', 'invoice_number', 'invoice_total',
             'receipt_number', 'amount', 'payment_method', 'payment_date',
             'sport', 'sport_detail', 'location', 'location_detail',
-            'notes', 'created_at', 'updated_at'
+            'notes', 'created_at', 'updated_at', 'notification_summary'
         ]
         read_only_fields = ['id', 'academy', 'receipt_number', 'created_at', 'updated_at']
     
@@ -206,6 +238,23 @@ class ReceiptSerializer(serializers.ModelSerializer):
         if obj.location:
             return LocationListSerializer(obj.location).data
         return None
+
+    def get_notification_summary(self, obj: Receipt):
+        email_status = latest_notification_status(
+            academy=obj.academy,
+            doc_type=NotificationLog.DocType.RECEIPT,
+            object_id=obj.id,
+            channel=NotificationLog.Channel.EMAIL,
+        )
+        whatsapp_status = latest_notification_status(
+            academy=obj.academy,
+            doc_type=NotificationLog.DocType.RECEIPT,
+            object_id=obj.id,
+            channel=NotificationLog.Channel.WHATSAPP,
+        )
+        if not whatsapp_enabled_for_academy(obj.academy):
+            whatsapp_status = None
+        return {"email": email_status, "whatsapp": whatsapp_status}
 
 
 class ReceiptListSerializer(serializers.ModelSerializer):
@@ -353,6 +402,7 @@ class InvoiceListSerializer(serializers.ModelSerializer):
     currency = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
     remaining_balance = serializers.SerializerMethodField()
+    notification_summary = serializers.SerializerMethodField()
     
     class Meta:
         model = Invoice
@@ -360,7 +410,7 @@ class InvoiceListSerializer(serializers.ModelSerializer):
             'id', 'invoice_number', 'parent', 'parent_name', 'status',
             'currency', 'total', 'paid_amount', 'remaining_balance', 'due_date',
             'sport', 'sport_name', 'location', 'location_name',
-            'created_at'
+            'created_at', 'notification_summary'
         ]
         read_only_fields = ['id', 'invoice_number', 'paid_amount', 'remaining_balance']
     
@@ -382,6 +432,24 @@ class InvoiceListSerializer(serializers.ModelSerializer):
     def get_remaining_balance(self, obj):
         """Get remaining balance."""
         return obj.get_remaining_balance()
+
+    def get_notification_summary(self, obj: Invoice):
+        """
+        Uses list queryset annotations to avoid N+1 queries.
+        Returns latest per-channel status:
+        - email: "SENT" | "FAILED" | "SKIPPED" | null
+        - whatsapp: same or null (hidden when academy WhatsApp config is disabled/missing)
+        """
+        email_status = getattr(obj, "notification_email_status", None)
+        whatsapp_status = getattr(obj, "notification_whatsapp_status", None)
+
+        if not whatsapp_enabled_for_academy(obj.academy):
+            whatsapp_status = None
+
+        return {
+            "email": email_status,
+            "whatsapp": whatsapp_status,
+        }
 
 
 class CreateInvoiceSerializer(serializers.Serializer):
@@ -462,6 +530,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
     currency = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
     remaining_balance = serializers.SerializerMethodField()
+    notification_summary = serializers.SerializerMethodField()
     
     class Meta:
         model = Invoice
@@ -472,7 +541,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
             'due_date', 'issued_date', 'parent_invoice', 'sport', 'sport_detail',
             'location', 'location_detail', 'notes',
             'currency', 'paid_amount', 'remaining_balance', 'items', 'receipts',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'notification_summary'
         ]
         read_only_fields = [
             'id', 'academy', 'invoice_number', 'subtotal', 'discount_amount',
@@ -501,6 +570,24 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
     def get_remaining_balance(self, obj):
         """Get remaining balance."""
         return obj.get_remaining_balance()
+
+    def get_notification_summary(self, obj: Invoice):
+        # For detail endpoints we can query (single invoice) and keep logic centralized.
+        email_status = latest_notification_status(
+            academy=obj.academy,
+            doc_type=NotificationLog.DocType.INVOICE,
+            object_id=obj.id,
+            channel=NotificationLog.Channel.EMAIL,
+        )
+        whatsapp_status = latest_notification_status(
+            academy=obj.academy,
+            doc_type=NotificationLog.DocType.INVOICE,
+            object_id=obj.id,
+            channel=NotificationLog.Channel.WHATSAPP,
+        )
+        if not whatsapp_enabled_for_academy(obj.academy):
+            whatsapp_status = None
+        return {"email": email_status, "whatsapp": whatsapp_status}
 
 
 class ParentSummarySerializer(serializers.ModelSerializer):

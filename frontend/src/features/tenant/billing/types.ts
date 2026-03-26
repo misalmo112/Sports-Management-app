@@ -98,6 +98,8 @@ export interface Invoice {
   notes?: string;
   items?: InvoiceItem[];
   receipts?: Receipt[];
+  /** Latest per-channel notification statuses for this invoice. */
+  notification_summary?: NotificationSummary | null;
   created_at: string;
   updated_at: string;
 }
@@ -165,8 +167,32 @@ export interface Receipt {
   parent_name?: string;
   student_names?: string;
   notes?: string;
+  /** Latest per-channel notification statuses for this receipt. */
+  notification_summary?: NotificationSummary | null;
   created_at: string;
   updated_at: string;
+}
+
+export type NotificationChannel = 'EMAIL' | 'WHATSAPP';
+
+export type NotificationStatus = 'SENT' | 'FAILED' | 'SKIPPED';
+
+export interface NotificationSummary {
+  email: NotificationStatus | null;
+  whatsapp: NotificationStatus | null;
+}
+
+export interface NotificationLog {
+  channel: NotificationChannel;
+  status: NotificationStatus;
+  sent_at: string;
+  error_detail: string;
+  recipient_email: string;
+  recipient_phone: string;
+}
+
+export interface PdfPreviewResponse {
+  preview_url: string;
 }
 
 /** Classification for unified receipt list (filter dropdown). */

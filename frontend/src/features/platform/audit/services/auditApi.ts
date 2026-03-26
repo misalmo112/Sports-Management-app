@@ -3,7 +3,12 @@
  */
 import apiClient from '@/shared/services/api';
 import { API_ENDPOINTS } from '@/shared/constants/api';
-import type { AuditLog, AuditLogsListResponse, ErrorLogsListResponse } from '../types';
+import type {
+  AuditLog,
+  AuditLogsListResponse,
+  ErrorLogsListResponse,
+  ErrorLogSummary,
+} from '../types';
 
 /**
  * List audit logs with optional filters
@@ -48,7 +53,7 @@ export const getAuditLog = async (id: number | string): Promise<AuditLog> => {
 };
 
 /**
- * Get platform errors
+ * Get platform errors with optional filters
  */
 export const getErrorLogs = async (params?: {
   date_from?: string;
@@ -56,23 +61,18 @@ export const getErrorLogs = async (params?: {
   search?: string;
   page?: number;
   page_size?: number;
+  severity?: string;
+  is_resolved?: string;
 }): Promise<ErrorLogsListResponse> => {
   const queryParams = new URLSearchParams();
-  if (params?.date_from) {
-    queryParams.append('date_from', params.date_from);
-  }
-  if (params?.date_to) {
-    queryParams.append('date_to', params.date_to);
-  }
-  if (params?.search) {
-    queryParams.append('search', params.search);
-  }
-  if (params?.page) {
-    queryParams.append('page', params.page.toString());
-  }
-  if (params?.page_size) {
-    queryParams.append('page_size', params.page_size.toString());
-  }
+  if (params?.date_from) queryParams.append('date_from', params.date_from);
+  if (params?.date_to) queryParams.append('date_to', params.date_to);
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+  if (params?.severity) queryParams.append('severity', params.severity);
+  if (params?.is_resolved !== undefined && params.is_resolved !== '')
+    queryParams.append('is_resolved', params.is_resolved);
 
   const queryString = queryParams.toString();
   const url = queryString
@@ -81,4 +81,21 @@ export const getErrorLogs = async (params?: {
 
   const response = await apiClient.get<ErrorLogsListResponse>(url);
   return response.data;
+};
+
+/**
+ * Fetch error log dashboard summary counts
+ */
+export const getErrorLogSummary = async (): Promise<ErrorLogSummary> => {
+  const response = await apiClient.get<ErrorLogSummary>(
+    `${API_ENDPOINTS.PLATFORM.ERRORS}summary/`
+  );
+  return response.data;
+};
+
+/**
+ * Mark an error log as resolved
+ */
+export const resolveErrorLog = async (id: number): Promise<void> => {
+  await apiClient.post(`${API_ENDPOINTS.PLATFORM.ERRORS}${id}/resolve/`);
 };

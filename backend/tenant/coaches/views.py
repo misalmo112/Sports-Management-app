@@ -40,13 +40,17 @@ from shared.permissions.tenant import IsTenantAdmin
 from shared.decorators.quota import check_quota
 from shared.utils.queryset_filtering import filter_by_academy
 from shared.services.quota import QuotaExceededError
+from shared.mixins.audit import AuditMixin
+from saas_platform.audit.models import ResourceType, AuditAction
+from saas_platform.audit.services import TenantAuditService
 
 
-class CoachViewSet(viewsets.ModelViewSet):
+class CoachViewSet(AuditMixin, viewsets.ModelViewSet):
     """ViewSet for Coach model."""
 
+    audit_resource_type = ResourceType.COACH
     required_tenant_module = 'staff'
-    
+
     queryset = Coach.objects.all()
     serializer_class = CoachSerializer
     permission_classes = [IsTenantAdmin]
@@ -55,7 +59,7 @@ class CoachViewSet(viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'email', 'phone', 'specialization']
     ordering_fields = ['first_name', 'last_name', 'email', 'created_at']
     ordering = ['last_name', 'first_name']
-    
+
     def get_queryset(self):
         """Filter by academy."""
         queryset = super().get_queryset()
@@ -65,18 +69,18 @@ class CoachViewSet(viewsets.ModelViewSet):
             self.request.user,
             self.request
         )
-    
+
     def get_serializer_class(self):
         """Use list serializer for list action."""
         if self.action == 'list':
             return CoachListSerializer
         return CoachSerializer
-    
+
     @check_quota('coaches')
     def create(self, request, *args, **kwargs):
         """Create coach with quota check."""
         return super().create(request, *args, **kwargs)
-    
+
     @action(detail=True, methods=['post'], permission_classes=[IsTenantAdmin, CanCreateUsers], url_path='invite')
     def invite(self, request, pk=None):
         """
@@ -102,6 +106,16 @@ class CoachViewSet(viewsets.ModelViewSet):
                 created_by=request.user,
             )
             UserService.send_invite_email_async(user, token)
+            # Audit: invite action for this coach user
+            TenantAuditService.log(
+                user=request.user,
+                action=AuditAction.INVITE,
+                resource_type=ResourceType.USER,
+                resource_id=str(user.pk),
+                academy=academy,
+                changes_json={'invited_coach_id': str(coach.pk), 'email': user.email},
+                request=request,
+            )
             user_serializer = UserSerializer(user)
             return Response(
                 {**user_serializer.data, 'invite_sent': True},
@@ -122,11 +136,26 @@ class CoachViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
-    
+
     def perform_destroy(self, instance):
         """Soft delete by setting is_active=False."""
+        resource_id = str(instance.pk)
         instance.is_active = False
         instance.save()
+        # Audit soft-delete as DELETE action
+        if self.audit_resource_type:
+            try:
+                TenantAuditService.log(
+                    user=self.request.user,
+                    action=AuditAction.DELETE,
+                    resource_type=self.audit_resource_type,
+                    resource_id=resource_id,
+                    academy=self._get_audit_academy(),
+                    request=self.request,
+                )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception('CoachViewSet.perform_destroy audit log failed')
 
 
 class CoachPaySchemeViewSet(viewsets.ModelViewSet):

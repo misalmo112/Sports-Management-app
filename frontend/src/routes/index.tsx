@@ -74,6 +74,7 @@ import { InvoiceCreatePage } from '@/features/tenant/billing/pages/InvoiceCreate
 import { InvoiceDetailPage } from '@/features/tenant/billing/pages/InvoiceDetailPage';
 import { ReceiptsListPage } from '@/features/tenant/billing/pages/ReceiptsListPage';
 import { ReceiptCreatePage } from '@/features/tenant/billing/pages/ReceiptCreatePage';
+import { ReceiptDetailPage } from '@/features/tenant/billing/pages/ReceiptDetailPage';
 import { SettingsHomePage } from '@/features/tenant/settings/pages/SettingsHomePage';
 import { AcademySettingsPage } from '@/features/tenant/settings/pages/AcademySettingsPage';
 import { TaxSettingsPage } from '@/features/tenant/settings/pages/TaxSettingsPage';
@@ -105,6 +106,9 @@ import { StaffPayScheduleEditPage } from '@/features/tenant/coaches/pay-schedule
 import { RentPaySchedulesPage } from '@/features/tenant/facilities/rent-schedules/pages/RentPaySchedulesPage';
 import { RentPayScheduleCreatePage } from '@/features/tenant/facilities/rent-schedules/pages/RentPayScheduleCreatePage';
 import { RentPayScheduleEditPage } from '@/features/tenant/facilities/rent-schedules/pages/RentPayScheduleEditPage';
+
+// Tenant audit
+import { ActivityLogPage } from '@/features/tenant/audit/pages/ActivityLogPage';
 
 // Coach pages
 import { CoachOverviewPage } from '@/features/tenant/overview/pages/CoachOverviewPage';
@@ -428,6 +432,10 @@ export const router = createBrowserRouter([
         path: 'finance/receipts/new',
         element: createProtectedRoute(<ReceiptCreatePage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'receipts'),
       },
+      {
+        path: 'finance/receipts/:id',
+        element: createProtectedRoute(<ReceiptDetailPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'receipts'),
+      },
       // Settings routes (Admin/Owner/STAFF)
       {
         path: 'settings',
@@ -528,6 +536,11 @@ export const router = createBrowserRouter([
       {
         path: 'users/:id',
         element: createProtectedRoute(<UserDetailPage />, true, ['ADMIN', 'OWNER', 'STAFF'], 'users'),
+      },
+      // Activity log (OWNER / ADMIN only)
+      {
+        path: 'academy/audit',
+        element: createProtectedRoute(<ActivityLogPage />, true, ['ADMIN', 'OWNER']),
       },
       // Coach routes
       {

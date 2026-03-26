@@ -26,15 +26,18 @@ from shared.permissions.tenant import (
     IsTenantAdminOrCoach, IsTenantAdminOrParentOrCoach
 )
 from shared.utils.queryset_filtering import filter_by_academy
+from shared.mixins.audit import AuditMixin
+from saas_platform.audit.models import ResourceType
 
 User = get_user_model()
 
 
-class AttendanceViewSet(viewsets.ModelViewSet):
+class AttendanceViewSet(AuditMixin, viewsets.ModelViewSet):
     """ViewSet for Attendance model."""
 
+    audit_resource_type = ResourceType.ATTENDANCE
     required_tenant_module = 'attendance'
-    
+
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
     permission_classes = [IsTenantAdminOrParentOrCoach]
@@ -43,15 +46,15 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     search_fields = ['student__first_name', 'student__last_name', 'class_obj__name']
     ordering_fields = ['date', 'student', 'created_at']
     ordering = ['-date', 'student']
-    
+
     def get_queryset(self):
         """Filter by academy, with special handling for coaches and parents."""
         queryset = super().get_queryset()
-        
+
         # Superadmin can see all
         if hasattr(self.request.user, 'role') and self.request.user.role == 'SUPERADMIN':
             return queryset
-        
+
         # Parents can only see attendance for their own children
         if hasattr(self.request.user, 'role') and self.request.user.role == 'PARENT':
             if hasattr(self.request.user, 'email'):
@@ -86,15 +89,15 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     self.request.user,
                     self.request
                 )
-        
+
         return queryset.select_related('student', 'class_obj', 'marked_by')
-    
+
     def get_serializer_class(self):
         """Use list serializer for list action."""
         if self.action == 'list':
             return AttendanceListSerializer
         return AttendanceSerializer
-    
+
     def get_permissions(self):
         """
         Parents can only view attendance (list/retrieve).
@@ -103,12 +106,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsTenantAdminOrCoach()]
         return super().get_permissions()
-    
+
     def create(self, request, *args, **kwargs):
         """Create attendance record."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         # Check coach permission for assigned classes
         if hasattr(request.user, 'role') and request.user.role == 'COACH':
             class_obj = serializer.validated_data.get('class_obj')
@@ -125,15 +128,15 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                         {'detail': 'Coach profile not found.'},
                         status=status.HTTP_403_FORBIDDEN
                     )
-        
+
         # Auto-set marked_by if not provided
         if not serializer.validated_data.get('marked_by') and request.user.is_authenticated:
             serializer.validated_data['marked_by'] = request.user
-        
+
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-    
+
     @action(detail=False, methods=['post'], permission_classes=[IsTenantAdminOrCoach])
     def mark(self, request):
         """
@@ -145,11 +148,11 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             context={'request': request}
         )
         serializer.is_valid(raise_exception=True)
-        
+
         class_id = serializer.validated_data['class_id']
         date = serializer.validated_data['date']
         attendance_records = serializer.validated_data['attendance_records']
-        
+
         # Get class object
         try:
             class_obj = Class.objects.get(
@@ -162,7 +165,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 {'detail': 'Class not found or does not belong to this academy'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check coach permission
         is_coach = False
         if hasattr(request.user, 'role') and request.user.role == 'COACH':
@@ -174,7 +177,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 is_coach = True
             except Coach.DoesNotExist:
                 pass
-        
+
         if is_coach:
             # Verify coach is assigned to this class
             try:
@@ -189,7 +192,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Coach profile not found'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         # Prepare attendance records for service
         records = []
         for record in attendance_records:
@@ -198,7 +201,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 'status': record['status'],
                 'notes': record.get('notes', '')
             })
-        
+
         try:
             # `request.user` comes from tenant-aware JWT. In some misrouting cases the
             # user object may have a PK that doesn't exist in the current schema.
@@ -213,25 +216,25 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 attendance_records=records,
                 marked_by=marked_by
             )
-            
+
             # Serialize response
             response_serializer = AttendanceSerializer(
                 created_or_updated,
                 many=True,
                 context={'request': request}
             )
-            
+
             return Response({
                 'message': f'Successfully marked attendance for {len(created_or_updated)} student(s)',
                 'attendance_records': response_serializer.data
             }, status=status.HTTP_201_CREATED)
-            
+
         except ValidationError as e:
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
     @action(detail=False, methods=['get'], permission_classes=[IsTenantAdminOrCoach])
     def monthly_summary(self, request):
         """
@@ -243,14 +246,14 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         month = request.query_params.get('month')
         student_id = request.query_params.get('student_id')
         class_id = request.query_params.get('class_id')
-        
+
         # Validate required parameters
         if not year or not month:
             return Response(
                 {'detail': 'year and month query parameters are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             year = int(year)
             month = int(month)
@@ -261,11 +264,11 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 {'detail': f'Invalid year or month: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Convert optional parameters
         student_id = int(student_id) if student_id else None
         class_id = int(class_id) if class_id else None
-        
+
         # Check coach permission
         if hasattr(request.user, 'role') and request.user.role == 'COACH':
             # Coaches can only see summaries for their assigned classes
@@ -286,7 +289,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                         {'detail': 'Class not found'},
                         status=status.HTTP_404_NOT_FOUND
                     )
-        
+
         # Get summary
         summary = AttendanceService.get_monthly_summary(
             academy=request.academy,
@@ -295,7 +298,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             student_id=student_id,
             class_id=class_id
         )
-        
+
         # Filter for coaches if needed
         if hasattr(request.user, 'role') and request.user.role == 'COACH':
             # Filter summaries to only include coach's classes
@@ -304,15 +307,15 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 coach__user=request.user,
                 is_active=True
             ).values_list('id', flat=True)
-            
+
             summary['summaries'] = [
                 s for s in summary['summaries']
                 if s['class_id'] in coach_classes
             ]
-        
+
         serializer = MonthlySummarySerializer(summary)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=['get'], permission_classes=[IsTenantAdminOrCoach])
     def export(self, request):
         """
@@ -324,10 +327,10 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         end_date = request.query_params.get('end_date')
         class_id = request.query_params.get('class_id')
         student_id = request.query_params.get('student_id')
-        
+
         # Build queryset
         queryset = self.get_queryset()
-        
+
         # Apply filters
         if start_date:
             try:
@@ -338,7 +341,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Invalid start_date format. Use YYYY-MM-DD'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         if end_date:
             try:
                 end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -348,7 +351,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Invalid end_date format. Use YYYY-MM-DD'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         if class_id:
             try:
                 queryset = queryset.filter(class_obj_id=int(class_id))
@@ -357,7 +360,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Invalid class_id'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         if student_id:
             try:
                 queryset = queryset.filter(student_id=int(student_id))
@@ -366,12 +369,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Invalid student_id'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         # Generate filename
         filename = f'attendance_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         if start_date and end_date:
             filename = f'attendance_export_{start_date}_to_{end_date}.csv'
-        
+
         # Export to CSV
         return AttendanceService.export_to_csv(queryset, filename=filename)
 
@@ -380,7 +383,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
     """ViewSet for CoachAttendance model."""
 
     required_tenant_module = 'attendance'
-    
+
     queryset = CoachAttendance.objects.all()
     serializer_class = CoachAttendanceSerializer
     permission_classes = [IsTenantAdminOrCoach]
@@ -389,15 +392,15 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
     search_fields = ['coach__first_name', 'coach__last_name', 'class_obj__name']
     ordering_fields = ['date', 'coach', 'created_at']
     ordering = ['-date', 'coach']
-    
+
     def get_queryset(self):
         """Filter by academy, with special handling for coaches."""
         queryset = super().get_queryset()
-        
+
         # Superadmin can see all
         if hasattr(self.request.user, 'role') and self.request.user.role == 'SUPERADMIN':
             return queryset
-        
+
         # Coaches can only see their own attendance
         is_coach = False
         if hasattr(self.request.user, 'role') and self.request.user.role == 'COACH':
@@ -409,7 +412,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                 is_coach = True
             except Coach.DoesNotExist:
                 pass
-        
+
         if is_coach:
             # Get coach profile for the user
             try:
@@ -425,28 +428,28 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                 self.request.user,
                 self.request
             )
-        
+
         return queryset.select_related('coach', 'class_obj', 'marked_by')
-    
+
     def get_serializer_class(self):
         """Use list serializer for list action."""
         if self.action == 'list':
             return CoachAttendanceListSerializer
         return CoachAttendanceSerializer
-    
+
     def create(self, request, *args, **kwargs):
         """Create coach attendance record."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         # Auto-set marked_by if not provided
         if not serializer.validated_data.get('marked_by') and request.user.is_authenticated:
             serializer.validated_data['marked_by'] = request.user
-        
+
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-    
+
     @action(detail=False, methods=['post'], permission_classes=[IsTenantAdminOrCoach])
     def mark(self, request):
         """
@@ -458,13 +461,13 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
             context={'request': request}
         )
         serializer.is_valid(raise_exception=True)
-        
+
         class_id = serializer.validated_data['class_id']
         coach_id = serializer.validated_data['coach_id']
         attendance_date = serializer.validated_data['date']
         attendance_status = serializer.validated_data['status']
         notes = serializer.validated_data.get('notes', '')
-        
+
         # Get class object
         try:
             class_obj = Class.objects.get(
@@ -477,7 +480,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                 {'detail': 'Class not found or does not belong to this academy'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check coach permission
         if hasattr(request.user, 'role') and request.user.role == 'COACH':
             # Coaches can only mark their own attendance
@@ -493,7 +496,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Coach profile not found'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-        
+
         try:
             marked_by = None
             if request.user.is_authenticated:
@@ -506,20 +509,20 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                 notes=notes,
                 marked_by=marked_by
             )
-            
+
             response_serializer = CoachAttendanceSerializer(
                 attendance,
                 context={'request': request}
             )
-            
+
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-            
+
         except ValidationError as e:
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
     @action(detail=False, methods=['get'], permission_classes=[IsTenantAdminOrCoach])
     def export(self, request):
         """
@@ -531,10 +534,10 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
         end_date = request.query_params.get('end_date')
         class_id = request.query_params.get('class_id')
         coach_id = request.query_params.get('coach_id')
-        
+
         # Build queryset
         queryset = self.get_queryset()
-        
+
         # Apply filters
         if start_date:
             try:
@@ -545,7 +548,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Invalid start_date format. Use YYYY-MM-DD'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         if end_date:
             try:
                 end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -555,7 +558,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Invalid end_date format. Use YYYY-MM-DD'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         if class_id:
             try:
                 queryset = queryset.filter(class_obj_id=int(class_id))
@@ -564,7 +567,7 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Invalid class_id'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         if coach_id:
             try:
                 queryset = queryset.filter(coach_id=int(coach_id))
@@ -573,11 +576,11 @@ class CoachAttendanceViewSet(viewsets.ModelViewSet):
                     {'detail': 'Invalid coach_id'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         # Generate filename
         filename = f'coach_attendance_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         if start_date and end_date:
             filename = f'coach_attendance_export_{start_date}_to_{end_date}.csv'
-        
+
         # Export to CSV
         return AttendanceService.export_coach_attendance_to_csv(queryset, filename=filename)

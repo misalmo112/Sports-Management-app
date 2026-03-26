@@ -1,5 +1,5 @@
 /**
- * Hook for fetching platform errors
+ * Hook for fetching platform errors with filters
  */
 import { useQuery } from '@tanstack/react-query';
 import { getErrorLogs } from '../services/auditApi';
@@ -11,9 +11,11 @@ export const usePlatformErrors = (params?: {
   search?: string;
   page?: number;
   page_size?: number;
+  severity?: string;
+  is_resolved?: string;
 }) => {
   return useQuery<ErrorLogsListResponse, Error>({
-    queryKey: ['platform', 'errors', params],
+    queryKey: ['error-logs', params],
     queryFn: () => getErrorLogs(params),
     staleTime: 60000,
     refetchOnWindowFocus: false,

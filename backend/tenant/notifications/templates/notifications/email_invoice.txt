@@ -1,0 +1,16 @@
+{{ email_subject }}
+
+Hello {{ parent_first_name }},
+
+Your invoice {{ invoice_number }} from {{ academy_name }} has been generated.
+
+Total: {{ total }}
+Due date: {{ due_date }}
+
+Download PDF: {{ pdf_url }}
+
+{% if payment_url %}Payment link: {{ payment_url }}{% endif %}
+
+Regards,
+{{ academy_name }}
+

@@ -16,6 +16,8 @@ import type {
   ReceiptsListResponse,
   CreateReceiptRequest,
   UpdateReceiptRequest,
+  NotificationLog,
+  PdfPreviewResponse,
 } from '../types';
 
 /**
@@ -378,4 +380,60 @@ export const deleteReceipt = async (id: number | string): Promise<void> => {
     // #endregion
     throw error;
   }
+};
+
+export const getInvoiceNotificationLogs = async (
+  invoiceId: number | string
+): Promise<NotificationLog[]> => {
+  const response = await apiClient.get<NotificationLog[]>(
+    API_ENDPOINTS.TENANT.BILLING.INVOICES.NOTIFICATION_LOGS(invoiceId)
+  );
+  return response.data;
+};
+
+export const resendInvoiceNotifications = async (
+  invoiceId: number | string
+): Promise<{ status: string }> => {
+  const response = await apiClient.post<{ status: string }>(
+    API_ENDPOINTS.TENANT.BILLING.INVOICES.RESEND_NOTIFICATIONS(invoiceId),
+    {}
+  );
+  return response.data;
+};
+
+export const getReceiptNotificationLogs = async (
+  receiptId: number | string
+): Promise<NotificationLog[]> => {
+  const response = await apiClient.get<NotificationLog[]>(
+    API_ENDPOINTS.TENANT.BILLING.RECEIPTS.NOTIFICATION_LOGS(receiptId)
+  );
+  return response.data;
+};
+
+export const resendReceiptNotifications = async (
+  receiptId: number | string
+): Promise<{ status: string }> => {
+  const response = await apiClient.post<{ status: string }>(
+    API_ENDPOINTS.TENANT.BILLING.RECEIPTS.RESEND_NOTIFICATIONS(receiptId),
+    {}
+  );
+  return response.data;
+};
+
+export const previewInvoicePdf = async (
+  invoiceId: number | string
+): Promise<PdfPreviewResponse> => {
+  const response = await apiClient.get<PdfPreviewResponse>(
+    API_ENDPOINTS.TENANT.BILLING.INVOICES.PDF_PREVIEW(invoiceId)
+  );
+  return response.data;
+};
+
+export const previewReceiptPdf = async (
+  receiptId: number | string
+): Promise<PdfPreviewResponse> => {
+  const response = await apiClient.get<PdfPreviewResponse>(
+    API_ENDPOINTS.TENANT.BILLING.RECEIPTS.PDF_PREVIEW(receiptId)
+  );
+  return response.data;
 };

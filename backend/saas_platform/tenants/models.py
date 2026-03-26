@@ -178,3 +178,45 @@ class OnboardingState(models.Model):
         locked_email = (getattr(self.locked_by, "email", "") or "").strip().lower()
         user_email = (getattr(user, "email", "") or "").strip().lower()
         return bool(locked_email and user_email and locked_email == user_email)
+
+
+class AcademyWhatsAppConfig(models.Model):
+    """Per-academy WhatsApp Business API configuration (platform layer)."""
+
+    academy = models.OneToOneField(
+        Academy,
+        on_delete=models.CASCADE,
+        related_name='whatsapp_config',
+        db_index=True,
+    )
+
+    is_enabled = models.BooleanField(default=False, db_index=True)
+    send_on_invoice_created = models.BooleanField(default=True)
+    send_on_receipt_created = models.BooleanField(default=True)
+
+    phone_number_id = models.CharField(max_length=64, blank=True)
+    access_token_encrypted = models.TextField(blank=True)  # Fernet-encrypted token
+    waba_id = models.CharField(max_length=64, blank=True)
+
+    invoice_template_name = models.CharField(max_length=128, default='academy_invoice_created')
+    receipt_template_name = models.CharField(max_length=128, default='academy_receipt_issued')
+    template_language = models.CharField(max_length=16, default='en')
+
+    verified = models.BooleanField(default=False)
+
+    configured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name='configured_whatsapp_configs',
+    )
+    configured_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'platform_academy_whatsapp_config'
+        verbose_name = 'Academy WhatsApp Configuration'
+        verbose_name_plural = 'Academy WhatsApp Configurations'
+
+    def __str__(self):
+        return f"WhatsApp config for {self.academy.name}"

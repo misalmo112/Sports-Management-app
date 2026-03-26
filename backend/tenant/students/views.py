@@ -21,13 +21,17 @@ from shared.permissions.tenant import (
 )
 from shared.decorators.quota import check_quota
 from shared.utils.queryset_filtering import filter_by_academy
+from shared.mixins.audit import AuditMixin
+from saas_platform.audit.models import ResourceType
+from saas_platform.audit.services import TenantAuditService
+from saas_platform.audit.models import AuditAction
 
 
 class ParentViewSet(viewsets.ModelViewSet):
     """ViewSet for Parent model."""
 
     required_tenant_module = 'students'
-    
+
     queryset = Parent.objects.all()
     serializer_class = ParentSerializer
     permission_classes = [IsTenantAdmin]
@@ -36,7 +40,7 @@ class ParentViewSet(viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'email', 'phone']
     ordering_fields = ['first_name', 'last_name', 'email', 'created_at']
     ordering = ['last_name', 'first_name']
-    
+
     def get_queryset(self):
         """Filter by academy."""
         queryset = super().get_queryset()
@@ -46,13 +50,13 @@ class ParentViewSet(viewsets.ModelViewSet):
             self.request.user,
             self.request
         )
-    
+
     def get_serializer_class(self):
         """Use list serializer for list action."""
         if self.action == 'list':
             return ParentListSerializer
         return ParentSerializer
-    
+
     def perform_destroy(self, instance):
         """Soft delete by setting is_active=False."""
         instance.is_active = False
@@ -83,6 +87,16 @@ class ParentViewSet(viewsets.ModelViewSet):
                 created_by=request.user,
             )
             UserService.send_invite_email_async(user, token)
+            # Audit: invite action for this parent/guardian user
+            TenantAuditService.log(
+                user=request.user,
+                action=AuditAction.INVITE,
+                resource_type=ResourceType.USER,
+                resource_id=str(user.pk),
+                academy=academy,
+                changes_json={'invited_parent_id': str(parent.pk), 'email': user.email},
+                request=request,
+            )
             return Response(
                 {**UserSerializer(user).data, 'invite_sent': True},
                 status=status.HTTP_201_CREATED,
@@ -104,11 +118,12 @@ class ParentViewSet(viewsets.ModelViewSet):
             )
 
 
-class StudentViewSet(viewsets.ModelViewSet):
+class StudentViewSet(AuditMixin, viewsets.ModelViewSet):
     """ViewSet for Student model."""
 
+    audit_resource_type = ResourceType.STUDENT
     required_tenant_module = 'students'
-    
+
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
     permission_classes = [IsTenantAdminOrParent]
@@ -117,15 +132,15 @@ class StudentViewSet(viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'email', 'phone']
     ordering_fields = ['first_name', 'last_name', 'date_of_birth', 'created_at']
     ordering = ['last_name', 'first_name']
-    
+
     def get_queryset(self):
         """Filter by academy, with special handling for parents."""
         queryset = super().get_queryset()
-        
+
         # Superadmin can see all students (but still filter by is_active)
         if hasattr(self.request.user, 'role') and self.request.user.role == 'SUPERADMIN':
             return queryset.filter(is_active=True)
-        
+
         # Parents can only see their own children
         if hasattr(self.request.user, 'role') and self.request.user.role == 'PARENT':
             # Filter by parent's children
@@ -145,27 +160,42 @@ class StudentViewSet(viewsets.ModelViewSet):
                 self.request
             )
             queryset = queryset.filter(is_active=True)
-        
+
         return queryset
-    
+
     def get_serializer_class(self):
         """Use list serializer for list action."""
         if self.action == 'list':
             return StudentListSerializer
         return StudentSerializer
-    
+
     @check_quota('students')
     def create(self, request, *args, **kwargs):
         """Create student with quota check."""
         return super().create(request, *args, **kwargs)
-    
+
     def get_permissions(self):
         """Restrict create/update/delete to admins only."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsTenantAdmin()]
         return super().get_permissions()
-    
+
     def perform_destroy(self, instance):
         """Soft delete — keep record, hide from active lists."""
+        resource_id = str(instance.pk)
         instance.is_active = False
         instance.save(update_fields=['is_active', 'updated_at'])
+        # Audit soft-delete as DELETE action
+        if self.audit_resource_type:
+            try:
+                TenantAuditService.log(
+                    user=self.request.user,
+                    action=AuditAction.DELETE,
+                    resource_type=self.audit_resource_type,
+                    resource_id=resource_id,
+                    academy=self._get_audit_academy(),
+                    request=self.request,
+                )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception('StudentViewSet.perform_destroy audit log failed')

@@ -12,6 +12,10 @@ import {
   generateAcademyInviteLink,
   deleteAcademy,
   exportAcademy,
+  getAcademyWhatsappConfig,
+  updateAcademyWhatsappConfig,
+  testSendAcademyWhatsapp,
+  getAcademyNotificationLogs,
 } from '../services/api';
 import type {
   AcademiesListResponse,
@@ -19,11 +23,19 @@ import type {
   AcademyQuota,
   AcademySubscription,
   CreateAcademyRequest,
+  AcademyWhatsAppConfig,
+  AcademyWhatsAppConfigUpdateRequest,
   UpdateAcademyRequest,
   UpdateAcademyPlanRequest,
   UpdateAcademyQuotaRequest,
   AcademyInviteLinkResponse,
   AcademyInviteLinkRequest,
+  NotificationChannel,
+  NotificationDocType,
+  NotificationLogsListResponse,
+  NotificationStatus,
+  WhatsAppTestSendRequest,
+  WhatsappTestSendResponse,
 } from '../types';
 
 /**
@@ -169,4 +181,72 @@ export const useAcademyInviteLink = () => {
       mutationFn: ({ id, data }) => generateAcademyInviteLink(id, data),
     }
   );
+};
+
+/**
+ * Hook for fetching academy WhatsApp config.
+ * Returns null if config does not exist (API returns 404).
+ */
+export const useAcademyWhatsappConfig = (id: number | string | undefined) => {
+  return useQuery<AcademyWhatsAppConfig | null, Error>({
+    queryKey: ['academies', 'whatsapp-config', id],
+    queryFn: async () => {
+      if (!id) return null;
+      try {
+        return await getAcademyWhatsappConfig(id);
+      } catch (err: any) {
+        const statusCode = err?.response?.status;
+        if (statusCode === 404) return null;
+        throw err;
+      }
+    },
+    enabled: !!id,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useUpdateAcademyWhatsappConfig = (id: number | string | undefined) => {
+  const queryClient = useQueryClient();
+  return useMutation<AcademyWhatsAppConfig, Error, AcademyWhatsAppConfigUpdateRequest>({
+    mutationFn: (data) => {
+      if (!id) throw new Error('Missing academy id');
+      return updateAcademyWhatsappConfig(id, data);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['academies', 'whatsapp-config', id] });
+    },
+  });
+};
+
+export const useTestSendAcademyWhatsapp = (id: number | string | undefined) => {
+  return useMutation<WhatsappTestSendResponse, Error, WhatsAppTestSendRequest>({
+    mutationFn: (data) => {
+      if (!id) throw new Error('Missing academy id');
+      return testSendAcademyWhatsapp(id, data);
+    },
+  });
+};
+
+export const useAcademyNotificationLogs = (
+  id: number | string | undefined,
+  params?: {
+    channel?: NotificationChannel;
+    status?: NotificationStatus;
+    doc_type?: NotificationDocType;
+    page?: number;
+  },
+) => {
+  return useQuery<NotificationLogsListResponse, Error>({
+    queryKey: ['academies', 'notification-logs', id, params],
+    queryFn: () => {
+      if (!id) {
+        throw new Error('Missing academy id');
+      }
+      return getAcademyNotificationLogs(id, params);
+    },
+    enabled: !!id,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
 };

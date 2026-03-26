@@ -42,6 +42,12 @@ export const API_ENDPOINTS = {
       QUOTA: (id: number | string) => `/api/v1/platform/academies/${id}/quota/`,
       INVITE_LINK: (id: number | string) => `/api/v1/platform/academies/${id}/invite-link/`,
       EXPORT: (id: number | string) => `/api/v1/platform/academies/${id}/export/`,
+        WHATSAPP_CONFIG: (id: number | string) =>
+          `/api/v1/platform/academies/${id}/whatsapp-config/`,
+        WHATSAPP_CONFIG_TEST_SEND: (id: number | string) =>
+          `/api/v1/platform/academies/${id}/whatsapp-config/test-send/`,
+        NOTIFICATION_LOGS: (id: number | string) =>
+          `/api/v1/platform/academies/${id}/notification-logs/`,
     },
     PLANS: {
       LIST: '/api/v1/platform/plans/',
@@ -92,6 +98,7 @@ export const API_ENDPOINTS = {
     PORTAL: {
       STUDENT_DETAIL: (id: number | string) => `/api/v1/tenant/portal/students/${id}/`,
     },
+    AUDIT_LOGS: '/api/v1/tenant/audit-logs/',
     OVERVIEW: '/api/v1/tenant/overview/',
     REPORTS: '/api/v1/tenant/reports/',
     REPORTS_EXPORT: '/api/v1/tenant/reports/export/',
@@ -162,6 +169,9 @@ export const API_ENDPOINTS = {
         DETAIL: (id: number | string) => `/api/v1/tenant/invoices/${id}/`,
         UPDATE: (id: number | string) => `/api/v1/tenant/invoices/${id}/`,
         DELETE: (id: number | string) => `/api/v1/tenant/invoices/${id}/`,
+        NOTIFICATION_LOGS: (id: number | string) => `/api/v1/tenant/invoices/${id}/notification-logs/`,
+        RESEND_NOTIFICATIONS: (id: number | string) => `/api/v1/tenant/invoices/${id}/resend-notifications/`,
+        PDF_PREVIEW: (id: number | string) => `/api/v1/tenant/invoices/${id}/pdf/preview/`,
       },
       RECEIPTS: {
         LIST: '/api/v1/tenant/receipts/',
@@ -169,6 +179,9 @@ export const API_ENDPOINTS = {
         DETAIL: (id: number | string) => `/api/v1/tenant/receipts/${id}/`,
         UPDATE: (id: number | string) => `/api/v1/tenant/receipts/${id}/`,
         DELETE: (id: number | string) => `/api/v1/tenant/receipts/${id}/`,
+        NOTIFICATION_LOGS: (id: number | string) => `/api/v1/tenant/receipts/${id}/notification-logs/`,
+        RESEND_NOTIFICATIONS: (id: number | string) => `/api/v1/tenant/receipts/${id}/resend-notifications/`,
+        PDF_PREVIEW: (id: number | string) => `/api/v1/tenant/receipts/${id}/pdf/preview/`,
       },
     },
     FACILITIES: {

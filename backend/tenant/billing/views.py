@@ -13,6 +13,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import OuterRef, Subquery
 from django.shortcuts import get_object_or_404
 
 from tenant.billing.models import (
@@ -45,12 +46,16 @@ from tenant.billing.serializers import (
 )
 from tenant.billing.services import InvoiceService
 from tenant.billing.tasks import evaluate_session_schedules, evaluate_monthly_schedules
+from tenant.notifications.models import NotificationLog
 from tenant.students.models import Parent
 from shared.permissions.tenant import (
     IsTenantAdmin, IsParent,
     IsTenantAdminOrParent
 )
 from shared.utils.queryset_filtering import filter_by_academy
+from shared.mixins.audit import AuditMixin
+from saas_platform.audit.models import ResourceType, AuditAction
+from saas_platform.audit.services import TenantAuditService
 
 
 class ItemViewSet(viewsets.ModelViewSet):
@@ -93,9 +98,10 @@ class ItemViewSet(viewsets.ModelViewSet):
         instance.save(update_fields=['is_active', 'updated_at'])
 
 
-class InvoiceViewSet(viewsets.ModelViewSet):
+class InvoiceViewSet(AuditMixin, viewsets.ModelViewSet):
     """ViewSet for Invoice model."""
 
+    audit_resource_type = ResourceType.INVOICE
     required_tenant_module = 'invoices'
     
     queryset = Invoice.objects.all()
@@ -111,23 +117,51 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         """Filter by academy and parent visibility."""
         queryset = super().get_queryset()
         
-        # Superadmin can see all
-        if hasattr(self.request.user, 'role') and self.request.user.role == 'SUPERADMIN':
-            return queryset.select_related('schedule__billing_item', 'academy')
-        
-        # Parents can only see their own invoices
+        # Superadmin can see all; others are tenant/visibility scoped.
         if hasattr(self.request.user, 'role') and self.request.user.role == 'PARENT':
             if hasattr(self.request.user, 'email'):
                 queryset = queryset.filter(parent__email=self.request.user.email)
             else:
                 queryset = queryset.none()
-        else:
+        elif not (hasattr(self.request.user, 'role') and self.request.user.role == 'SUPERADMIN'):
             # Admin/Owner: filter by academy
             queryset = filter_by_academy(
                 queryset,
                 self.request.academy,
                 self.request.user,
                 self.request
+            )
+
+        if self.action == 'list':
+            # Avoid N+1s for list rendering (parent/sport/location/receipts),
+            # and pre-load WhatsApp config for visibility guards.
+            queryset = queryset.select_related(
+                'schedule__billing_item',
+                'academy',
+                'academy__whatsapp_config',
+                'parent',
+                'sport',
+                'location',
+            ).prefetch_related('receipts')
+
+            # Latest status per channel for this invoice (doc_type=INVOICE, object_id=invoice.id).
+            email_status_subquery = NotificationLog.objects.filter(
+                academy=OuterRef('academy_id'),
+                doc_type=NotificationLog.DocType.INVOICE,
+                object_id=OuterRef('pk'),
+                channel=NotificationLog.Channel.EMAIL,
+            ).order_by('-sent_at', '-id').values('status')[:1]
+
+            whatsapp_status_subquery = NotificationLog.objects.filter(
+                academy=OuterRef('academy_id'),
+                doc_type=NotificationLog.DocType.INVOICE,
+                object_id=OuterRef('pk'),
+                channel=NotificationLog.Channel.WHATSAPP,
+            ).order_by('-sent_at', '-id').values('status')[:1]
+
+            return queryset.annotate(
+                notification_email_status=Subquery(email_status_subquery),
+                notification_whatsapp_status=Subquery(whatsapp_status_subquery),
             )
 
         return queryset.select_related('schedule__billing_item', 'academy')
@@ -304,17 +338,42 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             
             response_serializer = InvoiceDetailSerializer(invoice)
             response_data = response_serializer.data
-            
+
             if receipt:
                 receipt_data = ReceiptSerializer(receipt).data
                 response_data['receipt'] = receipt_data
-            
+
+            TenantAuditService.log(
+                user=request.user,
+                action=AuditAction.MARK_PAID,
+                resource_type=ResourceType.INVOICE,
+                resource_id=str(invoice.pk),
+                academy=getattr(request, 'academy', None),
+                request=request,
+            )
+
             return Response(response_data)
         except ValidationError as e:
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="pdf/preview",
+        permission_classes=[IsTenantAdminOrParent],
+    )
+    def pdf_preview(self, request, pk=None):
+        """Generate (if needed) and return a presigned URL for the invoice PDF."""
+        invoice = self.get_object()
+        from tenant.notifications.pdf_service import PDFService
+
+        pdf_service = PDFService()
+        s3_key = pdf_service.generate_invoice_pdf(invoice.id)
+        preview_url = pdf_service.get_presigned_url(s3_key, expiry_seconds=900)
+        return Response({"preview_url": preview_url}, status=status.HTTP_200_OK)
     
     def get_object(self):
         """Get object with permission check."""
@@ -330,8 +389,10 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         return obj
 
 
-class ReceiptViewSet(viewsets.ModelViewSet):
+class ReceiptViewSet(AuditMixin, viewsets.ModelViewSet):
     """ViewSet for Receipt model."""
+
+    audit_resource_type = ResourceType.PAYMENT
 
     required_tenant_module = 'receipts'
     
@@ -444,6 +505,22 @@ class ReceiptViewSet(viewsets.ModelViewSet):
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="pdf/preview",
+        permission_classes=[IsTenantAdminOrParent],
+    )
+    def pdf_preview(self, request, pk=None):
+        """Generate (if needed) and return a presigned URL for the receipt PDF."""
+        receipt = self.get_object()
+        from tenant.notifications.pdf_service import PDFService
+
+        pdf_service = PDFService()
+        s3_key = pdf_service.generate_receipt_pdf(receipt.id)
+        preview_url = pdf_service.get_presigned_url(s3_key, expiry_seconds=900)
+        return Response({"preview_url": preview_url}, status=status.HTTP_200_OK)
     
     def get_object(self):
         """Get object with permission check."""

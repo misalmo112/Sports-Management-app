@@ -20,6 +20,8 @@ This document defines the complete environment variable contract for the Sports 
 | `LANGUAGE_CODE` | No | `en-us` | Default language code | `en-us` |
 | `USE_TZ` | No | `True` | Use timezone-aware datetimes | `True` |
 
+| `PLATFORM_BASE_URL` | No | `http://localhost:8000` | Base URL used when building notification links | `https://app.example.com` |
+
 #### Environment Identification
 
 | Variable | Required | Default | Description | Example |
@@ -181,6 +183,14 @@ Sync runs via Celery Beat (daily for Frankfurter, weekly for WorldTimeAPI) or ma
 | `EMAIL_FROM` | No | - | Default from email | `noreply@example.com` |
 | `EMAIL_SUBJECT_PREFIX` | No | `[Sports Academy]` | Email subject prefix | `[Sports Academy]` |
 
+#### SendGrid (Invoice & Receipt Notifications)
+
+| Variable | Required | Default | Description | Example |
+|----------|----------|---------|-------------|---------|
+| `SENDGRID_API_KEY` | Yes | - | SendGrid API key | `SG.xxxxx` |
+| `SENDGRID_FROM_EMAIL` | No | `noreply@platform.com` | Sender email used for notification emails | `noreply@platform.com` |
+| `SENDGRID_FROM_NAME` | No | `Sports Academy Platform` | Sender display name used for notification emails | `Sports Academy Platform` |
+
 #### Google Cloud Email (Production)
 
 | Variable | Required | Default | Description | Example |
@@ -220,6 +230,7 @@ Sync runs via Celery Beat (daily for Frankfurter, weekly for WorldTimeAPI) or ma
 | `SECURE_CONTENT_TYPE_NOSNIFF` | No | `True` | X-Content-Type-Options | `True` |
 | `SECURE_BROWSER_XSS_FILTER` | No | `True` | X-XSS-Protection | `True` |
 | `X_FRAME_OPTIONS` | No | `DENY` | X-Frame-Options | `DENY` |
+| `FERNET_SECRET_KEY` | Yes | - | Fernet base64-url-safe 32-byte key used to encrypt WhatsApp access tokens | `your-fernet-secret-key` |
 
 ### 11. API Configuration
 

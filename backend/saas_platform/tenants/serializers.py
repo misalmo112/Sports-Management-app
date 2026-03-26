@@ -1,12 +1,14 @@
 from rest_framework import serializers
 from django.db.models import Sum
-from saas_platform.tenants.models import Academy
+from saas_platform.tenants.models import Academy, AcademyWhatsAppConfig
 from saas_platform.masters.models import Country, Currency, Timezone
 from django.contrib.auth import get_user_model
 from shared.tenancy.schema import schema_context
 from django.db import connection
 from saas_platform.subscriptions.serializers import SubscriptionSerializer
 from saas_platform.quotas.serializers import TenantQuotaSerializer
+from tenant.notifications.models import NotificationLog
+from shared.utils.phone import normalize_to_e164
 
 
 class AcademySerializer(serializers.ModelSerializer):
@@ -363,3 +365,106 @@ class QuotaUpdateSerializer(serializers.Serializer):
                 )
         
         return attrs
+
+
+class AcademyWhatsAppConfigResponseSerializer(serializers.ModelSerializer):
+    """
+    Platform response serializer for per-academy WhatsApp configuration.
+
+    SECURITY: access_token_encrypted is always masked in API responses.
+    """
+
+    access_token_encrypted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AcademyWhatsAppConfig
+        fields = [
+            "is_enabled",
+            "send_on_invoice_created",
+            "send_on_receipt_created",
+            "phone_number_id",
+            "access_token_encrypted",
+            "waba_id",
+            "invoice_template_name",
+            "receipt_template_name",
+            "template_language",
+            "verified",
+            "configured_at",
+        ]
+        read_only_fields = fields
+
+    def get_access_token_encrypted(self, _obj) -> str:
+        return "********"
+
+
+class AcademyWhatsAppConfigUpsertSerializer(serializers.Serializer):
+    """
+    Platform update serializer.
+
+    - access_token is write-only and may be blank/empty.
+    - When access_token is blank/empty, views must NOT overwrite
+      access_token_encrypted.
+    """
+
+    is_enabled = serializers.BooleanField(required=False)
+    send_on_invoice_created = serializers.BooleanField(required=False)
+    send_on_receipt_created = serializers.BooleanField(required=False)
+    phone_number_id = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    access_token = serializers.CharField(required=False, allow_blank=True, write_only=True, max_length=5000)
+    waba_id = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    invoice_template_name = serializers.CharField(required=False, allow_blank=True, max_length=128)
+    receipt_template_name = serializers.CharField(required=False, allow_blank=True, max_length=128)
+    template_language = serializers.CharField(required=False, allow_blank=True, max_length=16)
+
+    # verified is intentionally not writable from the UI.
+    verified = serializers.BooleanField(read_only=True)
+
+    def validate(self, attrs):
+        # Normalize "blank" tokens (e.g. whitespace) to "" so the view can
+        # apply the "don't overwrite encrypted token when blank" rule.
+        if "access_token" in attrs and attrs["access_token"] is not None:
+            attrs["access_token"] = str(attrs["access_token"]).strip()
+        return attrs
+
+
+class WhatsAppTestSendSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(max_length=32)
+
+    def validate_phone_number(self, value: str) -> str:
+        academy_country = (self.context.get("academy_country") or "ARE").strip()
+        normalized = normalize_to_e164(value, academy_country=academy_country)
+        if not normalized:
+            raise serializers.ValidationError("Phone could not be normalized to E.164")
+        return normalized
+
+
+class NotificationLogQuerySerializer(serializers.Serializer):
+    channel = serializers.ChoiceField(choices=NotificationLog.Channel.choices, required=False)
+    status = serializers.ChoiceField(choices=NotificationLog.Status.choices, required=False)
+    doc_type = serializers.ChoiceField(choices=NotificationLog.DocType.choices, required=False)
+    page = serializers.IntegerField(required=False, min_value=1)
+
+
+class PlatformNotificationLogSerializer(serializers.ModelSerializer):
+    """
+    Serializer shape optimized for the platform notification log table.
+    """
+
+    recipient = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NotificationLog
+        fields = [
+            "channel",
+            "doc_type",
+            "object_id",
+            "recipient",
+            "recipient_email",
+            "recipient_phone",
+            "status",
+            "sent_at",
+            "error_detail",
+        ]
+
+    def get_recipient(self, obj: NotificationLog) -> str:
+        return obj.recipient_phone or obj.recipient_email or "-"

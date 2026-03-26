@@ -9,11 +9,19 @@ import type {
   AcademyQuota,
   AcademySubscription,
   CreateAcademyRequest,
+  AcademyWhatsAppConfig,
+  AcademyWhatsAppConfigUpdateRequest,
   UpdateAcademyRequest,
   UpdateAcademyPlanRequest,
   UpdateAcademyQuotaRequest,
   AcademyInviteLinkResponse,
   AcademyInviteLinkRequest,
+  NotificationDocType,
+  NotificationLogsListResponse,
+  NotificationStatus,
+  NotificationChannel,
+  WhatsAppTestSendRequest,
+  WhatsappTestSendResponse,
 } from '../types';
 
 /**
@@ -157,5 +165,71 @@ export const generateAcademyInviteLink = async (
     API_ENDPOINTS.PLATFORM.ACADEMIES.INVITE_LINK(id),
     data
   );
+  return response.data;
+};
+
+/**
+ * Get WhatsApp config for an academy (platform superadmin).
+ */
+export const getAcademyWhatsappConfig = async (
+  id: number | string,
+): Promise<AcademyWhatsAppConfig> => {
+  const response = await apiClient.get<AcademyWhatsAppConfig>(
+    API_ENDPOINTS.PLATFORM.ACADEMIES.WHATSAPP_CONFIG(id),
+  );
+  return response.data;
+};
+
+/**
+ * Upsert WhatsApp config for an academy (platform superadmin).
+ */
+export const updateAcademyWhatsappConfig = async (
+  id: number | string,
+  data: AcademyWhatsAppConfigUpdateRequest,
+): Promise<AcademyWhatsAppConfig> => {
+  const response = await apiClient.put<AcademyWhatsAppConfig>(
+    API_ENDPOINTS.PLATFORM.ACADEMIES.WHATSAPP_CONFIG(id),
+    data,
+  );
+  return response.data;
+};
+
+/**
+ * Send a test WhatsApp template message (platform superadmin).
+ */
+export const testSendAcademyWhatsapp = async (
+  id: number | string,
+  data: WhatsAppTestSendRequest,
+): Promise<WhatsappTestSendResponse> => {
+  const response = await apiClient.post<WhatsappTestSendResponse>(
+    API_ENDPOINTS.PLATFORM.ACADEMIES.WHATSAPP_CONFIG_TEST_SEND(id),
+    data,
+  );
+  return response.data;
+};
+
+/**
+ * View notification delivery logs for an academy (platform superadmin).
+ */
+export const getAcademyNotificationLogs = async (
+  id: number | string,
+  params?: {
+    channel?: NotificationChannel;
+    status?: NotificationStatus;
+    doc_type?: NotificationDocType;
+    page?: number;
+  },
+): Promise<NotificationLogsListResponse> => {
+  const queryParams = new URLSearchParams();
+  if (params?.channel) queryParams.append('channel', params.channel);
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.doc_type) queryParams.append('doc_type', params.doc_type);
+  if (params?.page) queryParams.append('page', params.page.toString());
+
+  const url = queryParams.toString()
+    ? `${API_ENDPOINTS.PLATFORM.ACADEMIES.NOTIFICATION_LOGS(id)}?${queryParams.toString()}`
+    : API_ENDPOINTS.PLATFORM.ACADEMIES.NOTIFICATION_LOGS(id);
+
+  const response = await apiClient.get<NotificationLogsListResponse>(url);
   return response.data;
 };

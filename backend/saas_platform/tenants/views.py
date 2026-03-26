@@ -5,20 +5,25 @@ from django.http import HttpResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
 from django.conf import settings
 from django.utils import timezone
-from saas_platform.tenants.models import Academy
+from saas_platform.tenants.models import Academy, AcademyWhatsAppConfig
 from saas_platform.tenants.export_service import build_academy_export_zip
 from saas_platform.tenants.serializers import (
     AcademySerializer,
     AcademyCreateSerializer,
     AcademyListSerializer,
     PlanUpdateSerializer,
-    QuotaUpdateSerializer
+    QuotaUpdateSerializer,
+    AcademyWhatsAppConfigResponseSerializer,
+    AcademyWhatsAppConfigUpsertSerializer,
+    WhatsAppTestSendSerializer,
+    NotificationLogQuerySerializer,
+    PlatformNotificationLogSerializer,
 )
 from saas_platform.quotas.serializers import StorageSnapshotSerializer
 from saas_platform.quotas.models import StorageSnapshot
@@ -29,6 +34,8 @@ from shared.permissions.platform import IsPlatformAdmin
 from shared.tenancy.schema import schema_context
 from tenant.users.models import User
 from tenant.users.services import UserService
+from tenant.notifications.models import NotificationLog
+from shared.utils.encryption import encrypt_value
 
 logger = logging.getLogger(__name__)
 
@@ -433,3 +440,126 @@ class AcademyViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    @action(
+        detail=True,
+        methods=["get", "put"],
+        url_path="whatsapp-config",
+        permission_classes=[IsPlatformAdmin],
+    )
+    def whatsapp_config(self, request, pk=None):
+        """
+        GET /api/v1/platform/academies/{id}/whatsapp-config/
+
+        Returns AcademyWhatsAppConfig for this academy.
+        SECURITY: access_token_encrypted is masked.
+        """
+        academy = self.get_object()
+        if request.method == "GET":
+            config = AcademyWhatsAppConfig.objects.filter(academy=academy).first()
+            if not config:
+                raise NotFound("WhatsApp config not found.")
+            serializer = AcademyWhatsAppConfigResponseSerializer(config)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # PUT: create/update.
+        serializer = AcademyWhatsAppConfigUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+
+        config, _created = AcademyWhatsAppConfig.objects.get_or_create(academy=academy)
+
+        # Update scalar fields (when present). Partial updates are supported.
+        updatable_fields = [
+            "is_enabled",
+            "send_on_invoice_created",
+            "send_on_receipt_created",
+            "phone_number_id",
+            "waba_id",
+            "invoice_template_name",
+            "receipt_template_name",
+            "template_language",
+        ]
+        for field in updatable_fields:
+            if field in validated:
+                setattr(config, field, validated[field])
+
+        # Encrypt/update token only when non-empty provided.
+        access_token = validated.get("access_token", None)
+        if access_token is not None and str(access_token).strip() != "":
+            config.access_token_encrypted = encrypt_value(str(access_token).strip())
+
+        config.configured_by = request.user
+        config.configured_at = timezone.now()
+        config.save()
+
+        response_serializer = AcademyWhatsAppConfigResponseSerializer(config)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="whatsapp-config/test-send",
+        permission_classes=[IsPlatformAdmin],
+    )
+    def whatsapp_config_test_send(self, request, pk=None):
+        """
+        POST /api/v1/platform/academies/{id}/whatsapp-config/test-send/
+
+        Fires a test WhatsApp template message to the given phone.
+        """
+        academy = self.get_object()
+        config = AcademyWhatsAppConfig.objects.filter(academy=academy).first()
+        if not config:
+            return Response(
+                {"detail": "WhatsApp config not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = WhatsAppTestSendSerializer(
+            data=request.data,
+            context={"academy_country": getattr(academy, "country", "") or "ARE"},
+        )
+        serializer.is_valid(raise_exception=True)
+        phone = serializer.validated_data["phone_number"]
+
+        # Dispatch asynchronously (Celery task). Endpoint returns 202 immediately.
+        from tenant.notifications.tasks import send_whatsapp_test_notification
+
+        send_whatsapp_test_notification.delay(str(academy.id), phone)
+        return Response({"detail": "Test message accepted."}, status=status.HTTP_202_ACCEPTED)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="notification-logs",
+        permission_classes=[IsPlatformAdmin],
+    )
+    def notification_logs(self, request, pk=None):
+        """
+        GET /api/v1/platform/academies/{id}/notification-logs/
+        """
+        academy = self.get_object()
+
+        query_serializer = NotificationLogQuerySerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        filters = query_serializer.validated_data
+
+        with schema_context(academy.schema_name) as _schema_active:
+            qs = NotificationLog.objects.filter(academy=academy)
+            if "channel" in filters:
+                qs = qs.filter(channel=filters["channel"])
+            if "status" in filters:
+                qs = qs.filter(status=filters["status"])
+            if "doc_type" in filters:
+                qs = qs.filter(doc_type=filters["doc_type"])
+
+            qs = qs.order_by("-sent_at")
+
+            page = self.paginate_queryset(qs)
+            if page is not None:
+                data = PlatformNotificationLogSerializer(page, many=True).data
+                return self.get_paginated_response(data)
+
+            data = PlatformNotificationLogSerializer(qs, many=True).data
+            return Response(data, status=status.HTTP_200_OK)

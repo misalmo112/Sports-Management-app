@@ -167,6 +167,13 @@ class Invoice(models.Model):
     # Notes
     notes = models.TextField(blank=True)
     
+    # Invoice PDF / payment link stubs (for notification payloads)
+    pdf_s3_key = models.CharField(max_length=512, blank=True)
+    pdf_generated_at = models.DateTimeField(null=True, blank=True)
+    payment_link = models.URLField(max_length=512, blank=True)
+    payment_link_expires_at = models.DateTimeField(null=True, blank=True)
+    gateway_reference = models.CharField(max_length=128, blank=True)
+
     schedule = models.ForeignKey(
         'InvoiceSchedule',
         on_delete=models.SET_NULL,
@@ -481,6 +488,10 @@ class Receipt(models.Model):
     
     notes = models.TextField(blank=True)
     
+    # Receipt PDF stub (for notification payloads)
+    pdf_s3_key = models.CharField(max_length=512, blank=True)
+    pdf_generated_at = models.DateTimeField(null=True, blank=True)
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

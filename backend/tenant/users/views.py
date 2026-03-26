@@ -51,6 +51,9 @@ from shared.permissions.tenant import IsTenantAdmin, IsAuthenticatedAcademyUser
 from shared.permissions.base import IsSuperadmin
 from shared.utils.queryset_filtering import filter_by_academy
 from shared.services.quota import QuotaExceededError
+from shared.mixins.audit import AuditMixin
+from saas_platform.audit.models import ResourceType, AuditAction
+from saas_platform.audit.services import TenantAuditService
 from rest_framework import permissions
 from tenant.coaches.models import Coach
 from tenant.students.models import Parent
@@ -94,16 +97,17 @@ class ChangePasswordView(APIView):
         )
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(AuditMixin, viewsets.ModelViewSet):
     """
     ViewSet for user management.
-    
+
     Provides:
     - List users (filtered by academy and role)
     - Retrieve user details
     - Update user (activate/deactivate, update profile)
     """
 
+    audit_resource_type = ResourceType.USER
     required_tenant_module = 'users'
     
     queryset = User.objects.all()
@@ -294,25 +298,38 @@ class UserViewSet(viewsets.ModelViewSet):
     def invite(self, request):
         """
         Generic invite endpoint that routes to role-specific endpoints.
-        
+
         POST /api/v1/tenant/users/invite/
         Expects: { role: 'ADMIN'|'STAFF'|'COACH'|'PARENT', email: str, ... }
         """
         role = request.data.get('role')
-        
+
         if role == User.Role.ADMIN:
-            return self.admins(request)
+            response = self.admins(request)
         elif role == User.Role.STAFF:
-            return self.staff_users(request)
+            response = self.staff_users(request)
         elif role == User.Role.COACH:
-            return self.coaches(request)
+            response = self.coaches(request)
         elif role == User.Role.PARENT:
-            return self.parents(request)
+            response = self.parents(request)
         else:
             return Response(
                 {'detail': f'Invalid role: {role}. Must be ADMIN, STAFF, COACH, or PARENT.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        if response.status_code in (200, 201):
+            TenantAuditService.log(
+                user=request.user,
+                action=AuditAction.INVITE,
+                resource_type=ResourceType.USER,
+                resource_id=request.data.get('email', ''),
+                academy=getattr(request, 'academy', None),
+                changes_json={'role': role},
+                request=request,
+            )
+
+        return response
     
     @action(detail=False, methods=['post'], permission_classes=[CanCreateUsers])
     def admins(self, request):

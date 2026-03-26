@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from shared.permissions.tenant import IsTenantAdmin
 from shared.utils.queryset_filtering import filter_by_academy
+from shared.mixins.audit import AuditMixin
+from saas_platform.audit.models import ResourceType
 from tenant.facilities.models import (
     Bill,
     BillLineItem,
@@ -46,7 +48,8 @@ from tenant.facilities.tasks import (
 )
 
 
-class FacilityRentConfigViewSet(viewsets.ModelViewSet):
+class FacilityRentConfigViewSet(AuditMixin, viewsets.ModelViewSet):
+    audit_resource_type = ResourceType.FACILITY
     required_tenant_module = 'facilities'
     queryset = FacilityRentConfig.objects.all()
     serializer_class = FacilityRentConfigSerializer

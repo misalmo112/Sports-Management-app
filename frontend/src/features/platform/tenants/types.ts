@@ -145,3 +145,62 @@ export interface AcademyInviteLinkRequest {
   email?: string;
   force?: boolean;
 }
+
+export interface AcademyWhatsAppConfig {
+  is_enabled: boolean;
+  send_on_invoice_created: boolean;
+  send_on_receipt_created: boolean;
+  phone_number_id: string;
+  access_token_encrypted: string; // masked as ******** on read
+  waba_id: string;
+  invoice_template_name: string;
+  receipt_template_name: string;
+  template_language: string;
+  verified: boolean;
+  configured_at?: string;
+}
+
+export interface AcademyWhatsAppConfigUpdateRequest {
+  is_enabled?: boolean;
+  send_on_invoice_created?: boolean;
+  send_on_receipt_created?: boolean;
+  phone_number_id?: string;
+  // Write-only token. Send an empty string to avoid overwriting the encrypted token.
+  access_token?: string;
+  waba_id?: string;
+  invoice_template_name?: string;
+  receipt_template_name?: string;
+  template_language?: string;
+}
+
+export interface WhatsAppTestSendRequest {
+  phone_number: string;
+}
+
+export interface WhatsappTestSendResponse {
+  detail?: string;
+}
+
+export type NotificationChannel = 'WHATSAPP' | 'EMAIL';
+export type NotificationDocType = 'INVOICE' | 'RECEIPT';
+export type NotificationStatus = 'SENT' | 'FAILED' | 'SKIPPED';
+
+export interface NotificationLogRow {
+  channel: NotificationChannel;
+  doc_type: NotificationDocType;
+  object_id: number;
+  recipient: string;
+  recipient_email: string;
+  recipient_phone: string;
+  status: NotificationStatus;
+  sent_at: string;
+  error_detail: string;
+}
+
+export interface NotificationLogsListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: NotificationLogRow[];
+}
+

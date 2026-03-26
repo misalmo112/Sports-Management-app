@@ -122,3 +122,58 @@ All endpoints require superadmin authentication (IsPlatformAdmin permission).
 - ✅ Proper separation of concerns (models, services, views)
 - ✅ Comprehensive unit tests
 - ✅ RESTful API design
+
+## Notification System (Email + WhatsApp)
+
+This feature adds an automated invoice/receipt notification pipeline (Email via SendGrid + WhatsApp via WA Cloud API), including PDF generation and per-academy configuration/logging.
+
+### New / Updated Backend Components
+- **New Django app**: `tenant.notifications`
+- **Platform model**: `AcademyWhatsAppConfig` (`saas_platform/tenants/models.py`)
+- **Tenant model**: `NotificationLog` (`tenant/notifications/models.py`)
+- **Invoice/Receipt document fields** (`tenant/billing/models.py`):
+  - `Invoice.pdf_s3_key`, `Invoice.pdf_generated_at`
+  - `Invoice.payment_link`, `Invoice.payment_link_expires_at`, `Invoice.gateway_reference`
+  - `Receipt.pdf_s3_key`, `Receipt.pdf_generated_at`
+
+### Core Utilities / Services
+- **Encryption**: `shared/utils/encryption.py` (`encrypt_value`, `decrypt_value`) using `FERNET_SECRET_KEY`
+- **Phone normalization**: `shared/utils/phone.py` (`normalize_to_e164`) for GCC/ARE formats
+- **PDF generation**: `tenant/notifications/pdf_service.py` (`PDFService`)
+  - Renders HTML templates via Django templates
+  - Converts HTML -> PDF via WeasyPrint
+  - Uploads PDFs to S3/MinIO and stores `pdf_s3_key` on Invoice/Receipt
+  - Generates presigned URLs for email/WhatsApp
+- **Email dispatch**: `tenant/notifications/email_service.py` (`EmailNotificationService`)
+  - Sends branded invoice/receipt emails via SendGrid
+  - Logs outcomes to `NotificationLog`
+- **WhatsApp dispatch**: `tenant/notifications/whatsapp_service.py` (`WhatsAppNotificationService`)
+  - Sends templated WA messages using per-academy encrypted credentials
+  - Logs outcomes to `NotificationLog` (never logging decrypted access tokens)
+
+### Celery Tasks
+- `tenant.notifications.tasks.send_email_notification` (exponential backoff, up to 3 retries)
+- `tenant.notifications.tasks.send_whatsapp_notification` (exponential backoff, up to 3 retries)
+- `tenant.notifications.tasks.send_whatsapp_test_notification` (used by superadmin “test-send”)
+
+### Signals and API Endpoints
+- **Signals**: `tenant/notifications/signals.py`
+  - Invoice status transition into `SENT` queues both email + WhatsApp notifications
+  - Receipt creation queues both email + WhatsApp notifications
+- **Webhook stub**: `POST /api/v1/webhooks/payments/`
+- **Tenant resend endpoints**:
+  - `POST /api/v1/tenant/invoices/{id}/resend-notifications/`
+  - `POST /api/v1/tenant/receipts/{id}/resend-notifications/`
+- **Tenant notification log queries**:
+  - `GET /api/v1/tenant/invoices/{id}/notification-logs/`
+  - `GET /api/v1/tenant/receipts/{id}/notification-logs/`
+- **Superadmin platform endpoints**:
+  - `GET /api/v1/platform/academies/{id}/whatsapp-config/`
+  - `PUT /api/v1/platform/academies/{id}/whatsapp-config/`
+  - `POST /api/v1/platform/academies/{id}/whatsapp-config/test-send/`
+  - `GET /api/v1/platform/academies/{id}/notification-logs/`
+
+### Database Migrations Added
+- `tenant/notifications/migrations/0001_initial.py` (NotificationLog + initial app)
+- `saas_platform/tenants/migrations/0008_academywhatsappconfig.py` (AcademyWhatsAppConfig)
+- `tenant/billing/migrations/0005_invoice_gateway_reference_invoice_payment_link_and_more.py` (PDF + payment link fields)

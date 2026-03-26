@@ -38,6 +38,7 @@ import {
   PackageOpen,
   Globe,
   CircleDollarSign,
+  ClipboardList,
 } from 'lucide-react';
 
 /**
@@ -340,6 +341,14 @@ export const navigationConfig: Record<UserRole, NavigationGroup[]> = {
           path: '/dashboard/reports',
           icon: FileBarChart,
           roles: ['ADMIN', 'OWNER', 'STAFF'],
+          group: 'management',
+        },
+        {
+          id: 'activity-log',
+          label: 'Activity Log',
+          path: '/dashboard/academy/audit',
+          icon: ClipboardList,
+          roles: ['ADMIN', 'OWNER'],
           group: 'management',
         },
         {

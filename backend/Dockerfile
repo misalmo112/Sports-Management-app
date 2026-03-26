@@ -15,6 +15,18 @@ RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     curl \
+    libgobject-2.0-0 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libjpeg62-turbo \
+    libxml2 \
+    libxslt1.1 \
+    shared-mime-info \
+    fontconfig \
+    fonts-dejavu \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for runtime containers

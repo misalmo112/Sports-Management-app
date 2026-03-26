@@ -32,12 +32,30 @@ export function DashboardLayout({ className }: DashboardLayoutProps) {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
 
-  const pageTitle = location.pathname
-    .split('/')
-    .filter(Boolean)
-    .slice(-1)[0]
-    ?.replace(/-/g, ' ')
-    ?.replace(/\b\w/g, char => char.toUpperCase());
+  const pageTitle = (() => {
+    const segments = location.pathname.split('/').filter(Boolean);
+    const last = segments.at(-1) ?? '';
+    const secondLast = segments.at(-2) ?? '';
+    const thirdLast = segments.at(-3) ?? '';
+
+    const isNumericId = /^\d+$/.test(last);
+    const isUuidLike =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(last);
+
+    // Avoid showing raw IDs (e.g. /students/33 or /invoices/<uuid>) in the TopBar.
+    let base =
+      isNumericId || isUuidLike
+        ? secondLast
+        : last === 'edit' && (/^\d+$/.test(secondLast) || isUuidLike)
+          ? thirdLast
+          : last;
+
+    if (!base) base = 'Dashboard';
+
+    return base
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  })();
 
   return (
     <AcademySettingsProvider>

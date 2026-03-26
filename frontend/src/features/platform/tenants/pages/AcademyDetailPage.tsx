@@ -2,18 +2,54 @@
  * Academy Detail Page (Platform - SUPERADMIN)
  * View academy details
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
 import { Label } from '@/shared/components/ui/label';
 import { Input } from '@/shared/components/ui/input';
+import { Switch } from '@/shared/components/ui/switch';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-import { Settings, Link2, Copy, RefreshCw, AlertCircle, Download } from 'lucide-react';
-import { useAcademy, useAcademyInviteLink, useExportAcademy } from '../hooks/hooks';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
+import {
+  Settings,
+  Link2,
+  Copy,
+  RefreshCw,
+  AlertCircle,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
+import {
+  useAcademy,
+  useAcademyInviteLink,
+  useExportAcademy,
+  useAcademyWhatsappConfig,
+  useUpdateAcademyWhatsappConfig,
+  useTestSendAcademyWhatsapp,
+  useAcademyNotificationLogs,
+} from '../hooks/hooks';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
+import { EmptyState } from '@/shared/components/common/EmptyState';
+import { extractValidationErrors, formatErrorMessage } from '@/shared/utils/errorUtils';
 
 export const AcademyDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +59,77 @@ export const AcademyDetailPage = () => {
   const exportMutation = useExportAcademy();
   const [copied, setCopied] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+
+  // WhatsApp config (platform superadmin)
+  const {
+    data: whatsappConfig,
+    isLoading: isWhatsAppConfigLoading,
+    error: whatsappConfigError,
+  } = useAcademyWhatsappConfig(id);
+  const updateWhatsappConfigMutation = useUpdateAcademyWhatsappConfig(id);
+  const testSendWhatsappMutation = useTestSendAcademyWhatsapp(id);
+
+  const [showWhatsAppIntegration, setShowWhatsAppIntegration] = useState(true);
+  const defaultWaForm = {
+    is_enabled: false,
+    send_on_invoice_created: true,
+    send_on_receipt_created: true,
+    phone_number_id: '',
+    access_token: '',
+    waba_id: '',
+    invoice_template_name: 'academy_invoice_created',
+    receipt_template_name: 'academy_receipt_issued',
+    template_language: 'en',
+  };
+  const [waForm, setWaForm] = useState(defaultWaForm);
+
+  const [testPhoneNumber, setTestPhoneNumber] = useState('');
+  const [waNotice, setWaNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Notification logs (platform superadmin)
+  const [notificationLogChannel, setNotificationLogChannel] = useState<'__all__' | string>('__all__');
+  const [notificationLogStatus, setNotificationLogStatus] = useState<'__all__' | string>('__all__');
+  const [notificationLogDocType, setNotificationLogDocType] = useState<'__all__' | string>('__all__');
+  const [notificationLogPage, setNotificationLogPage] = useState(1);
+  const pageSize = 20;
+
+  const {
+    data: notificationLogsData,
+    isLoading: isNotificationLogsLoading,
+    error: notificationLogsError,
+    refetch: refetchNotificationLogs,
+  } = useAcademyNotificationLogs(id, {
+    channel: notificationLogChannel === '__all__' ? undefined : (notificationLogChannel as any),
+    status: notificationLogStatus === '__all__' ? undefined : (notificationLogStatus as any),
+    doc_type: notificationLogDocType === '__all__' ? undefined : (notificationLogDocType as any),
+    page: notificationLogPage,
+  });
+
+  useEffect(() => {
+    // Pre-fill test phone from academy when possible.
+    if (!testPhoneNumber && academy?.phone) {
+      setTestPhoneNumber(academy.phone);
+    }
+  }, [academy?.phone, testPhoneNumber]);
+
+  useEffect(() => {
+    if (isWhatsAppConfigLoading) return;
+    if (!whatsappConfig) {
+      setWaForm(defaultWaForm);
+      return;
+    }
+    setWaForm({
+      is_enabled: whatsappConfig.is_enabled,
+      send_on_invoice_created: whatsappConfig.send_on_invoice_created,
+      send_on_receipt_created: whatsappConfig.send_on_receipt_created,
+      phone_number_id: whatsappConfig.phone_number_id || '',
+      access_token: '',
+      waba_id: whatsappConfig.waba_id || '',
+      invoice_template_name: whatsappConfig.invoice_template_name || 'academy_invoice_created',
+      receipt_template_name: whatsappConfig.receipt_template_name || 'academy_receipt_issued',
+      template_language: whatsappConfig.template_language || 'en',
+    });
+  }, [whatsappConfig, isWhatsAppConfigLoading]);
   const inviteErrorResponse = (inviteMutation.error as any)?.response?.data;
   const inviteError =
     inviteErrorResponse?.detail ||
@@ -489,6 +596,400 @@ export const AcademyDetailPage = () => {
                 {academy.quota?.updated_at ? formatDateTime(academy.quota.updated_at) : 'N/A'}
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* WhatsApp Integration */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>WhatsApp Integration</CardTitle>
+                <CardDescription>Configure WhatsApp Business API credentials and templates.</CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowWhatsAppIntegration((v) => !v)}
+                className="shrink-0"
+              >
+                <ChevronDown className={showWhatsAppIntegration ? 'h-4 w-4' : 'h-4 w-4 rotate-180 transition-transform'} />
+              </Button>
+            </div>
+          </CardHeader>
+          {showWhatsAppIntegration ? (
+            <CardContent className="space-y-4">
+              {waNotice ? (
+                <Alert variant={waNotice.type === 'success' ? 'default' : 'destructive'}>
+                  <AlertDescription>{waNotice.message}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              {whatsappConfigError ? (
+                <ErrorState
+                  error={whatsappConfigError}
+                  onRetry={() => window.location.reload()}
+                  title="Failed to load WhatsApp config"
+                />
+              ) : null}
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label>Enabled</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Toggle WhatsApp dispatch for invoice/receipt events.
+                  </p>
+                </div>
+                <Switch
+                  checked={waForm.is_enabled}
+                  onCheckedChange={(checked) => setWaForm((prev) => ({ ...prev, is_enabled: checked }))}
+                  disabled={isWhatsAppConfigLoading}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone_number_id">Phone Number ID</Label>
+                  <Input
+                    id="phone_number_id"
+                    value={waForm.phone_number_id}
+                    onChange={(e) => setWaForm((prev) => ({ ...prev, phone_number_id: e.target.value }))}
+                    placeholder="e.g. 1234567890"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="access_token">Access Token</Label>
+                    {whatsappConfig?.verified ? (
+                      <Badge variant="default">Verified</Badge>
+                    ) : (
+                      <Badge variant="secondary">Not Verified</Badge>
+                    )}
+                  </div>
+                  <Input
+                    id="access_token"
+                    type="password"
+                    value={waForm.access_token}
+                    onChange={(e) => setWaForm((prev) => ({ ...prev, access_token: e.target.value }))}
+                    placeholder="********"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to keep the existing encrypted token.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="waba_id">WABA ID</Label>
+                  <Input
+                    id="waba_id"
+                    value={waForm.waba_id}
+                    onChange={(e) => setWaForm((prev) => ({ ...prev, waba_id: e.target.value }))}
+                    placeholder="e.g. waba_id"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="template_language">Template Language</Label>
+                  <Input
+                    id="template_language"
+                    value={waForm.template_language}
+                    onChange={(e) => setWaForm((prev) => ({ ...prev, template_language: e.target.value }))}
+                    placeholder="e.g. en"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="invoice_template_name">Invoice Template Name</Label>
+                  <Input
+                    id="invoice_template_name"
+                    value={waForm.invoice_template_name}
+                    onChange={(e) =>
+                      setWaForm((prev) => ({ ...prev, invoice_template_name: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="receipt_template_name">Receipt Template Name</Label>
+                  <Input
+                    id="receipt_template_name"
+                    value={waForm.receipt_template_name}
+                    onChange={(e) =>
+                      setWaForm((prev) => ({ ...prev, receipt_template_name: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="send_on_invoice_created">Send on Invoice Created</Label>
+                    <Switch
+                      id="send_on_invoice_created"
+                      checked={waForm.send_on_invoice_created}
+                      onCheckedChange={(checked) =>
+                        setWaForm((prev) => ({ ...prev, send_on_invoice_created: checked }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="send_on_receipt_created">Send on Receipt Created</Label>
+                    <Switch
+                      id="send_on_receipt_created"
+                      checked={waForm.send_on_receipt_created}
+                      onCheckedChange={(checked) =>
+                        setWaForm((prev) => ({ ...prev, send_on_receipt_created: checked }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="test_phone">Test phone number</Label>
+                    <Input
+                      id="test_phone"
+                      value={testPhoneNumber}
+                      onChange={(e) => setTestPhoneNumber(e.target.value)}
+                      placeholder="+971501234567"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      if (!id) return;
+                      setWaNotice(null);
+                      try {
+                        await testSendWhatsappMutation.mutateAsync({
+                          phone_number: testPhoneNumber,
+                        });
+                        setWaNotice({ type: 'success', message: 'Test message accepted.' });
+                        refetchNotificationLogs();
+                      } catch (err: any) {
+                        const validation = extractValidationErrors(err);
+                        const detail = validation?.non_field_errors?.[0] || formatErrorMessage(err);
+                        setWaNotice({ type: 'error', message: detail });
+                      }
+                    }}
+                    disabled={testSendWhatsappMutation.isPending || !testPhoneNumber}
+                  >
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    Send Test Message
+                  </Button>
+                </div>
+
+                <Button
+                  onClick={async () => {
+                    if (!id) return;
+                    setWaNotice(null);
+                    try {
+                      await updateWhatsappConfigMutation.mutateAsync({
+                        ...waForm,
+                        access_token: waForm.access_token ?? '',
+                      });
+                      setWaNotice({ type: 'success', message: 'WhatsApp configuration saved successfully.' });
+                    } catch (err: any) {
+                      const validation = extractValidationErrors(err);
+                      const detail = validation?.non_field_errors?.[0] || formatErrorMessage(err);
+                      setWaNotice({ type: 'error', message: detail });
+                    }
+                  }}
+                  disabled={updateWhatsappConfigMutation.isPending}
+                >
+                  {updateWhatsappConfigMutation.isPending ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            </CardContent>
+          ) : null}
+        </Card>
+
+        {/* Notification Logs */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Notification Logs</CardTitle>
+            <CardDescription>Track WhatsApp delivery attempts (with filtering and pagination).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end">
+              <div className="flex-1 space-y-2">
+                <Label>Channel</Label>
+                <Select
+                  value={notificationLogChannel}
+                  onValueChange={(v) => {
+                    setNotificationLogChannel(v);
+                    setNotificationLogPage(1);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by channel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All</SelectItem>
+                    <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                    <SelectItem value="EMAIL">Email</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex-1 space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={notificationLogStatus}
+                  onValueChange={(v) => {
+                    setNotificationLogStatus(v);
+                    setNotificationLogPage(1);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All</SelectItem>
+                    <SelectItem value="SENT">Sent</SelectItem>
+                    <SelectItem value="FAILED">Failed</SelectItem>
+                    <SelectItem value="SKIPPED">Skipped</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex-1 space-y-2">
+                <Label>Doc Type</Label>
+                <Select
+                  value={notificationLogDocType}
+                  onValueChange={(v) => {
+                    setNotificationLogDocType(v);
+                    setNotificationLogPage(1);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by doc type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All</SelectItem>
+                    <SelectItem value="INVOICE">Invoice</SelectItem>
+                    <SelectItem value="RECEIPT">Receipt</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {notificationLogsError ? (
+              <ErrorState
+                error={notificationLogsError}
+                onRetry={() => refetchNotificationLogs()}
+                title="Failed to load notification logs"
+              />
+            ) : isNotificationLogsLoading ? (
+              <LoadingState message="Loading notification logs..." />
+            ) : notificationLogsData?.results && notificationLogsData.results.length > 0 ? (
+              <>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Channel</TableHead>
+                        <TableHead>Doc Type</TableHead>
+                        <TableHead>Object ID</TableHead>
+                        <TableHead>Recipient</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Sent At</TableHead>
+                        <TableHead>Error</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {notificationLogsData.results.map((log) => (
+                        <TableRow key={`${log.channel}-${log.doc_type}-${log.object_id}-${log.sent_at}`}>
+                          <TableCell>
+                            {log.channel === 'WHATSAPP' ? (
+                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                                WhatsApp
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                                Email
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">{log.doc_type}</TableCell>
+                          <TableCell className="font-mono text-xs">{log.object_id}</TableCell>
+                          <TableCell>{log.recipient}</TableCell>
+                          <TableCell>
+                            {log.status === 'SENT' ? (
+                              <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                Sent
+                              </span>
+                            ) : log.status === 'FAILED' ? (
+                              <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                                Failed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                                Skipped
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              try {
+                                return new Date(log.sent_at).toLocaleString();
+                              } catch {
+                                return log.sent_at;
+                              }
+                            })()}
+                          </TableCell>
+                          <TableCell className="max-w-[320px] truncate">
+                            {log.error_detail ? log.error_detail : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {notificationLogsData.count > pageSize ? (
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {(notificationLogPage - 1) * pageSize + 1} to{' '}
+                      {Math.min(notificationLogPage * pageSize, notificationLogsData.count)} of{' '}
+                      {notificationLogsData.count} logs
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setNotificationLogPage((p) => Math.max(1, p - 1))}
+                        disabled={!notificationLogsData.previous || notificationLogPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        Previous
+                      </Button>
+                      <div className="flex items-center px-2 text-sm text-muted-foreground">
+                        Page {notificationLogPage} of {Math.ceil(notificationLogsData.count / pageSize)}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setNotificationLogPage((p) => p + 1)}
+                        disabled={!notificationLogsData.next}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <EmptyState
+                title="No notification logs found"
+                description="There are no delivery attempts matching your filters."
+              />
+            )}
           </CardContent>
         </Card>
 

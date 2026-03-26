@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'tenant.attendance',
     'tenant.users',
     'tenant.billing',
+    'tenant.notifications.apps.NotificationsConfig',
     'tenant.media',
     'tenant.facilities',
     'tenant.overview',
@@ -215,6 +216,14 @@ CORS_ALLOW_HEADERS = [
     'x-request-id',
 ]
 
+# Environment / error logging settings
+IS_PRODUCTION = os.getenv('IS_PRODUCTION', 'False') == 'True'
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
+ERROR_LOGGING_ENABLED = True
+ERROR_LOG_STACKTRACE_ENABLED = not IS_PRODUCTION
+# Kept for backward compatibility with handler.py
+ERROR_LOG_ENVIRONMENT = ENVIRONMENT
+
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -318,14 +327,17 @@ FRANKFURTER_RATE_BASES = [
 WORLDTIMEAPI_BASE_URL = os.getenv('WORLDTIMEAPI_BASE_URL', 'http://worldtimeapi.org/api')
 
 # Email configuration
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_BACKEND = 'sendgrid_backend.SendgridBackend'
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', default='')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('EMAIL_FROM', EMAIL_HOST_USER)
+SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', default='noreply@platform.com')
+SENDGRID_FROM_NAME = os.getenv('SENDGRID_FROM_NAME', default='Sports Academy Platform')
+DEFAULT_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', default='noreply@platform.com')
 
 # Attendance notifications
 # Default is `disabled` to preserve existing behavior.

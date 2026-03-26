@@ -400,6 +400,14 @@ export const ReceiptsListPage = () => {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => navigate(`/dashboard/finance/receipts/${receipt.id}`)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Receipt
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleEditClick(receipt)}
                               disabled={updateReceipt.isPending || deleteReceipt.isPending}
                             >

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, sans-serif; color: #111827;">
+    <p>Hello {{ parent_first_name }},</p>
+
+    <h2>{{ email_subject }}</h2>
+    <p>
+      Your invoice <strong>{{ invoice_number }}</strong> from <strong>{{ academy_name }}</strong> has been
+      generated.
+    </p>
+
+    <table style="border-collapse: collapse; width: 100%; margin-top: 14px; margin-bottom: 14px;">
+      <tr>
+        <td style="padding: 8px 0;">Total</td>
+        <td style="padding: 8px 0; text-align: right;">{{ total }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0;">Due date</td>
+        <td style="padding: 8px 0; text-align: right;">{{ due_date }}</td>
+      </tr>
+    </table>
+
+    <p style="margin-top: 16px;">
+      <a
+        href="{{ pdf_url }}"
+        style="background: #2563eb; color: #ffffff; padding: 10px 14px; text-decoration: none; border-radius: 6px; display: inline-block;"
+      >
+        Download PDF
+      </a>
+    </p>
+
+    {% if payment_url %}
+      <p style="margin-top: 10px;">
+        You can pay here:
+        <a href="{{ payment_url }}" style="color: #2563eb;">Pay now</a>
+      </p>
+    {% endif %}
+
+    <p style="margin-top: 18px;">Regards,<br/>{{ academy_name }}</p>
+  </body>
+</html>
+

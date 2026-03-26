@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/shared/components/ui/table';
 import { Badge } from '@/shared/components/ui/badge';
-import { Receipt, ArrowLeft, Edit, Trash2, CheckCircle2 } from 'lucide-react';
+import { Receipt, ArrowLeft, Edit, Trash2, CheckCircle2, AlertCircle, Mail, MessageCircle } from 'lucide-react';
 import { useInvoice, useUpdateInvoice, useDeleteInvoice } from '../hooks/hooks';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
@@ -30,11 +30,16 @@ import { Label } from '@/shared/components/ui/label';
 import { Input } from '@/shared/components/ui/input';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 import { extractValidationErrors, clearFieldError } from '@/shared/utils/errorUtils';
 import { useAcademyFormat } from '@/shared/hooks/useAcademyFormat';
-import type { UpdateInvoiceRequest } from '../types';
+import type { NotificationLog, NotificationStatus, UpdateInvoiceRequest } from '../types';
 import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getInvoiceNotificationLogs,
+  previewInvoicePdf,
+  resendInvoiceNotifications,
+} from '../services/api';
 
 const formatStatus = (status: string) => {
   const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -59,6 +64,32 @@ const formatPaymentMethod = (method: string) => {
   return methodMap[method] || method;
 };
 
+const formatNotificationBadge = (status: NotificationStatus | null | undefined) => {
+  const normalized = status ?? 'SKIPPED';
+
+  if (normalized === 'SENT') {
+    return (
+      <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
+        Sent ✓
+      </Badge>
+    );
+  }
+
+  if (normalized === 'FAILED') {
+    return (
+      <Badge variant="outline" className="border-red-300 bg-red-50 text-red-700">
+        Failed ✗
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="secondary" className="bg-muted text-muted-foreground">
+      Skipped
+    </Badge>
+  );
+};
+
 export const InvoiceDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -68,10 +99,52 @@ export const InvoiceDetailPage = () => {
   const [editFormData, setEditFormData] = useState<UpdateInvoiceRequest>({});
   const [editErrors, setEditErrors] = useState<Record<string, string[]>>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [notificationToast, setNotificationToast] = useState<string | null>(null);
 
   const { data: invoice, isLoading, error, refetch } = useInvoice(id);
   const updateInvoice = useUpdateInvoice();
   const deleteInvoice = useDeleteInvoice();
+  const queryClient = useQueryClient();
+
+  const {
+    data: notificationLogs,
+    isLoading: notificationLogsLoading,
+    error: notificationLogsError,
+  } = useQuery<NotificationLog[], Error>({
+    queryKey: ['invoice-notification-logs', id],
+    queryFn: () => getInvoiceNotificationLogs(id!),
+    enabled: !!id,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: (invoiceId: number | string) => resendInvoiceNotifications(invoiceId),
+    onSuccess: () => {
+      setNotificationToast('Notifications queued');
+      setTimeout(() => setNotificationToast(null), 3000);
+      queryClient.invalidateQueries({ queryKey: ['invoice-notification-logs', id] });
+    },
+  });
+
+  const previewInvoiceMutation = useMutation({
+    mutationFn: () => {
+      const invoiceId = invoice?.id ?? id;
+      if (!invoiceId) {
+        throw new Error('Invoice id is missing');
+      }
+      return previewInvoicePdf(invoiceId);
+    },
+    onSuccess: (data) => {
+      if (data?.preview_url) {
+        window.open(data.preview_url, '_blank', 'noopener,noreferrer');
+      }
+    },
+    onError: () => {
+      setNotificationToast('Failed to preview invoice PDF');
+      setTimeout(() => setNotificationToast(null), 3000);
+    },
+  });
 
   if (isLoading) {
     return (
@@ -156,12 +229,23 @@ export const InvoiceDetailPage = () => {
   const canEdit = invoice.status === 'DRAFT' || invoice.status === 'SENT';
   const canDelete = invoice.status === 'DRAFT';
 
+  const emailLog = notificationLogs?.find((l) => l.channel === 'EMAIL');
+  const whatsappLog = notificationLogs?.find((l) => l.channel === 'WHATSAPP');
+  const showWhatsappRow = invoice.notification_summary?.whatsapp != null;
+
   return (
     <div className="container mx-auto py-8">
       {successMessage && (
         <Alert className="mb-6">
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription>{successMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {notificationToast && (
+        <Alert className="mb-6">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertDescription>{notificationToast}</AlertDescription>
         </Alert>
       )}
 
@@ -377,7 +461,120 @@ export const InvoiceDetailPage = () => {
           </Card>
         )}
 
-        {/* Notes */}
+        {/* Notifications */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Notifications</CardTitle>
+            <CardDescription>Per-channel delivery status for this invoice</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Payment link:</span> No payment link
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => previewInvoiceMutation.mutate()}
+                  disabled={previewInvoiceMutation.isPending || !id}
+                >
+                  Preview PDF
+                </Button>
+                <Button
+                  onClick={() => resendMutation.mutate(invoice?.id ?? id)}
+                  disabled={resendMutation.isPending || !id}
+                >
+                  {resendMutation.isPending ? 'Queueing...' : 'Resend Notifications'}
+                </Button>
+              </div>
+            </div>
+
+            {notificationLogsLoading ? (
+              <LoadingState message="Loading notification logs..." />
+            ) : notificationLogsError ? (
+              <ErrorState
+                error={notificationLogsError}
+                onRetry={() => queryClient.invalidateQueries({ queryKey: ['invoice-notification-logs', id] })}
+                title="Failed to load notification logs"
+              />
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Channel</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>Error</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          Email
+                        </div>
+                      </TableCell>
+                      <TableCell>{formatNotificationBadge(emailLog?.status ?? invoice.notification_summary?.email ?? null)}</TableCell>
+                      <TableCell>
+                        {emailLog?.sent_at ? formatDateTime(emailLog.sent_at) : '—'}
+                      </TableCell>
+                      <TableCell className="max-w-[360px]">
+                        {emailLog?.error_detail ? (
+                          <details>
+                            <summary className="cursor-pointer text-sm text-muted-foreground">
+                              View error
+                            </summary>
+                            <div className="mt-1 text-sm text-destructive whitespace-pre-wrap">
+                              {emailLog.error_detail}
+                            </div>
+                          </details>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+
+                    {showWhatsappRow && (
+                      <TableRow>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                            WhatsApp
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {formatNotificationBadge(
+                            whatsappLog?.status ?? invoice.notification_summary?.whatsapp ?? null
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {whatsappLog?.sent_at ? formatDateTime(whatsappLog.sent_at) : '—'}
+                        </TableCell>
+                        <TableCell className="max-w-[360px]">
+                          {whatsappLog?.error_detail ? (
+                            <details>
+                              <summary className="cursor-pointer text-sm text-muted-foreground">
+                                View error
+                              </summary>
+                              <div className="mt-1 text-sm text-destructive whitespace-pre-wrap">
+                                {whatsappLog.error_detail}
+                              </div>
+                            </details>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {invoice.notes && (
           <Card>
             <CardHeader>

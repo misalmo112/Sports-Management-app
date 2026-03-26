@@ -1,0 +1,13 @@
+{{ email_subject }}
+
+Hello {{ parent_first_name }},
+
+Your payment has been confirmed.
+
+Amount: {{ amount }}
+
+Receipt PDF: {{ pdf_url }}
+
+Regards,
+{{ academy_name }}
+

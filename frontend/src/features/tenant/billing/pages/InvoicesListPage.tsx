@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { Plus, Search, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Eye, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Minus } from 'lucide-react';
 import { useInvoices } from '../hooks/hooks';
 import { LoadingState } from '@/shared/components/common/LoadingState';
 import { ErrorState } from '@/shared/components/common/ErrorState';
@@ -163,6 +163,7 @@ export const InvoicesListPage = () => {
                       <TableHead>Invoice Number</TableHead>
                       <TableHead>Parent</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Notifications</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Paid</TableHead>
                       <TableHead>Remaining</TableHead>
@@ -174,6 +175,41 @@ export const InvoicesListPage = () => {
                   <TableBody>
                     {filteredResults.map((invoice) => {
                       const statusInfo = formatStatus(invoice.status);
+
+                      const email = invoice.notification_summary?.email ?? null;
+                      const whatsapp = invoice.notification_summary?.whatsapp ?? null;
+
+                      const anySent = email === 'SENT' || whatsapp === 'SENT';
+                      const anyFailed = email === 'FAILED' || whatsapp === 'FAILED';
+
+                      const tooltipParts: string[] = [];
+                      if (email === 'SENT') tooltipParts.push('Email sent');
+                      if (whatsapp === 'SENT') tooltipParts.push('WhatsApp sent');
+                      if (email === 'FAILED') tooltipParts.push('Email failed');
+                      if (whatsapp === 'FAILED') tooltipParts.push('WhatsApp failed');
+                      if (email === 'SKIPPED') tooltipParts.push('Email skipped');
+                      if (whatsapp === 'SKIPPED') tooltipParts.push('WhatsApp skipped');
+
+                      let tooltip = 'No notifications yet';
+                      if (anySent) {
+                        tooltip = tooltipParts.filter((p) => p.includes('sent')).join(' · ');
+                      } else if (anyFailed) {
+                        // Prefer the WhatsApp failed phrasing when applicable.
+                        if (whatsapp === 'FAILED') tooltip = 'WhatsApp failed — click to resend';
+                        else if (email === 'FAILED') tooltip = 'Email failed — click to resend';
+                        else tooltip = tooltipParts.join(' · ');
+                      } else if (tooltipParts.length > 0) {
+                        tooltip = tooltipParts.join(' · ');
+                      }
+
+                      const notificationIcon = anySent ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      ) : anyFailed ? (
+                        <XCircle className="h-4 w-4 text-red-600" />
+                      ) : (
+                        <Minus className="h-4 w-4 text-muted-foreground" />
+                      );
+
                       return (
                         <TableRow
                           key={invoice.id}
@@ -193,6 +229,11 @@ export const InvoicesListPage = () => {
                           </TableCell>
                           <TableCell>
                             <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center" title={tooltip}>
+                              {notificationIcon}
+                            </span>
                           </TableCell>
                           <TableCell>{formatCurrency(invoice.total, invoice.currency)}</TableCell>
                           <TableCell>

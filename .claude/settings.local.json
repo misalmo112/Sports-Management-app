@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(DJANGO_SETTINGS_MODULE=config.settings.base python -c \"\nimport django; django.setup\\(\\)\nfrom saas_platform.audit.models import AuditLog, AuditAction, ResourceType, ErrorLog\n\nprint\\('=== A.1 GATE CHECKS ==='\\)\nfields = [f.name for f in AuditLog._meta.get_fields\\(\\)]\nprint\\('scope field on AuditLog:', 'scope' in fields\\)\nfrom saas_platform.audit.services import TenantAuditService\nprint\\('TenantAuditService: YES'\\)\nfrom shared.mixins.audit import AuditMixin\nprint\\('AuditMixin: YES'\\)\nprint\\('AuditAction.ENROLL:', AuditAction.ENROLL\\)\nprint\\('AuditAction.BULK_DELETE:', AuditAction.BULK_DELETE\\)\nprint\\('ResourceType.STUDENT:', ResourceType.STUDENT\\)\nprint\\('ResourceType.COMMUNICATION:', ResourceType.COMMUNICATION\\)\n\nprint\\(\\)\nprint\\('=== B.1 GATE CHECKS ==='\\)\nprint\\('ErrorLog.Severity.CRITICAL:', ErrorLog.Severity.CRITICAL\\)\nefields = [f.name for f in ErrorLog._meta.get_fields\\(\\)]\nfor fname in ['severity','is_resolved','resolved_by','resolved_at','occurrence_count','last_seen_at']:\n    print\\(f'  {fname}:', fname in efields\\)\nfrom saas_platform.audit.services import ErrorLogService\nprint\\('ErrorLogService: YES'\\)\n\" 2>&1)",
+      "Bash(head -15 grep -n \"class.*ViewSet\\\\|AuditMixin\\\\|audit_resource_type\\\\|from shared.mixins\" /c/Users/misal/OneDrive/Belgeler/Projects/Github/Sports-Management-app/backend/tenant/facilities/views.py)",
+      "Bash(sort echo:*)",
+      "Bash(head -5 grep -n \"activity-log\\\\|ClipboardList\\\\|ActivityLog\" /c/Users/misal/OneDrive/Belgeler/Projects/Github/Sports-Management-app/frontend/src/shared/nav/navigation.ts)",
+      "Bash(docker compose:*)"
+    ]
+  }
+}

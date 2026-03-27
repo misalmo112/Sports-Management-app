@@ -64,8 +64,8 @@ test.describe('@admin-panel Academy Admin Panel E2E', () => {
     });
 
     test('should have navigation menu accessible', async ({ page }) => {
-      // Check for common navigation items
-      const navItems = ['Overview', 'Students', 'Classes', 'Attendance', 'Finance', 'Users'];
+      // Check for primary navigation groups plus the current overview item
+      const navItems = ['Home', 'Operations', 'Finance', 'People', 'Academy', 'Settings', 'Overview'];
       
       for (const item of navItems) {
         const navElement = page.getByText(item, { exact: false }).first();

@@ -4,7 +4,7 @@
  * Displays role-based navigation menu with collapsible groups and active route highlighting
  */
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/shared/utils/cn';
@@ -23,7 +23,7 @@ interface SidebarProps {
 export function Sidebar({ className, collapsed = false, onToggleCollapsed }: SidebarProps) {
   const location = useLocation();
   const userRole = getCurrentUserRole();
-  const navigationGroups = getNavigationForRole(userRole);
+  const navigationGroups = useMemo(() => getNavigationForRole(userRole), [userRole]);
 
   const hasInvoiceSchedulesNav = navigationGroups.some((g) =>
     g.items.some((i) => i.id === 'invoice-schedules')
@@ -80,9 +80,41 @@ export function Sidebar({ className, collapsed = false, onToggleCollapsed }: Sid
     },
   });
 
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(navigationGroups.map(g => g.id)) // All groups expanded by default
-  );
+  const getDefaultExpandedGroups = () => {
+    const activeGroup = navigationGroups.find((group) =>
+      group.items.some((item) => isRouteActive(location.pathname, item))
+    );
+
+    if (activeGroup) {
+      return new Set([activeGroup.id]);
+    }
+
+    return navigationGroups[0] ? new Set([navigationGroups[0].id]) : new Set<string>();
+  };
+
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(getDefaultExpandedGroups);
+
+  useEffect(() => {
+    const activeGroup = navigationGroups.find((group) =>
+      group.items.some((item) => isRouteActive(location.pathname, item))
+    );
+
+    setExpandedGroups((prev) => {
+      if (activeGroup) {
+        if (prev.has(activeGroup.id)) {
+          return prev;
+        }
+
+        return new Set([activeGroup.id]);
+      }
+
+      if (prev.size > 0 || !navigationGroups[0]) {
+        return prev;
+      }
+
+      return new Set([navigationGroups[0].id]);
+    });
+  }, [location.pathname, navigationGroups]);
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups(prev => {

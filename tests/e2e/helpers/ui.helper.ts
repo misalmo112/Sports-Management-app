@@ -47,7 +47,34 @@ export class UIHelper {
    * Click on a navigation menu item by text
    */
   async clickNavItem(text: string): Promise<void> {
-    const navItem = this.page.locator(`text=${text}`).first();
+    const linkMatcher = new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const navItem = this.page.getByRole('link', { name: linkMatcher }).first();
+
+    if (!(await navItem.isVisible().catch(() => false))) {
+      const groupByItem: Record<string, string> = {
+        Attendance: 'Operations',
+        Classes: 'Operations',
+        Invoices: 'Finance',
+        Media: 'Academy',
+        Overview: 'Home',
+        Receipts: 'Finance',
+        Reports: 'Academy',
+        Settings: 'Settings',
+        Staff: 'People',
+        Students: 'Operations',
+        Users: 'People',
+      };
+
+      const groupLabel = groupByItem[text];
+      if (groupLabel) {
+        const groupButton = this.page.getByRole('button', { name: new RegExp(groupLabel, 'i') }).first();
+        if (await groupButton.isVisible().catch(() => false)) {
+          await groupButton.click();
+          await this.page.waitForTimeout(200);
+        }
+      }
+    }
+
     await navItem.waitFor({ state: 'visible', timeout: 5000 });
     await navItem.click();
     await this.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});

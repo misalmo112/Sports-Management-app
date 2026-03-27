@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { ArrowRight, Building2, CreditCard, KeyRound, Package2, ShieldCheck, Upload } from 'lucide-react';
+import { ArrowRight, Building2, CreditCard, KeyRound, Package2, ShieldCheck, Tag, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { ErrorState } from '@/shared/components/common/ErrorState';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 import { useCurrentAccount, useAcademySettings, useAcademySubscription, useAcademyUsage } from '../hooks/hooks';
 
 const operationsLinks = [
+  { label: 'Tax', path: '/dashboard/settings/tax' },
   { label: 'Locations', path: '/dashboard/settings/locations' },
   { label: 'Sports', path: '/dashboard/settings/sports' },
   { label: 'Terms', path: '/dashboard/settings/terms' },
@@ -127,6 +128,12 @@ export const SettingsHomePage = () => {
                 description="Track active usage against plan limits for seats, classes, and storage."
                 path="/dashboard/settings/usage"
                 icon={Package2}
+              />
+              <QuickLink
+                title="Tax"
+                description="Manage academy tax rules, rates, and finance-related defaults."
+                path="/dashboard/settings/tax"
+                icon={Tag}
               />
             </CardContent>
           </Card>
